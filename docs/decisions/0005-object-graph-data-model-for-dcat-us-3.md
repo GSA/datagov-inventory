@@ -202,7 +202,7 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
 
 ### Open question: what becomes of the publishers reference data?
 
-`config/data/inventory_publishers.csv` (~270 rows encoding a department → bureau
+[config/data/inventory_publishers.csv](https://github.com/GSA/inventory-app/blob/main/config/data/inventory_publishers.csv) (~270 rows encoding a department → bureau
 hierarchy) was v1's organization registry. With no tenant entity in v2 it is no
 longer structural data, and its only remaining candidate purpose is **seed data
 for reusable DCAT `Organization` objects** so that agency staff select a canonical

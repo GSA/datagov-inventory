@@ -7,13 +7,6 @@ extensions (`nist_controls`, `impact_level`, `ato_relevance`, `risk_treatment`).
 ADR numbers are sequential and are never reused, including for superseded
 records, to preserve the audit trail.
 
-> **These documents are temporarily hosted in the v1 repository.**
-> [ADR 0001](0001-repository-topology-for-inventory-v2.md) decides that v2 is
-> built in a new repository (`GSA/datagov-inventory`); this `docs/` tree moves
-> there once it exists. All v1 code citations are pinned to
-> [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c)
-> (2026-09-04) so they stay accurate after the move.
-
 ## Records
 
 | # | Title | Status | Date | ATO | NIST controls |
