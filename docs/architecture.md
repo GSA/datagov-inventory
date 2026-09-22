@@ -15,19 +15,13 @@ related_files:
 > built system. Every significant choice here is backed by a decision record in
 > [`docs/decisions/`](decisions/README.md), and **all nine of those records are
 > `proposed`, not `accepted`** — all nine carry explicit blockers that could change
-> the design. See [Open blockers](#9-open-blockers). Nothing in this document
-> describes the code currently in this repository, which is the CKAN-based v1.
+> the design. See [Open blockers](#9-open-blockers).
 >
-> **This document is temporarily hosted in the v1 repository.** Per
-> [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md), v2 is built
-> in a new repository (`GSA/datagov-inventory`); these documents move there once
-> it exists. All v1 code citations are pinned to
-> [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c)
-> (2026-09-04) so they remain accurate after the move.
 
 ## 1. Why v2 exists
 
-The current application is a CKAN 2.11.5 monolith (a GSA fork pinned to a
+Code for the current, v1 version of inventory.data.gov lives in https://github.com/GSA/inventory-app.
+The current app is a CKAN 2.11.5 monolith (a GSA fork pinned to a
 `-nosolr` branch) with one custom extension and eight third-party or forked CKAN
 extensions. The [v2 feature list](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design)
 identifies the driving problem: *"the CKAN metadata model is not very compatible
@@ -52,7 +46,7 @@ pattern. Where this document departs from those two apps, it says so and why.
 
 ### The most important asset is already written
 
-`ckanext/datagov_inventory/dcat/` contains the DCAT-US 1.1 → 3.0 conversion and
+In the v1 repo, [ckanext/datagov_inventory/dcat/](https://github.com/GSA/inventory-app/tree/main/ckanext/datagov_inventory/dcat) contains the DCAT-US 1.1 → 3.0 conversion and
 validation subsystem — `validator.py` (620 lines), `transforms.py` (469),
 `dcat_converter.py` (281), `schema_paths.py` (24) — backed by ~1,600 lines of
 tests. It is pure Python and touches CKAN at exactly one place
@@ -602,7 +596,7 @@ live consumers of `/api/action/datastore_search` before this is announced.
 ## 8. Code organization
 
 Per [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md), v2 is
-built in a **new repository, `GSA/datagov-inventory`**, following the pattern of
+built in this **new repository**, following the pattern of
 `datagov-catalog` and `datagov-harvester`. v1 remains in `GSA/inventory-app` and
 stays in production until every agency has completed re-import
 ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)) — the two
@@ -637,7 +631,7 @@ flowchart TB
     HARV -.-> UPSTREAM
 ```
 
-### Extract the DCAT library first
+### Extract the DCAT library from GSA/inventory-app first
 
 `ckanext/datagov_inventory/dcat/` — `validator.py` (620 lines), `transforms.py`
 (469), `dcat_converter.py` (281), `schema_paths.py` (24), plus ~1,600 lines of

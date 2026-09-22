@@ -53,10 +53,6 @@ decision: it determines where those decisions are recorded and reviewed.
 - **Git history should be legible.** A repository whose history shows a Flask app
   grown inside a CKAN extension, followed by mass deletion of the extension, is
   harder to audit than two repositories with coherent histories (CM-3).
-- **The team needs to review these documents today.** Provisioning a new
-  repository to the [new-repository checklist](https://github.com/GSA/data.gov/wiki/Checklist-for-new-repositories)
-  requires organization-level administrative action that will take longer than
-  that. Documentation availability must not block on infrastructure.
 
 ## Considered Options
 
@@ -85,29 +81,6 @@ history remains fully available in `GSA/inventory-app`, which is not going away.
 Option 4 is rejected as a larger change to team workflow than this decision
 should carry, and it contradicts the established per-application repository
 pattern.
-
-### Interim arrangement: documents land in `GSA/inventory-app` first
-
-Because repository provisioning takes longer than the team's need to review the
-architecture, the v2 architecture document and decision records are landing in
-`GSA/inventory-app` under `docs/` **as an explicitly temporary arrangement**, and
-will be moved to `GSA/datagov-inventory` once it exists.
-
-To make the move clean and to keep the documents accurate in the meantime:
-
-- All v1 code citations are qualified to
-  [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c)
-  and pinned to that commit, so they remain correct after the move and do not
-  drift as v1 continues to change (145 commits in the 90 days before this
-  record).
-- The move is `git mv` plus an index update — no content rewrite is required.
-- `GSA/inventory-app`'s `README.md` gains a pointer to the new repository once it
-  exists, since a new repository has no watchers and a pull request there is easy
-  to miss.
-
-**This interim state must be tracked, not remembered** (AGENTS.md §15.5). The
-move is a tracked issue filed when the repository is requested, not a task
-deferred to memory.
 
 ### Open question: where does the shared DCAT-US library live?
 
@@ -163,15 +136,8 @@ since extraction is on the critical path for v2.
 ### Negative Consequences
 
 - **Repository provisioning is organizational work on the critical path for
-  code**, though not for documentation review (see the interim arrangement).
-  Requires GSA org placement, protected `main`, four team permission grants,
+  code**. Requires GSA org placement, protected `main`, four team permission grants,
   `LICENSE`/`CONTRIBUTING`/`README`, CI/CD, and Snyk.
-- **The documents move once**, and the interim state is a real (if small) risk:
-  if the move is forgotten, the v2 architecture permanently lives in the v1
-  repository — the exact confusion this decision exists to prevent. Mitigated by
-  tracking the move as an issue, not by intent.
-- Cross-repository references are needed while both exist. Mitigated by pinning
-  citations to a commit.
 - Two repositories to configure, monitor, and keep in dependency-scanning scope
   during the transition.
 - **Any genuinely shared code must be deliberately shared**, which is the
