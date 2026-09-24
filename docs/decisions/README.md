@@ -20,8 +20,9 @@ records, to preserve the audit trail.
 | [0007](0007-retire-tabular-datastore-api.md) | Retire the tabular DataStore API in Inventory v2 | proposed | 2026-09-21 | **yes-boundary** | CM-7, SA-8, AC-3, SI-10, CM-4 |
 | [0008](0008-onboard-via-data-json-reimport.md) | Onboard agencies by re-importing published data.json rather than migrating from CKAN | proposed | 2026-09-21 | yes-internal | CM-3, SI-10, SI-12, CP-9, CM-4, SA-8 |
 | [0009](0009-terraform-cloudgov-for-infrastructure.md) | Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules | proposed | 2026-09-21 | **yes-boundary** | CM-2, CM-3, CM-6, CM-8, CM-9, SC-7, SC-12, SC-28, AC-3, AC-5, SA-8, SR-3 |
+| [0010](0010-depend-on-upstream-dcat-us-code.md) | Consume DCAT-US conversion and validation code from the pinned GSA/dcat-us submodule rather than forking it | proposed | 2026-09-24 | yes-internal | SR-3, SR-4, SR-11, RA-5, CM-2, CM-3, CM-8, SI-10, SA-8 |
 
-**By status:** 9 proposed, 0 accepted, 0 deprecated, 0 superseded.
+**By status:** 10 proposed, 0 accepted, 0 deprecated, 0 superseded.
 
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
@@ -42,7 +43,8 @@ technical core — the CKAN data-model mismatch is the reason v2 exists at all.
 `CM-2`, `CM-3`, `CM-4`, `CM-6`, `CM-7`, `CM-8`, `CM-9`, `CP-9`, `IA-2`,
 `IA-2(1)`, `IA-2(12)`, `IA-5`, `IA-8`, `IR-4`, `IR-6`, `PS-4`, `RA-5`, `SA-5`,
 `SA-8`, `SA-15`, `SC-7`, `SC-8`, `SC-12`, `SC-13`, `SC-17`, `SC-18`, `SC-28`,
-`SI-3`, `SI-3(1)`, `SI-3(2)`, `SI-7`, `SI-10`, `SI-12`, `SI-15`
+`SI-3`, `SI-3(1)`, `SI-3(2)`, `SI-7`, `SI-10`, `SI-12`, `SI-15`, `SR-3`, `SR-4`,
+`SR-11`
 
 ## Blockers before any record is accepted
 
@@ -51,7 +53,7 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 
 | ADR | Blocker | Type |
 |-----|---------|------|
-| 0001 | Request `GSA/datagov-inventory` per the [new-repository checklist](https://github.com/GSA/data.gov/wiki/Checklist-for-new-repositories); decide where the shared DCAT-US library lives (needs harvester team input, since `datagov-harvester` already validates DCAT-US). | Organizational + design |
+| 0001 | Request `GSA/datagov-inventory` per the [new-repository checklist](https://github.com/GSA/data.gov/wiki/Checklist-for-new-repositories). | Organizational |
 | 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. Option (B) reverses the decision toward an SPA. **A reversal condition has already been triggered** — anonymous browser-memory editing is now scheduled 2.1, not long-term — so Options 1, 2, and 3 must be re-weighed together with the editing model. | Product |
 | 0003 | Login.gov must confirm OIDC client registration with `acr_values` AAL3 + HSPD-12 per environment, and the returned `acr` claim must be verified in the sandbox. If unavailable, fall back to SAML. | External dependency |
 | 0004 | Confirm whether an email-domain allowlist is wanted, and define how the *first* `admin` permission on a new catalog is granted (bootstrap path). | Product + design |
@@ -60,6 +62,7 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 | 0007 | Query production access logs and New Relic for `datastore_search`, `datastore_search_sql`, and `/datastore/*` consumers before announcing removal. Required CM-4 impact analysis. | Data |
 | 0008 | Records officer determination on whether v1 edit history requires NARA retention; if so, archive the v1 database before decommissioning. | Compliance |
 | 0009 | Verify each module's `variables.tf` for a Flask (non-Rails) app; decide Terraform vs. OpenTofu; provision and document the encrypted state backend; decide whether Terraform manages CI deployer service keys; confirm `logshipper` scope. | Design + organizational |
+| 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode = true`, tags, a relaxed `requires-python`) is an acceptable target, and choose the initial pinned submodule commit. Neither answer blocks starting on the chosen option. | External + design |
 
 **Start ADR 0003 first.** It is the only blocker with an external dependency and
 a lead time outside the team's control, it spans three environments, and ADR 0004
@@ -94,7 +97,7 @@ dependency versions — were verified against that commit. The reasoning,
 recommendations, and rejected alternatives were **not** verified by anyone and
 require human review.
 
-Read them accordingly. Two cautions in particular:
+Read them accordingly. Three cautions in particular:
 
 - Several records make recommendations on **product questions** (the editing
   model in ADR 0002, the domain allowlist in ADR 0004, the file-size cap in

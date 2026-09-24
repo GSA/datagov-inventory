@@ -3,7 +3,7 @@ title: "inventory.data.gov v2 System Architecture"
 description: "Target architecture for the non-CKAN rewrite of inventory.data.gov — components, technologies, data model, and key flows"
 status: draft
 tier: 2
-last_updated: "2026-09-21"
+last_updated: "2026-09-24"
 related_files:
   - "docs/decisions/README.md"
   - "README.md"
@@ -44,18 +44,6 @@ both left CKAN in 2025 for **Python 3.12 / Flask / Postgres / cloud.gov / nginx
 proxy / New Relic**. Inventory v2 is deliberately the third instance of that
 pattern. Where this document departs from those two apps, it says so and why.
 
-### The most important asset is already written
-
-In the v1 repo, [ckanext/datagov_inventory/dcat/](https://github.com/GSA/inventory-app/tree/main/ckanext/datagov_inventory/dcat) contains the DCAT-US 1.1 → 3.0 conversion and
-validation subsystem — `validator.py` (620 lines), `transforms.py` (469),
-`dcat_converter.py` (281), `schema_paths.py` (24) — backed by ~1,600 lines of
-tests. It is pure Python and touches CKAN at exactly one place
-(`plugin.py:345-407`, the blueprint view).
-
-**Extract it as a standalone library first.** It de-risks the rewrite more than
-any other single action, and it is the foundation of both the export path and the
-agency onboarding path.
-
 ## 2. Container view
 
 ```mermaid
@@ -63,7 +51,7 @@ flowchart TB
     subgraph clients["Clients"]
         GOV["Agency data manager<br/>PIV/CAC"]
         PUB["Anonymous public user<br/>(2.1 — not MVP)"]
-        HARV["harvest.data.gov<br/>(long term: dcatus3.0 source)"]
+        HARV["harvest.data.gov<br/>(2.1 - not MVP: dcatus3.0 source)"]
     end
 
     IDP["<b>Login.gov</b><br/>OIDC · AAL3 + HSPD-12<br/>authorization code + PKCE<br/>private_key_jwt"]
@@ -85,7 +73,7 @@ flowchart TB
 
     NR["New Relic<br/>gov-collector.newrelic.com"]
     LOG["cloud.gov log drain → Logstack"]
-    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule"]
+    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>schemas + conversion code<br/>pinned commit — ADR 0010"]
 
     GOV --> PROXY
     PUB --> PROXY
@@ -143,8 +131,9 @@ deployed environment.
 | Auth | Login.gov OIDC via Authlib | [ADR 0003](decisions/0003-login-gov-oidc-instead-of-saml.md). Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`. |
 | Session | Flask-Login + server-side sessions in Postgres, 900 s idle | Real revocation on logout. v1 also stores sessions in Postgres (`.profile:106`) but via Beaker. |
 | Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks. |
-| Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Reuse `validator.py` unchanged. |
-| Schemas | `_external/dcat-us` git submodule + Dependabot | Already the pattern; keep it. |
+| Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production. |
+| Conversion (1.1 → 3.0) | Upstream `transforms.py` + `convert_dcat_1_1_to_3_0.py` | Not re-implemented, not forked from v1. Consumed from the pinned submodule per [ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md). |
+| Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Already the pattern. **Pinning is now load-bearing**: v2 executes code from this submodule, not only reads schemas ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md); SR-3). |
 | File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | |
 | Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning. |
 | Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check. |
@@ -159,7 +148,7 @@ deployed environment.
 - **OpenSearch** — wrong scale for Inventory; adds a service to operate.
 - **Redis** — nothing left needs it once the DataStore and RQ are gone.
 - **A client-side router / SPA** — see [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md), including the conditions that would reverse that decision.
-- **Client-side validation as authoritative** — a second validator would drift from `validator.py`. Any client-side check is advisory only.
+- **Client-side validation as authoritative** — a second validator would drift from the upstream Python one. Any client-side check is advisory only.
 
 ## 4. Data model
 
@@ -375,7 +364,7 @@ sequenceDiagram
     actor U as Data manager
     participant W as inventory
     participant DB as Postgres
-    participant V as dcat-us library
+    participant V as upstream dcat-us code
     participant S3
 
     U->>W: GET /catalog/{id}/export?format=dcat-us-3
@@ -442,8 +431,9 @@ scanner restarts, and crashed scans all self-heal. It reuses the
 flowchart LR
     A["agency.gov/data.json<br/>DCAT-US 1.1 — already public"] --> B["POST /catalog/import<br/>(via egress proxy)"]
     B --> C["validate 1.1"]
-    C --> D["transforms.py<br/>12 dataset-level transforms"]
-    D --> E["validate 3.0"]
+    C --> D["upstream transforms.py<br/>13 dataset-level transforms"]
+    D --> D2["upstream isPartOf →<br/>DatasetSeries promotion"]
+    D2 --> E["validate 3.0"]
     E --> F["decompose to objects<br/>dedupe via payload_hash"]
     F --> G["catalog in draft state"]
     G --> H["human review → live → export"]
@@ -452,7 +442,10 @@ flowchart LR
 
 There is **no CKAN migration path** ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)).
 The onboarding path and the migration path are the same code, so it is exercised
-continuously rather than once at cutover. Imported catalogs are untrusted input:
+continuously rather than once at cutover. The 1.1 validation, transforms,
+`DatasetSeries` promotion, and 3.0 validation are all upstream
+`GSA/dcat-us` code ([§1](#the-conversion-code-already-exists--upstream-not-in-v1));
+only the decompose step is Inventory's. Imported catalogs are untrusted input:
 fetched through the egress proxy, validated on both sides, and subject to the
 live-catalog URL scanning the feature list requires.
 
@@ -607,60 +600,78 @@ flowchart TB
     subgraph new["GSA/datagov-inventory (new)"]
         direction TB
         APP["app/ — Flask application<br/>views · forms · auth · models"]
-        LIB["dcat/ — pure Python library<br/>validate · transform · decompose/assemble<br/>schema→form model<br/><i>no Flask, no models, no DB</i>"]
+        LIB["dcat/ — pure Python, Inventory-owned<br/>decompose/assemble · schema→form model<br/>export-run orchestration<br/><i>no Flask, no models, no DB</i>"]
         SCANAPP["scanner/ — clamd wrapper app"]
         PROXYD["proxy/ — nginx config"]
         DOCS["docs/ — architecture.md + decisions/"]
-        SUB["_external/dcat-us — git submodule"]
+        SUB["_external/dcat-us — git submodule<br/>schemas <b>+ transforms.py + converter</b><br/>pinned to a reviewed commit"]
         APP --> LIB
         LIB --> SUB
     end
 
     subgraph old["GSA/inventory-app (v1, maintenance)"]
-        CKAN["ckanext/datagov_inventory/<br/>dcat/ ← extraction source"]
+        CKAN["ckanext/datagov_inventory/dcat/<br/><i>stale fork of upstream</i><br/><i>not an extraction source</i>"]
     end
 
     subgraph plat["Platform"]
-        HARV["GSA/datagov-harvester<br/><i>already validates DCAT-US</i><br/><i>already vendors _external/dcat-us</i>"]
-        UPSTREAM["GSA/dcat-us<br/>schema + reference converter"]
+        HARV["GSA/datagov-harvester<br/><i>own error humanizer + dcat_warnings</i><br/><i>also vendors _external/dcat-us</i>"]
+        UPSTREAM["GSA/dcat-us · jsonschema/<br/>schemas · transforms · converter<br/><b>the source of truth</b>"]
     end
 
-    CKAN -.->|"extract first"| LIB
-    HARV -.->|"potential duplication —<br/>see open question"| LIB
-    SUB -.-> UPSTREAM
-    HARV -.-> UPSTREAM
+    SUB -.->|"consume, don't fork"| UPSTREAM
+    CKAN -.->|"re-sync or retire<br/>(v1 remediation)"| UPSTREAM
+    HARV -.->|"duplicate error reporting —<br/>dedupe belongs upstream"| UPSTREAM
 ```
 
-### Extract the DCAT library from GSA/inventory-app first
+### Consume upstream; own only the graph layer
 
-`ckanext/datagov_inventory/dcat/` — `validator.py` (620 lines), `transforms.py`
-(469), `dcat_converter.py` (281), `schema_paths.py` (24), plus ~1,600 lines of
-tests — is pure Python and touches CKAN at exactly one place
-(`plugin.py:345-407`, the blueprint view). It is the foundation of both the export
-path (§5.2) and agency onboarding (§5.4).
+The DCAT-US 1.1 → 3.0 conversion and validation code v2 needs is already written
+and already vendored. It lives in
+[`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema), the same
+repository that hosts the schemas, which v1 and `datagov-harvester` both already
+carry as the `_external/dcat-us` submodule:
 
-The library boundary is a hard rule: **no Flask, no Inventory models, no database
-access.** Its only inputs are JSON documents and schema paths. This is what makes
-it callable from the web app, from `cf run-task` commands, from a CLI, and — if
-promoted to a shared repository later — from another application.
+| Upstream `jsonschema/` | Lines | What it provides |
+|---|---|---|
+| `transforms.py` | 499 | 13 dataset-level 1.1 → 3.0 transforms |
+| `convert_dcat_1_1_to_3_0.py` | 558 | Fetch, dual-side validation, `isPartOf` → `DatasetSeries` promotion, error summarization, CLI |
+| `v1.1_definitions/` (5 files) | — | The DCAT-US 1.1 schemas, which have no other published home |
+| `tests/` (3 files) | 719 | Transform, conversion, and CLI coverage |
 
-### Open question: one DCAT library or two?
+What upstream does not have, and v2 must build:
 
-`datagov-harvester` **already validates DCAT-US against JSON Schema** in its
-VALIDATE pipeline stage, already vendors `_external/dcat-us` as a submodule, and
-already serves the public validator at `harvest.data.gov/validate/`. If Inventory
-extracts its own validation library and the harvester keeps its own, the platform
-will have two Python implementations of DCAT-US validation drifting apart — and
-that drift surfaces to agency publishers as inconsistent results between the
-harvester's public validator and Inventory's export report.
+- **Graph decompose / assemble** — 3.0 nested JSON ⟷ the object graph in
+  [§4](#4-data-model). This is the technical core of v2 and is Inventory-specific.
+- **Schema → form-model generation** — driving the editor from the schema
+  ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)).
+- **Export-run orchestration** — `export_run` records, ZIP assembly, presigned
+  delivery ([§5.2](#52-export-with-error-reporting)).
 
-Three options — a package inside `datagov-inventory`, a third shared repository,
-or contributing upstream to `GSA/dcat-us` — are laid out in
-[ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md#open-question-where-does-the-shared-dcat-us-library-live).
-The recommendation is to start with the in-repo package while designing the
-boundary as if it were shared, so promotion is a move rather than a rewrite.
-**This needs the harvester team's input before extraction begins**, since
-extraction is on v2's critical path.
+#### Consuming upstream is a packaging problem, not an extraction problem
+
+The code is already on disk via the submodule, so nothing needs extracting to
+*use* it. What is missing is a supported way to *depend* on it — see
+[ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md), which decides this:
+
+- `jsonschema/pyproject.toml` declares `[tool.poetry] package-mode = false` — it
+  is explicitly not an installable package.
+- The repository has **no tags and no releases**, so there is no version to pin.
+- The scripts are script-shaped, not import-shaped: `import transforms`,
+  `SCRIPT_DIR / "v1.1_definitions"`.
+- Upstream declares `requires-python = ">=3.13,<4.0"`, above v2's Python 3.12
+  ([§3](#3-technology-choices)). Nothing in the code uses 3.13-only syntax, but
+  the floor has to be reconciled.
+
+ADR 0010 chooses **import from the pinned submodule now, behind a single adapter
+module, with upstream packaging as the declared target.** Two consequences of this
+being an import rather than an extraction:
+
+- **The submodule must be pinned to a reviewed commit**, because v2 now executes
+  code from it. An unpinned `branch = main` submodule means every upstream commit
+  is an unreviewed code change in a FISMA-boundary application (SR-3, RA-5).
+- **Gaps get fixed upstream, not locally.** If `transforms.py` is missing a case
+  Inventory needs, the fix is a PR to `GSA/dcat-us`. A local patch recreates
+  exactly the fork this section is correcting.
 
 ## 9. Open blockers
 
@@ -670,7 +681,7 @@ area — until these clear. Reproduced from
 
 | ADR | Blocker | Type |
 |---|---|---|
-| 0001 | Request `GSA/datagov-inventory` per the new-repository checklist; decide where the shared DCAT-US library lives (needs harvester team input). | Organizational + design |
+| 0001 | Request `GSA/datagov-inventory` per the new-repository checklist. | Organizational |
 | 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. (B) reverses the decision toward an SPA. A reversal condition is **already triggered** (anonymous editing scheduled 2.1). | Product |
 | 0003 | Login.gov must confirm OIDC registration with `acr_values` AAL3+HSPD-12 per environment; verify the returned `acr` claim in the sandbox. If unavailable, fall back to SAML. | External |
 | 0004 | Confirm whether an email-domain allowlist is wanted; define how the first `admin` grant on a new catalog happens. | Product + design |
@@ -679,6 +690,7 @@ area — until these clear. Reproduced from
 | 0007 | Query access logs and New Relic for `datastore_search` consumers (required CM-4 impact analysis). | Data |
 | 0008 | Records-officer determination on NARA retention of v1 edit history; archive the v1 database if required. | Compliance |
 | 0009 | Verify module `variables.tf` for a Flask app; Terraform vs. OpenTofu; provision the encrypted state backend; scope of `logshipper`. | Design + organizational |
+| 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode`, tags, `requires-python`) is an acceptable target; choose the initial pinned submodule commit. | External + design |
 
 **Longest lead time: ADR 0003.** The Login.gov OIDC confirmation is the only
 blocker with an external dependency, spans three environments, and reverses a
@@ -708,8 +720,9 @@ changes relative to v1:
 ## 11. References
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — the v2 feature list
-- [Decision records index](decisions/README.md) — ADRs 0002–0007
+- [Decision records index](decisions/README.md) — ADRs 0001–0010
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) · [1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) · [GSA/dcat-us](https://github.com/GSA/dcat-us)
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — schemas **and** `transforms.py`, `convert_dcat_1_1_to_3_0.py`, `v1.1_definitions/`; the dependency described in [§1](#the-conversion-code-already-exists--upstream-not-in-v1)
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) · [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — the pattern being followed
 - [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) · [harvest.data.gov wiki](https://github.com/GSA/data.gov/wiki/harvest.data.gov) — `LoadManager` sweeper precedent
 - [inventory.data.gov wiki](https://github.com/GSA/data.gov/wiki/inventory.data.gov) — current-state operations
