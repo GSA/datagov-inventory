@@ -82,41 +82,6 @@ Option 4 is rejected as a larger change to team workflow than this decision
 should carry, and it contradicts the established per-application repository
 pattern.
 
-### Open question: where does the shared DCAT-US library live?
-
-ADRs 0002, 0005, and 0008 all depend on extracting
-`ckanext/datagov_inventory/dcat/` (validator, transforms, converter; ~1,400 lines
-plus ~1,600 lines of tests) into a pure-Python library. This record deliberately
-does **not** decide where it lives, because the answer requires input from the
-harvester team.
-
-The complication: **`datagov-harvester` already validates DCAT-US against JSON
-Schema** in its VALIDATE pipeline stage, already vendors `_external/dcat-us` as a
-git submodule, and already runs the public validator at
-`harvest.data.gov/validate/`. If Inventory extracts its own validation library
-and the harvester keeps its own, the platform will have two Python
-implementations of DCAT-US validation drifting apart — and drift between two
-validators is a correctness failure that reaches agency publishers as
-inconsistent results between the harvester's public validator and Inventory's
-export report.
-
-Options, to be decided in a follow-on record:
-
-- **(a) A package inside `datagov-inventory`.** Simplest; accepts the
-  duplication and the drift risk.
-- **(b) A third repository** (e.g. `GSA/datagov-dcat`) consumed by both
-  applications. Correct; highest coordination cost; adds a versioned internal
-  dependency and release process.
-- **(c) Contribute upstream to [`GSA/dcat-us`](https://github.com/GSA/dcat-us)**,
-  which already hosts the schema and a reference 1.1→3.0 conversion script.
-  Best alignment with the standard's home; least control over release cadence.
-
-Recommendation is to **start with (a) while designing the package boundary as if
-(b) were true** — no Flask, no Inventory models, no database access in the
-library — so promotion to a shared repository later is a move rather than a
-rewrite. This must be confirmed with the harvester team before extraction begins,
-since extraction is on the critical path for v2.
-
 ### Positive Consequences
 
 - v1 and v2 are independently deployable, patchable, and scannable. A v1 security
@@ -140,9 +105,6 @@ since extraction is on the critical path for v2.
   `LICENSE`/`CONTRIBUTING`/`README`, CI/CD, and Snyk.
 - Two repositories to configure, monitor, and keep in dependency-scanning scope
   during the transition.
-- **Any genuinely shared code must be deliberately shared**, which is the
-  question above. Co-hosting would have made sharing accidental and easy — and
-  the resulting coupling is precisely why co-hosting is rejected.
 
 ### Compliance Consequences
 
@@ -172,9 +134,9 @@ since extraction is on the critical path for v2.
 - [Checklist for new repositories](https://github.com/GSA/data.gov/wiki/Checklist-for-new-repositories) — provisioning requirements this decision invokes
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) and [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) — the precedent being followed
 - [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — documents `catalog-old.data.gov` running concurrently through fall 2026
-- [GSA/dcat-us](https://github.com/GSA/dcat-us) — schema home and candidate location (c) for the shared library
+- [GSA/dcat-us](https://github.com/GSA/dcat-us) — schema home **and** the home of `transforms.py` and `convert_dcat_1_1_to_3_0.py`; the dependency, not a candidate destination
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — no migration path, hence concurrent operation
-- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md), [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — consumers of the extracted DCAT library
+- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md), [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — consumers of the upstream DCAT-US code and owners of the Inventory-specific graph layer
 - [`docs/architecture.md`](../architecture.md) §8 — code organization
 - NIST SP 800-53 Rev 5.2 — CM-2, CM-3, CM-9, AC-3, SA-5, SA-8, SR-3, RA-5
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.

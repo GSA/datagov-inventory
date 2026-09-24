@@ -26,13 +26,18 @@ importing their published `data.json`.
   entire purpose of Inventory is to generate a `data.json` that the agency hosts
   at `agency.gov/data.json`. The migration source is therefore public, canonical,
   and available without any access to the v1 database.
-- **A 1.1 → 3.0 converter already exists and is well tested.**
-  `ckanext/datagov_inventory/dcat/` contains `transforms.py` (469 lines, 12
-  dataset-level transforms), `validator.py` (620 lines), and
-  `dcat_converter.py` (281 lines) — which is *already* a standalone CLI that
-  fetches a remote v1.1 catalog, converts it, validates both sides, and reports
-  counts. It is backed by ~1,600 lines of tests. The migration tool is largely
-  written.
+- **A 1.1 → 3.0 converter already exists upstream and is well tested.**
+  [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the
+  repository that hosts the schemas, already vendored here as the
+  `_external/dcat-us` submodule — contains `transforms.py` (499 lines, 13
+  dataset-level transforms) and `convert_dcat_1_1_to_3_0.py` (558 lines), which is
+  *already* a standalone CLI that fetches a remote v1.1 catalog, converts it,
+  validates both sides, promotes legacy `isPartOf` relationships into
+  catalog-level `DatasetSeries`, and reports counts. It is backed by 719 lines of
+  tests. The migration tool is largely written, and it is **not** v1's copy: v1's
+  `ckanext/datagov_inventory/dcat/` is a July-2026 fork that has drifted behind
+  upstream and lacks the `DatasetSeries` promotion this ADR's import path needs
+  ([`architecture.md` §1](../architecture.md#the-conversion-code-already-exists--upstream-not-in-v1)).
 - **A database-level migration would have to bridge both a model change and a
   schema-version change simultaneously**, and would need to reproduce CKAN's
   `package_extras` conventions — the exact thing v2 exists to escape.
@@ -43,9 +48,12 @@ importing their published `data.json`.
 - **v1 remains available during transition.** Nothing is deleted by this
   decision; v1 continues serving until agencies have re-established in v2.
 - **1.1 → 3.0 is not a lossless mechanical mapping.** Some 3.0 constructs
-  (`DatasetSeries`, `DataService`, `Concept` vocabularies, structured `Location`)
-  have no 1.1 source and require human authoring regardless of migration
-  approach.
+  (`DataService`, `Concept` vocabularies, structured `Location`) have no 1.1
+  source and require human authoring regardless of migration approach.
+  `DatasetSeries` is the exception worth naming: 1.1's `isPartOf` ("Collection",
+  a bare identifier string) *is* a source for it, and upstream's converter
+  already promotes those relationships — so series structure survives import
+  where the others do not.
 
 ## Considered Options
 
@@ -73,18 +81,31 @@ the primary path because it requires v1 to be running and reachable at migration
 time, whereas the agency's published file does not — but it is the right tool for
 any organization whose published `data.json` is stale or unreachable.
 
+**If Option 3 is used, its output must be re-validated on import rather than
+trusted.** That endpoint runs v1's stale fork of the converter, and in production
+v1 validates with a silently degraded Draft 4 validator (`jsonschema` is unpinned;
+`ckanext-datajson`'s `~=2.4.0` constraint wins, and `referencing` is unusable
+because `rpds-py` is absent from the freeze). A catalog that endpoint reports as
+clean is not known to be valid 3.0.
+
 Option 4 is rejected: synchronizing two different data models across two metadata
 versions is substantial engineering for a transition that needs no continuity
 guarantee.
 
 ### Notable consequence: agencies can rehearse before v2 exists
 
-Because the input is the agency's own public file and `dcat_converter.py` is
-already a CLI with a `--dry-run` flag, an agency (or Data.gov staff) can convert
-and validate a catalog today and see the exact error report v2 would produce.
-This turns migration risk into a pre-launch activity rather than a launch-day
-surprise, and it gives the conversion code real-world exercise before it is on
-the critical path.
+Because the input is the agency's own public file and upstream's
+`convert_dcat_1_1_to_3_0.py` is already a CLI with a `--dry-run` flag, an agency
+(or Data.gov staff) can convert and validate a catalog today and see essentially
+the error report v2 would produce. This turns migration risk into a pre-launch
+activity rather than a launch-day surprise, and it gives the conversion code
+real-world exercise before it is on the critical path.
+
+Two caveats on "the exact error report": v2 will add its own graph-decomposition
+errors on top of upstream's validation output, and the rehearsal must be run
+against upstream's copy — **not** v1's `dcat_converter.py`, which is a stale fork
+that omits `transform_theme` and `DatasetSeries` promotion and will therefore
+report differently.
 
 ### What is not migrated
 
@@ -115,8 +136,9 @@ the critical path.
   published — a correctness gate a database migration would bypass.
 - Agencies get a genuine opportunity to clean up metadata rather than porting
   accumulated problems forward.
-- `dcat_converter.py`'s existing machine-readable `RESULTS:{...}` /
-  `COUNTS:{...}` output makes migration progress measurable per organization.
+- Upstream `convert_dcat_1_1_to_3_0.py`'s existing machine-readable
+  `RESULTS:{...}` / `COUNTS:{...}` output makes migration progress measurable per
+  organization.
 
 ### Negative Consequences
 
@@ -133,19 +155,24 @@ the critical path.
 - **Anything in v1 but not in the published export is silently absent.** The
   import cannot report what it never saw. Per-organization dataset counts should
   be compared between v1 and the imported result as a reconciliation check.
-- **Conversion is imperfect by nature.** 1.1 has no `DatasetSeries`,
-  `DataService`, structured `Location`, or `Concept` vocabularies, so imported
-  catalogs will be valid 3.0 but will not exploit 3.0's new capabilities without
-  human authoring.
+- **Conversion is imperfect by nature.** 1.1 has no `DataService`, structured
+  `Location`, or `Concept` vocabularies, so imported catalogs will be valid 3.0
+  but will not exploit all of 3.0's new capabilities without human authoring.
+  `DatasetSeries` is partially recovered from 1.1 `isPartOf` by upstream's
+  converter; nested series are not supported and raise a conversion error.
 
 ### Compliance Consequences
 
 - **SI-10 (Input Validation)** — imports validate against DCAT-US 1.1 on input
-  and 3.0 on output, using the existing dual-validation path in
-  `dcat_converter.py`. Import is an untrusted-input boundary: imported catalogs
-  come from public URLs and must be treated as untrusted data, with URL fetching
-  going through the egress proxy and subject to the live-catalog URL scanning the
-  wiki already requires.
+  and 3.0 on output, using upstream's dual-validation path in
+  `convert_dcat_1_1_to_3_0.py`. The `jsonschema` version must be **pinned
+  explicitly**: v1 leaves it unpinned, so `ckanext-datajson`'s `~=2.4.0`
+  constraint wins in production and validation silently degrades to Draft 4,
+  reporting fewer errors than the data contains. A validation control that fails
+  open is worse than one that fails closed. Import is also an untrusted-input
+  boundary: imported catalogs come from public URLs and must be treated as
+  untrusted data, with URL fetching going through the egress proxy and subject to
+  the live-catalog URL scanning the wiki already requires.
 - **SI-12 (Information Management and Retention)** — **the open question.** v2's
   audit trail begins at import, so v1's history exists only in the v1 database.
   Whether that constitutes a record requiring retention under NARA schedules is
@@ -157,7 +184,10 @@ the critical path.
   completion checklist gates v1 shutdown.
 - **CM-3 (Configuration Change Control)** — each import should record the
   `_external/dcat-us` submodule commit used, so an import is reproducible against
-  the schema version that validated it (consistent with ADR 0005).
+  the schema version that validated it (consistent with ADR 0005). This commit now
+  identifies the **conversion code** as well as the schemas, which is a further
+  reason the submodule must be pinned rather than tracking `branch = main`
+  (see [ADR 0010](0010-depend-on-upstream-dcat-us-code.md)).
 - **CM-4 (Impact Analysis)** — the dataset-count reconciliation per organization
   is the impact analysis for this transition and should be recorded.
 - **Risk treatment is `accept`**, not `mitigate`: the accepted risk is loss of
@@ -169,10 +199,11 @@ the critical path.
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — import/export from a current DCAT-US 3.0 catalog
 - [DCAT-US 3.0 migration guide](https://resources.data.gov/resources/dcat-us-3-migration/) and [M-25-05 crosswalk](https://resources.data.gov/resources/dcat-us-3-crosswalk/)
-- [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) — upstream reference implementation
+- [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — **the implementation this ADR depends on**, already vendored as `_external/dcat-us`
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — `payload_hash` content-addressing that makes import produce reuse
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — why user accounts need no migration
-- `ckanext/datagov_inventory/dcat/dcat_converter.py` — existing CLI converter with `--dry-run`
+- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on that upstream code, and why v1's fork is not the source
+- `ckanext/datagov_inventory/dcat/dcat_converter.py` — v1's stale fork of the upstream converter; **not** the source for v2
 - `ckanext/datagov_inventory/plugin.py:345-407` — v1 `generate_dcat_v3` export, the Option 3 fallback
 - `config/data/inventory_publishers.csv` — reference data; role in v2 undecided (see ADR 0005)
 - NIST SP 800-53 Rev 5.2 — CM-3, CM-4, SI-10, SI-12, CP-9, SA-8

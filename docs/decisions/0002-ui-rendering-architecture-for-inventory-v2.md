@@ -44,11 +44,17 @@ a schema-coupled server-rendered form would need the same rewrite.
 ## Decision Drivers
 
 - **Single source of truth for validation (SI-10).** The authoritative DCAT-US
-  validator is Python: `ckanext/datagov_inventory/dcat/validator.py` (620 lines,
-  772 lines of tests) using `jsonschema` Draft 2020-12 with `referencing`. Any
-  second validator implementation in JavaScript creates two artifacts that will
-  drift, and drift in a validator is a correctness failure that reaches agency
-  publishers as bad exports.
+  validator is Python, and it is upstream:
+  [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema)'s
+  `convert_dcat_1_1_to_3_0.py` (558 lines, 719 lines of tests across `tests/`)
+  using `jsonschema` Draft 2020-12 with `referencing`, already vendored here via
+  the `_external/dcat-us` submodule ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)).
+  Any second validator implementation in JavaScript creates two artifacts that
+  will drift, and drift in a validator is a correctness failure that reaches
+  agency publishers as bad exports. The platform already demonstrates the hazard:
+  four copies of the *error-reporting* layer exist across upstream, v1, and the
+  harvester
+  ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md#not-in-scope-consolidating-the-error-reporters)).
 - **Single source of truth for schema interpretation.** The wiki requires field
   descriptions to be sourced *from the schema definition* so that DCAT-US 3.0
   point releases are absorbed by bumping the `_external/dcat-us` submodule. This
@@ -267,7 +273,7 @@ This should be decided together with the editing-model question, since (B) plus
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) — sibling Flask + Jinja + USWDS + HTMX application; precedent for this option
 - [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) — sibling Flask application; owns the shared harvest DB
 - [USWDS](https://designsystem.digital.gov/) and [`@trussworks/react-uswds`](https://github.com/trussworks/react-uswds) — design system and its React binding
-- `ckanext/datagov_inventory/dcat/` — validator, transforms, and converter to be extracted as the pure-Python library
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream Python validator and converter that make a second JavaScript validator unnecessary; already vendored as `_external/dcat-us`
 - NIST SP 800-53 Rev 5.2 — SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15
 - Section 508 / WCAG 2.1 AA — [Section 508 standards](https://www.section508.gov/)
 - Related pending ADRs: Login.gov OIDC over SAML; object-graph data model; quarantine-then-scan antivirus
