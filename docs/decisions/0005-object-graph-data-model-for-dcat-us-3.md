@@ -174,7 +174,7 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
   append-only with actor, timestamp, full payload, and change summary. Inserts
   only; no `UPDATE`/`DELETE` grant on that table for the application role.
 - **AU-10 (Non-repudiation)** — editor attribution on every version, bound to a
-  Login.gov subject via `user_account` (ADR 0003, ADR 0004).
+  Login.gov subject via `user_account` (ADR 0004).
 - **AC-3 (Access Enforcement)** — every query is scoped by `catalog_id` and
   checked against `catalog_permission`. **Object identifiers must not be
   treated as authorization**; a direct-object-reference check is required on
