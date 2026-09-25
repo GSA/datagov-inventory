@@ -212,7 +212,7 @@ rather than configured by hand.
   result (with signature version), promotion to clean, deletion on detection.
 - **IR-4, IR-6 (Incident Handling and Reporting)** — a detection is a security
   incident. The notification path (org admin + Data.gov team) must be defined in
-  the runbook, and the uploading user's identity is known via ADR 0003/0003.
+  the runbook, and the uploading user's identity is known via Login.gov auth.
   Per AGENTS.md §9.2, detections are **not** filed as public issues.
 - **Evidence for the ATO package** — a test demonstrating that a known-malicious
   test file (EICAR) is detected, deleted, and never presigned. This should be an

@@ -54,7 +54,7 @@ flowchart TB
         HARV["harvest.data.gov<br/>(2.1 - not MVP: dcatus3.0 source)"]
     end
 
-    IDP["<b>Login.gov</b><br/>OIDC · AAL3 + HSPD-12<br/>authorization code + PKCE<br/>private_key_jwt"]
+    IDP["<b>Login.gov</b><br/>OIDC · IAL1 · AAL3 + HSPD-12<br/> private_key_jwt"]
 
     subgraph cf["cloud.gov · org gsa-datagov · spaces development / staging / prod"]
         PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist<br/>HSTS · cookie flags · body cap"]
@@ -71,7 +71,6 @@ flowchart TB
         EGRESS["egress proxy"]
     end
 
-    NR["New Relic<br/>gov-collector.newrelic.com"]
     LOG["cloud.gov log drain → Logstack"]
     SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>schemas + conversion code<br/>pinned commit — ADR 0010"]
 
@@ -94,11 +93,9 @@ flowchart TB
     WEB -->|"OIDC discovery + JWKS"| EGRESS
     SCAN -->|"freshclam"| EGRESS
     TASK -->|"URL audit · data.json import"| EGRESS
-    EGRESS --> OUT["secure.login.gov<br/>database.clamav.net<br/>agency URLs"]
+    EGRESS --> OUT["secure.login.gov<br/>database.clamav.net<br/>gov-collector.newrelic.com<br/>agency URLs"]
 
     SCHEMA -.->|"build time"| WEB
-    WEB --> NR
-    SCAN --> NR
     WEB --> LOG
     SCAN --> LOG
 ```
@@ -128,7 +125,7 @@ deployed environment.
 | Database | Postgres (`medium-psql-redundant` prod, `small-psql` dev) | One instance. v1 has two plus Redis. |
 | Search | Postgres FTS (`tsvector` + GIN) | **Deliberately not OpenSearch.** Catalog needs it at 515k datasets; Inventory holds thousands per org. |
 | Cache / queue | none | Redis and RQ removed. Nothing in the MVP needs sub-minute async. |
-| Auth | Login.gov OIDC via Authlib | [ADR 0003](decisions/0003-login-gov-oidc-instead-of-saml.md). Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`. |
+| Auth | Login.gov OIDC via Authlib | Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`. |
 | Session | Flask-Login + server-side sessions in Postgres, 900 s idle | Real revocation on logout. v1 also stores sessions in Postgres (`.profile:106`) but via Beaker. |
 | Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks. |
 | Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production. |
@@ -568,18 +565,18 @@ works, telemetry does not.
 
 ## 7. What v1 components disappear
 
-| Removed | Notes |
-|---|---|
-| CKAN 2.11.5 (GSA fork, pinned commit) | Plus 8 extensions, 3 of them GSA/vendor forks |
+| Removed | Notes                                                                                                                                            |
+|---|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| CKAN 2.11.5 (GSA fork, pinned commit) | Plus 8 extensions, 3 of them GSA/vendor forks                                                                                                    |
 | Agency/bureau organizations (tenant silos) | Isolation is per-catalog via `catalog_permission`; nothing is inherited from an enclosing agency ([§4](#there-is-no-agencybureau-tenant-entity)) |
-| Solr scaffolding | Already dead in v1: 12 files, 3 Makefile targets, a `pysolr` pin, a placeholder `CKAN_SOLR_URL`, a `/solr` nginx route |
-| Redis + RQ | No remaining need |
-| DataStore + xloader + `datastore_ro` provisioning | [ADR 0007](decisions/0007-retire-tabular-datastore-api.md) — **a user-visible regression**, see below |
-| `pysaml2`, `xmlsec1`, `apt.yml`, `apt-buildpack` | [ADR 0003](decisions/0003-login-gov-oidc-instead-of-saml.md) |
-| repoze.who + Beaker | Vestigial since CKAN 2.9 |
-| `create_inventory_user`, `reactivate_user`, roles-table admin UI | ~278 lines of `plugin.py`, 152 of `action.py`, 115-line template ([ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md)) |
-| `Jenkinsfile`, `bin/jenkins_build` | Dead: gated on a branch that no longer exists |
-| `restart.yml` 15-minute cron | Acceptance criterion |
+| Solr scaffolding | Already dead in v1: 12 files, 3 Makefile targets, a `pysolr` pin, a placeholder `CKAN_SOLR_URL`, a `/solr` nginx route                           |
+| Redis + RQ | No remaining need                                                                                                                                |
+| DataStore + xloader + `datastore_ro` provisioning | [ADR 0007](decisions/0007-retire-tabular-datastore-api.md) — **a user-visible regression**, see below                                            |
+| `pysaml2`, `xmlsec1`, `apt.yml`, `apt-buildpack` | Switch from SAML to OpenID Login.gov integration |                                                                                                |
+| repoze.who + Beaker | Vestigial since CKAN 2.9                                                                                                                         |
+| `create_inventory_user`, `reactivate_user`, roles-table admin UI | ~278 lines of `plugin.py`, 152 of `action.py`, 115-line template ([ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md))          |
+| `Jenkinsfile`, `bin/jenkins_build` | Dead: gated on a branch that no longer exists                                                                                                    |
+| `restart.yml` 15-minute cron | Acceptance criterion                                                                                                                             |
 
 **The DataStore removal is a real capability loss, not only cleanup.** Uploaded
 files remain downloadable; what goes away is querying their rows over HTTP.
@@ -683,7 +680,6 @@ area — until these clear. Reproduced from
 |---|---|---|
 | 0001 | Request `GSA/datagov-inventory` per the new-repository checklist. | Organizational |
 | 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. (B) reverses the decision toward an SPA. A reversal condition is **already triggered** (anonymous editing scheduled 2.1). | Product |
-| 0003 | Login.gov must confirm OIDC registration with `acr_values` AAL3+HSPD-12 per environment; verify the returned `acr` claim in the sandbox. If unavailable, fall back to SAML. | External |
 | 0004 | Confirm whether an email-domain allowlist is wanted; define how the first `admin` grant on a new catalog happens. | Product + design |
 | 0005 | Decide the role of `inventory_publishers.csv` now that there is no tenant entity (seed data for DCAT `Organization` objects; hierarchy; global vs. per-catalog). | Design |
 | 0006 | Query existing S3 objects for actual file-size distribution to confirm 500 MB. | Data |
@@ -691,11 +687,6 @@ area — until these clear. Reproduced from
 | 0008 | Records-officer determination on NARA retention of v1 edit history; archive the v1 database if required. | Compliance |
 | 0009 | Verify module `variables.tf` for a Flask app; Terraform vs. OpenTofu; provision the encrypted state backend; scope of `logshipper`. | Design + organizational |
 | 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode`, tags, `requires-python`) is an acceptable target; choose the initial pinned submodule commit. | External + design |
-
-**Longest lead time: ADR 0003.** The Login.gov OIDC confirmation is the only
-blocker with an external dependency, spans three environments, and reverses a
-decision that ADR 0004 builds on. Start it first; every other blocker is
-answerable internally within days.
 
 ## 10. Compliance posture
 
@@ -706,7 +697,7 @@ changes relative to v1:
   (append-only version history with editor attribution; structured logs with
   correlation IDs), AC-6 (default privilege is exactly none), CM-7 (DataStore
   and Solr surfaces removed).
-- **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC) — *pending sandbox verification*;
+- **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC)
   AC-12 900-second idle timeout, now with autosave so the timeout costs no work;
   SC-7 boundary protection via the two-app topology.
 - **Changed and requiring SSP updates:** AC-2 (accounts created automatically,

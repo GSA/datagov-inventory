@@ -45,8 +45,8 @@ the data.gov team can make to make sure a user is who they say they are."*
   a whole recovery procedure for "username is taken" errors caused by
   soft-deleted users who cannot log in, requiring DB queries to recover a
   username from an email address. `reactivate_user` exists solely for this.
-- **Identity assurance is already established upstream (IA-8).** Under
-  ADR 0003, every authentication is AAL3 + HSPD-12 (PIV/CAC). Account existence
+- **Identity assurance is already established upstream (IA-8).**
+  Every authentication is AAL3 + HSPD-12 (PIV/CAC). Account existence
   gates nothing that Login.gov has not already proven; it only gates
   *authorization*, which should be modeled directly.
 - **Least privilege must be preserved (AC-6).** Removing the account gate must
@@ -204,7 +204,6 @@ this is acceptable before this record is accepted.
 
 - [Inventory Beta Re-design — User and Data Management](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design#user-and-data-management)
 - [inventory.data.gov — Adding a User / Deleting a User / Updating a User](https://github.com/GSA/data.gov/wiki/inventory.data.gov) — the manual procedures this decision retires
-- [ADR 0003](0003-login-gov-oidc-instead-of-saml.md) — the authentication decision this builds on
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — defines `catalog_permission` alongside the metadata model
 - `config/ckan.ini:104-113,190` — current `create_user_via_*` settings
 - `ckanext/datagov_inventory/action.py`, `ckanext/datagov_inventory/plugin.py:91-127,218-344,410-519` — code this decision removes
