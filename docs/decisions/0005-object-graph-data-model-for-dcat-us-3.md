@@ -94,21 +94,17 @@ catalog           ── catalog_member ──▶ metadata_object  (top-level da
 catalog           ── catalog_permission ──▶ user_account | catalog   (read | edit | admin)
 
 metadata_object(id, catalog_id, dcat_class, state, payload JSONB,
-                payload_hash, current_version_id, search_vector tsvector)
+                search_vector tsvector)
 object_reference(parent_object_id, child_object_id, property, ordinal)
 object_version(id, object_id, version_no, payload JSONB,
                editor_user_id, created_at, change_summary)
 ```
 
-Three properties do the work, each mapping to a stated requirement:
+Two properties do the work, each mapping to a stated requirement:
 
 - **`object_reference` is the reuse mechanism.** One `Kind` row referenced by
   fifty datasets. Export is a recursive walk that assembles nested JSON; import
   is the inverse.
-- **`payload_hash` is content-addressed**, so importing a flat catalog that
-  repeats the same contact point 50 times **automatically converges on one
-  shared object**. "Start from a current DCAT-US 3.0 catalog" and "classes
-  defined for re-use" are satisfied by one mechanism rather than two features.
 - **`state` on `metadata_object`** makes "drafts are not exported" a
   `WHERE state = 'live'` predicate on the export walk — one authoritative field,
   replacing the v1 three-way confusion.
@@ -147,6 +143,14 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
   Mitigations: assembly lives in the pure-Python library with property-based
   round-trip tests (assemble∘decompose ≡ identity), and every export is
   validated against `Catalog.json` before delivery.
+  **The stated property covers one direction only.** `assemble ∘ decompose`
+  (JSON → graph → JSON) is identity; `decompose ∘ assemble` (graph → JSON → graph)
+  is **not**, because DCAT-US 3.0 has no reference form and in-run convergence
+  merges objects whose scalars coincide. Two deliberately-distinct `Organization`
+  rows survive export as indistinguishable inlined copies and re-import as one.
+  This is inherent, not a defect to fix — but the test suite must not claim a
+  round-trip property it does not have, and the loss should be stated where users
+  can see it (see the `payload_hash` amendment above).
 - **Cycles are possible** — embedded catalogs and `object_reference` edges can
   both form loops. The walk needs cycle detection with a depth bound, and
   `catalog_link` needs an acyclicity check on write. A cycle discovered only at

@@ -92,6 +92,96 @@ Option 4 is rejected: synchronizing two different data models across two metadat
 versions is substantial engineering for a transition that needs no continuity
 guarantee.
 
+### Amendment: import never merges — re-import replaces by build-then-swap
+
+The record above describes initial onboarding and leaves the shape of a *second*
+import into an already-populated catalog undefined.
+
+**Import always decomposes into a fresh object set. It never diffs against, or
+merges into, existing objects.** Two cases:
+
+| Case | Behavior |
+|---|---|
+| Import into a new catalog | Decompose into a new object set in `draft`; this is the onboarding path described above |
+| Re-import over an existing catalog | Decompose into a **new** object set, then transfer the catalog identity to it atomically — *build-then-swap* |
+
+Re-import is therefore destroy-and-rebuild, not update. The incoming file is
+authoritative in full; nothing is preserved from the previous object set.
+
+**Why build-then-swap rather than delete-then-import:**
+
+- **Atomicity.** A failure part-way through cannot leave a live catalog deleted
+  and unreplaced.
+- **No serving gap.** The previous object set keeps answering
+  `GET /catalog/{id}/dcat-v3.json` until the swap commits, so
+  `harvest.data.gov` never observes an empty catalog
+  ([`architecture.md` §2](../architecture.md#2-container-view)).
+- **The `draft` review gate survives.** Import produces `draft` so a human
+  reviews before anything is published. Mutating a `live` catalog in place would
+  force a choice between reverting it to `draft` — removing it from exports until
+  re-reviewed — and publishing unreviewed content. Build-then-swap keeps the new
+  object set in `draft` for review and swaps only on approval.
+
+Note that build-then-swap *is* the new-catalog path plus an identity transfer, so
+there is one decompose implementation, not two.
+
+#### What the catalog identity carries across a swap
+
+Because the `catalog` row survives, so does everything referencing it:
+
+- **`catalog_permission` grants**, including catalog-principal and transitive
+  grants ([ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)). Re-import
+  does not re-run the unresolved first-`admin` bootstrap.
+- **Inbound `catalog_link` edges.** A catalog embedding this one still embeds it.
+  This is the main reason identity transfer is preferable to creating a new
+  catalog, since catalog-to-catalog embedding is MVP scope
+  ([`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing-is-mvp-scope)).
+- **The export URL**, which `harvest.data.gov` is intended to consume long term.
+
+**Outbound `catalog_link` edges are part of the replaced content**, so the
+acyclicity check specified on `catalog_link` writes must be **re-run at swap
+time**: a rebuilt catalog can close a loop that the previous object set did not.
+Swapping without that check is the one way this design can introduce a cycle, and
+a cycle is a denial-of-service against the export walk.
+
+#### What a swap destroys
+
+Both of these are limitations to state, not problems to solve here:
+
+1. **Curation is discarded.** This record requires human review of the converted
+   draft plus authoring of genuinely new 3.0 fields — `DataService`, structured
+   `Location`, `Concept` vocabularies — that have no 1.1 source. A re-import wipes
+   all of it, because the incoming `data.json` cannot contain it. Re-import is
+   appropriate for a retry during onboarding and is **not an update mechanism** for
+   a curated catalog. The UI must say so before the user commits, not after.
+2. **`object_version` history for the replaced objects.** The version trail is
+   declared append-only and hangs off `metadata_object`, so deleting those rows
+   either cascades the history away or leaves it dangling. This collides with
+   AU-2/AU-3/AU-10.
+
+#### Open question: is Inventory ever a publishing conduit?
+
+This amendment assumes import is **onboarding-shaped** — roughly once per agency,
+plus retries — because in v2 Inventory *generates* `data.json` rather than relaying
+it. An agency that maintains metadata in its own system does not need Inventory at
+all; it hosts its own file and `harvest.data.gov` harvests it.
+
+**If that assumption is wrong** — if an agency is expected to author elsewhere and
+re-publish through Inventory on a schedule — then destroy-and-rebuild is the wrong
+semantics, because each cycle discards curation and audit history, and merge
+returns as a requirement. Confirm the assumption before this record is accepted.
+
+### Compliance consequences of the amendment
+
+- **AU-2, AU-3, AU-10** — a swap must be a single audit event recording the source
+  URL, the `_external/dcat-us` submodule commit, the outgoing and incoming object
+  counts, and the actor who approved it. Without that, the disappearance of an
+  object set is unexplained in the trail.
+- **CM-4 (Impact Analysis)** — the per-organization dataset-count reconciliation
+  this record already requires applies to each re-import, not only the first,
+  since a swap can silently shrink a catalog if the published file has regressed.
+- **SI-12** — see the `object_version` question above.
+
 ### Notable consequence: agencies can rehearse before v2 exists
 
 Because the input is the agency's own public file and upstream's

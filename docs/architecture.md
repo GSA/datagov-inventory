@@ -3,7 +3,7 @@ title: "inventory.data.gov v2 System Architecture"
 description: "Target architecture for the non-CKAN rewrite of inventory.data.gov — components, technologies, data model, and key flows"
 status: draft
 tier: 2
-last_updated: "2026-09-24"
+last_updated: "2026-09-28"
 related_files:
   - "docs/decisions/README.md"
   - "README.md"
@@ -174,8 +174,6 @@ erDiagram
         text dcat_class "Dataset DatasetSeries DataService Distribution Kind Organization Concept ConceptScheme Location"
         text state "draft | live"
         jsonb payload "own scalar properties only"
-        text payload_hash "content-addressed — dedupe on import"
-        uuid current_version_id FK
         tsvector search_vector
     }
     OBJECT_REFERENCE {
@@ -210,17 +208,13 @@ erDiagram
     }
 ```
 
-Three properties carry the requirements:
+Two properties carry the requirements:
 
 1. **`object_reference` is the reuse mechanism.** A `Kind` (contact point) or
    `Organization` (publisher) is one row referenced by many datasets. `payload`
    holds only that class's own scalar properties; nesting is edges. Export walks
    the graph and assembles nested JSON; import is the inverse.
-2. **`payload_hash` is content-addressed.** Importing a flat catalog that repeats
-   the same contact point 50 times converges on one shared object automatically —
-   so "start from a current DCAT-US 3.0 catalog" and "classes defined for re-use"
-   are one mechanism, not two features.
-3. **`state` is per object.** "Drafts are not exported" becomes
+2. **`state` is per object.** "Drafts are not exported" becomes
    `WHERE state = 'live'` on the export walk. This replaces v1's documented
    three-way confusion between CKAN `private`, DCAT `accessLevel`, and Inventory
    publishing status ([GSA/data.gov#2095](https://github.com/GSA/data.gov/issues/2095)).
@@ -431,7 +425,7 @@ flowchart LR
     C --> D["upstream transforms.py<br/>13 dataset-level transforms"]
     D --> D2["upstream isPartOf →<br/>DatasetSeries promotion"]
     D2 --> E["validate 3.0"]
-    E --> F["decompose to objects<br/>dedupe via payload_hash"]
+    E --> F["decompose to objects<br/>in-run dedupe by content hash"]
     F --> G["catalog in draft state"]
     G --> H["human review → live → export"]
     I["v1 /organization/{id}/dcat-v3.json<br/>fallback for stale published files"] -.-> E
@@ -682,9 +676,12 @@ area — until these clear. Reproduced from
 | 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. (B) reverses the decision toward an SPA. A reversal condition is **already triggered** (anonymous editing scheduled 2.1). | Product |
 | 0004 | Confirm whether an email-domain allowlist is wanted; define how the first `admin` grant on a new catalog happens. | Product + design |
 | 0005 | Decide the role of `inventory_publishers.csv` now that there is no tenant entity (seed data for DCAT `Organization` objects; hierarchy; global vs. per-catalog). | Design |
+| 0005 | Decide what happens to `object_version` history when a re-import swaps a catalog's object set — collides with the append-only AU-10 guarantee. Decide with the 0008 retention question. | Compliance |
+| 0005 | Specify the class-scoped convergence list and where the import-run content hash is computed. | Design |
 | 0006 | Query existing S3 objects for actual file-size distribution to confirm 500 MB. | Data |
 | 0007 | Query access logs and New Relic for `datastore_search` consumers (required CM-4 impact analysis). | Data |
 | 0008 | Records-officer determination on NARA retention of v1 edit history; archive the v1 database if required. | Compliance |
+| 0008 | Confirm import is onboarding-shaped and Inventory is never a publishing conduit for metadata authored elsewhere. | Product |
 | 0009 | Verify module `variables.tf` for a Flask app; Terraform vs. OpenTofu; provision the encrypted state backend; scope of `logshipper`. | Design + organizational |
 | 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode`, tags, `requires-python`) is an acceptable target; choose the initial pinned submodule commit. | External + design |
 

@@ -59,6 +59,7 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 | 0006 | Query existing S3 objects for actual file-size distribution to confirm 500 MB is the right cap rather than inheriting ClamAV's defaults. | Data |
 | 0007 | Query production access logs and New Relic for `datastore_search`, `datastore_search_sql`, and `/datastore/*` consumers before announcing removal. Required CM-4 impact analysis. | Data |
 | 0008 | Records officer determination on whether v1 edit history requires NARA retention; if so, archive the v1 database before decommissioning. | Compliance |
+| 0008 | Confirm that import is onboarding-shaped (once per agency plus retries) and that Inventory is never a publishing conduit for metadata authored elsewhere. If it is, destroy-and-rebuild re-import is wrong semantics and merge returns as a requirement. | Product |
 | 0009 | Verify each module's `variables.tf` for a Flask (non-Rails) app; decide Terraform vs. OpenTofu; provision and document the encrypted state backend; decide whether Terraform manages CI deployer service keys; confirm `logshipper` scope. | Design + organizational |
 | 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode = true`, tags, a relaxed `requires-python`) is an acceptable target, and choose the initial pinned submodule commit. Neither answer blocks starting on the chosen option. | External + design |
 
