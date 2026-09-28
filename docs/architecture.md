@@ -388,14 +388,18 @@ sequenceDiagram
     V->>V: validate against Catalog.json (Draft 2020-12)
     V->>V: summarize_error / find_meaningful_errors
     V-->>W: data.json + errors.json + errorlog.txt
-    W->>S3: PUT exports/{run_id}.zip
     W->>DB: UPDATE export_run (status, error_count, report)
     W-->>U: presigned ZIP + on-page error report
-    Note over W,S3: same artifact served at /catalog/{id}/dcat-v3.json<br/>for harvest.data.gov (long term)
+    Note over W,S3: same artifact served at /catalog/{id}/dcat-v3.json<br/>for harvest.data.gov (v2.1)
 ```
 
 `export_run` records the `_external/dcat-us` submodule commit, so an export is
 reproducible against the schema version that validated it.
+
+#### Modifications for hosting metadata files in v2.1
+
+Inventory 2.1 will support hosting of metadata files. We will add a `publish` workflow, which will be very similar to `export`,
+but with a step that pushes the generated json file from the Inventory app to an S3 bucket.
 
 ### 5.3 Upload with quarantine-then-scan
 
