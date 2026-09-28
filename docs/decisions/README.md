@@ -63,11 +63,12 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 | 0007 | Query production access logs and New Relic for `datastore_search`, `datastore_search_sql`, and `/datastore/*` consumers before announcing removal. Required CM-4 impact analysis. | Data |
 | 0008 | Records officer determination on whether v1 edit history requires NARA retention; if so, archive the v1 database before decommissioning. | Compliance |
 | 0008 | Confirm that import is onboarding-shaped (once per agency plus retries) and that Inventory is never a publishing conduit for metadata authored elsewhere. If it is, destroy-and-rebuild re-import is wrong semantics and merge returns as a requirement. | Product |
+| 0008 | Specify how import converges repeated objects onto shared ones — which DCAT classes are eligible for convergence, what equality means for each, and where in the import run the comparison happens. "Import produces reuse automatically" is a stated decision driver, but no record now says how. Decide before building the import path. | Design |
 | 0009 | Verify each module's `variables.tf` for a Flask (non-Rails) app; decide Terraform vs. OpenTofu; provision and document the encrypted state backend; decide whether Terraform manages CI deployer service keys; confirm `logshipper` scope. | Design + organizational |
 | 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode = true`, tags, a relaxed `requires-python`) is an acceptable target, and choose the initial pinned submodule commit. Neither answer blocks starting on the chosen option. | External + design |
 | 0011 | Time-boxed spike to execute the behavioural claims this record reads from source: null `transaction_id` on session-bypassing writes, `old_data`/`changed_data` shape for a `payload JSONB` edit, write cost on a 2,000-object import, `GRANT INSERT, SELECT`-only viability, and absence of `SECURITY DEFINER`. | Design |
 | 0011 | Decide whether non-row security events (failed authentication, session establishment and idle termination, authorization denials) need a durable table, or whether structured logs with a defined retention satisfy AU-2 for them. | Compliance |
-| 0011 | Decide retention for `activity` together with ADR 0005's `object_version` question and ADR 0008's re-import swap question. All three interact and should be decided in one sitting. | Compliance |
+| 0011 | Decide retention for `activity`. It is append-only and grows without bound. | Compliance |
 | 0011 | Confirm the cloud.gov brokered RDS application role may create triggers and functions in the application schema. No `CREATE EXTENSION` is required, which is the usual obstacle. | Organizational |
 
 ## Status lifecycle

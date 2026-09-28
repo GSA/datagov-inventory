@@ -12,34 +12,6 @@ risk_treatment: "mitigate"
 
 # Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables
 
-### Scope of the history: attribution, not reconstruction
-
-
-
-Two things are nevertheless recoverable, and the limitation should not be
-overstated:
-
-- **Any single object's past scalars**, in full: every `object_version` row holds
-  the complete `payload` for that object at that version.
-- **Any past *published* catalog**, as an artifact: `export_run` plus the
-  `exports/` prefix retain what was actually delivered, validated against a
-  recorded `_external/dcat-us` commit ([§5.2](../architecture.md#52-export-with-error-reporting)).
-  This is the state consumers outside the system actually saw.
-
-What is unavailable is reassembling the *graph* as it stood at an arbitrary
-moment, because reuse edges and per-object `state` are stored only in their
-current form.
-
-#### What would reverse this scope
-
-If the records officer or the product owner determines that point-in-time
-reconstruction of a catalog *is* required — for a NARA obligation, a dispute over
-what was published on a given date, or a user-facing revert feature — then this
-scope decision is wrong and the rejection of temporal mechanisms below must be
-revisited. That determination is not an engineering judgment and belongs with the
-two retention questions already open on this record and on
-[ADR 0008](0008-onboard-via-data-json-reimport.md).
-
 ## Context and Problem Statement
 
 ### What we mean by auditability
@@ -57,6 +29,13 @@ nothing more.
 **Not chosen: reconstruction.** The history does **not** promise the ability to
 reproduce a past state of a catalog, diff a catalog between two dates, or revert
 to an earlier state.
+
+If the records officer or the product owner determines that point-in-time
+reconstruction of a catalog *is* required — for a NARA obligation, a dispute over
+what was published on a given date, or a user-facing revert feature — then this
+scope decision is wrong. That determination is not an engineering judgment and belongs with the
+two retention questions already open on this record and on
+[ADR 0008](0008-onboard-via-data-json-reimport.md).
 
 ### How to implement auditability
 
@@ -215,20 +194,18 @@ listed as a blocker below rather than settled here.
 
 ### Positive Consequences
 
-- **The four ADR 0005 gaps close mechanically.** Versioning `object_reference`,
-  `catalog_link`, `catalog_permission`, and `metadata_object` covers edges,
-  membership, permissions, and `state` transitions without a line of
-  event-writing code.
+- **Every change the data model puts outside `payload` is covered, mechanically.**
+  Versioning `object_reference`, `catalog_link`, `metadata_object`,
+  `catalog_permission`, and `catalog` captures all five of the changes marked
+  invisible in [the table above](#how-to-implement-auditability) — reuse and
+  membership edges, catalog embedding, `state` transitions, permission changes, and
+  the re-import swap — without a line of event-writing code.
 - **"What happened to 'Business Survey'?" becomes answerable.** The `DELETE`
   branch of the trigger sets `old_data = row_to_json(OLD.*)::jsonb`, retaining
   the full row — including `payload`, and therefore the title — after the object
-  is gone. The hand-written `detail` specified `dcat_class` only and could not
-  name the deleted dataset. This is the clearest concrete win.
-- **The dangling-history problem is largely dissolved.** `activity` references
-  the subject by `table_name` + row data, not by a foreign key to
-  `metadata_object`, so hard-deleting an object cannot cascade its audit trail
-  away. This is most of [ADR 0008](0008-onboard-via-data-json-reimport.md)'s open
-  `object_version` blocker.
+  is gone. A bespoke event table would have to be told to capture the title
+  deliberately; here it falls out of the mechanism. This is the clearest concrete
+  win.
 - **Append-only is compatible with grant-level enforcement.** The trigger only
   ever `INSERT`s into `activity`; nothing updates or deletes it. `GRANT INSERT,
   SELECT` on `activity` and `transaction` with no `UPDATE`/`DELETE` is therefore
@@ -268,8 +245,7 @@ listed as a blocker below rather than settled here.
   is that unbypassable capture is worth the opacity for a compliance control.
 - **A `payload` edit stores the whole payload, not a key-level diff.** The trigger
   computes `changed_data` by JSONB subtraction at the top level, so `payload` is a
-  single key: any change to it records the entire new payload. Storage is
-  therefore comparable to ADR 0005's `object_version`, and *which field* changed
+  single key: any change to it records the entire new payload. *Which field* changed
   inside a payload must be derived by comparing `old_data` to `changed_data`
   rather than read directly. Acceptable, but it means the UI cannot show a
   field-level diff for free.
@@ -290,7 +266,7 @@ listed as a blocker below rather than settled here.
   what makes records intelligible after their subject is deleted. Coverage now
   includes structural change, not only payload change. The scope is **attribution, not
   reconstruction**, which is a recorded choice
-  ([Scope of the history](#scope-of-the-history-attribution-not-reconstruction));
+  ([What we mean by auditability](#what-we-mean-by-auditability));
   the SSP should state that scope rather than implying point-in-time recovery.
 - **AU-9 (Protection of Audit Information)** — `GRANT INSERT, SELECT` only on
   `activity` and `transaction`; no `UPDATE`, no `DELETE` for the application
@@ -304,10 +280,8 @@ listed as a blocker below rather than settled here.
 - **AU-12 (Audit Generation)** — generation is at the database, not the
   application, which is the strongest available placement. The caveat is the
   actor-attribution path above.
-- **SI-12 (Retention)** — `activity` is append-only and unbounded, and will grow
-  faster than `object_version` did because it records structural change too.
-  Retention is **not decided here** and is a blocker, to be decided together with
-  ADR 0005's `object_version` retention and ADR 0008's re-import question.
+- **SI-12 (Retention)** — `activity` is append-only and unbounded.
+  Retention is **not decided here** and is a blocker.
 - **SR-3, RA-5 (Supply Chain, Vulnerability Monitoring)** — a third-party
   dependency now implements an ATO-relevant control. It must be pinned exactly,
   appear in the SBOM, and be named in the SSP as an audit-mechanism component.
@@ -330,9 +304,7 @@ listed as a blocker below rather than settled here.
 2. **Decide whether non-row security events need a durable table** — failed
    authentication, session establishment and termination, authorization denials —
    or whether structured logs with a defined retention satisfy AU-2 for them.
-3. **Decide retention for `activity`**, together with ADR 0005's `object_version`
-   retention and ADR 0008's re-import swap question. These three interact and
-   should be decided in one sitting.
+3. **Decide retention for `activity`**.
 4. **Confirm the cloud.gov brokered RDS role may create triggers and functions**
    in the application schema. No `CREATE EXTENSION` is needed, which is the usual
    obstacle, but trigger creation privilege should be confirmed rather than
@@ -340,12 +312,6 @@ listed as a blocker below rather than settled here.
 
 ## Consequences for other records
 
-- **[ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md)** — its
-  `change_set` + `audit_event` section is superseded by this record. Its
-  attribution-not-reconstruction *scope* decision stands unchanged and is a
-  premise here. Whether `object_version` is retained for payload history or
-  dropped in favour of `activity` is a follow-up: they overlap, and keeping both
-  stores each payload edit twice.
 - **[ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)** — permission
   events are captured by versioning `catalog_permission`. Its soft-delete-only
   requirement for `user_account` is load-bearing for AU-10 here.
@@ -353,29 +319,7 @@ listed as a blocker below rather than settled here.
   captured by versioning `resource_file`, with `actor_kind = 'system'`.
 - **[ADR 0008](0008-onboard-via-data-json-reimport.md)** — its "swap must be a
   single audit event" requirement is met by one `transaction` with
-  `operation = 'reimport_swap'`. Its `object_version` dangling-history blocker is
-  largely dissolved, because `activity` holds no foreign key to the deleted rows.
-
-
-### Open question: is `object_version` still needed?
-
-[ADR 0011](0011-audit-trail-mechanism.md) captures every row mutation on
-`metadata_object` — including `payload` edits — in its `activity` table. That
-overlaps `object_version` substantially: keeping both stores each payload edit
-twice.
-
-Arguments for retaining it: it is a purpose-built, readable payload history with a
-`version_no` and a `change_summary`, and the editor UI can read it directly.
-Arguments for dropping it: `activity` already holds the before and after payload,
-and one history is easier to retain, reason about, and defend to an assessor than
-two.
-
-Retention is part of the same question and is not decided here. It should be
-settled together with ADR 0011's `activity` retention and
-[ADR 0008](0008-onboard-via-data-json-reimport.md)'s re-import swap question,
-because the swap can destroy `object_version` rows by a route other than a
-retention policy — while `activity` survives it.
-
+  `operation = 'reimport_swap'`.
 
 ## Links
 
@@ -387,6 +331,6 @@ retention policy — while `activity` survives it.
 - [Audit trigger by 2ndQuadrant](https://github.com/2ndQuadrant/audit-trigger) and [PostgreSQL wiki: Audit trigger](https://wiki.postgresql.org/wiki/Audit_trigger_91plus) — the prior art PostgreSQL-Audit derives from
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the hybrid object graph this record audits, and the attribution-not-reconstruction scope it assumes
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) · [ADR 0006](0006-quarantine-then-scan-antivirus.md) · [ADR 0008](0008-onboard-via-data-json-reimport.md) — the records whose audit-event requirements this mechanism satisfies
-- [`docs/architecture.md` §3](../architecture.md#3-technology-choices) and [§4](../architecture.md#the-audit-trail-supports-attribution-not-reconstruction) — the stack this must fit and the narrative form of this decision
+- [`docs/architecture.md` §3](../architecture.md#3-technology-choices) and [§4](../architecture.md#auditability) — the stack this must fit and the narrative form of this decision
 - NIST SP 800-53 Rev 5.2 — AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15
 - **Library metadata** (versions, dates, licences, dependency constraints, stars, contributor counts) was verified against PyPI and the GitHub API on 2026-09-28. **Behavioural claims** were read from the sources linked above and were **not executed**; blocker 1 exists to close that gap.

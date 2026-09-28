@@ -62,10 +62,6 @@ a schema-coupled server-rendered form would need the same rewrite.
   once or twice.
 - **Section 508 / WCAG 2.1 AA conformance** is the top-stated v1 pain point and
   a statutory obligation, not a quality goal.
-- **Auditability of in-progress work (AU-2, AU-3).** The v2 data model records
-  an append-only `object_version` history with `editor_user_id`. Drafts that
-  exist only in a client-side buffer are absent from that audit trail until
-  submitted.
 - **Session timeout interaction (AC-12).** v1 enforces a 900-second idle
   timeout (`config/ckan.ini:33-35`). Long metadata forms and short idle
   timeouts interact badly; the mitigation differs by architecture.
@@ -227,8 +223,7 @@ This should be decided together with the editing-model question, since (B) plus
   now dated at 2.1**, not open-ended; see
   [Reversal condition triggered](#reversal-condition-triggered).
 - **In-progress edits are not auditable.** Autosaved drafts live in browser
-  storage, so they are absent from `object_version` until the user deliberately
-  saves. The AU-2/AU-3 audit trail covers saved versions only, which is the same
+  storage. The AU-2/AU-3 audit trail covers saved versions only, which is the same
   position v1 is in.
 - **Browser-storage drafts are per-browser and losable.** Clearing site data,
   switching machines, or private-browsing loses unsaved work, and the server

@@ -214,7 +214,7 @@ consolidation without re-work, which is why it does not gate v2.
 - [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) — why the authoritative validator stays Python and is not reimplemented in JavaScript
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the graph layer v2 owns; records the schema version per object
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — the import path that needs upstream's `DatasetSeries` promotion, and the per-import schema-commit record
-- [`docs/architecture.md` §1](../architecture.md#the-conversion-code-already-exists--upstream-not-in-v1) and [§8](../architecture.md#8-code-organization) — the same finding in narrative form
+- [`docs/architecture.md` §8](../architecture.md#consume-upstream-own-only-the-graph-layer) and [§8 code organization](../architecture.md#8-code-organization) — the same finding in narrative form
 - [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) — the other consumer; vendors its own 1.1 schemas and its own error humanizer
 - NIST SP 800-53 Rev 5.2 — SR-3, SR-4, SR-11, RA-5, CM-2, CM-3, CM-8, SI-10, SA-8
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.

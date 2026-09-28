@@ -37,13 +37,12 @@ importing their published `data.json`.
   tests. The migration tool is largely written, and it is **not** v1's copy: v1's
   `ckanext/datagov_inventory/dcat/` is a July-2026 fork that has drifted behind
   upstream and lacks the `DatasetSeries` promotion this ADR's import path needs
-  ([`architecture.md` §1](../architecture.md#the-conversion-code-already-exists--upstream-not-in-v1)).
+  ([`architecture.md` §8](../architecture.md#consume-upstream-own-only-the-graph-layer)).
 - **A database-level migration would have to bridge both a model change and a
   schema-version change simultaneously**, and would need to reproduce CKAN's
   `package_extras` conventions — the exact thing v2 exists to escape.
-- **Import produces reuse automatically.** Under ADR 0005, `payload_hash`
-  content-addressing means importing a flat catalog converges repeated contact
-  points and publishers onto shared objects. Import is not a lossy shortcut; it
+- **Import produces reuse automatically.** The import code merges repeated contact
+  points and publishers into shared objects. Import is not a lossy shortcut; it
   is the mechanism that produces the desired structure.
 - **v1 remains available during transition.** Nothing is deleted by this
   decision; v1 continues serving until agencies have re-established in v2.
@@ -165,7 +164,6 @@ returns as a requirement. Confirm the assumption before this record is accepted.
 - **CM-4 (Impact Analysis)** — the per-organization dataset-count reconciliation
   this record already requires applies to each re-import, not only the first,
   since a swap can silently shrink a catalog if the published file has regressed.
-- **SI-12** — see the `object_version` question above.
 
 ### Notable consequence: agencies can rehearse before v2 exists
 
@@ -186,9 +184,8 @@ report differently.
 
 - **User accounts.** Not needed: ADR 0004 creates accounts just-in-time on first
   Login.gov authentication.
-- **Version history.** v1's CKAN revision history is not carried into
-  `object_version`. v2's audit trail begins at import. This is the main accepted
-  loss — see below.
+- **Version history.** v1's CKAN revision history is not carried into v2.
+  v2's audit trail begins at import. This is the main accepted loss — see below.
 - **Draft datasets.** Anything not in the published `data.json` is not imported.
   Agencies with unpublished drafts in v1 must re-enter them or use the Option 3
   fallback (v1 has an "Export Drafts" capability at
@@ -218,7 +215,7 @@ report differently.
 ### Negative Consequences
 
 - **Version history does not survive.** v1's edit history is not carried into
-  `object_version`. If historical attribution has a retention obligation, the v1
+  v2. If historical attribution has a retention obligation, the v1
   database must be preserved separately as an archive — this ADR does not create
   that archive, and someone must decide whether one is required (see below).
 - **Work is pushed onto agency staff**, across ~350 organizations. Each needs
@@ -275,7 +272,6 @@ report differently.
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — import/export from a current DCAT-US 3.0 catalog
 - [DCAT-US 3.0 migration guide](https://resources.data.gov/resources/dcat-us-3-migration/) and [M-25-05 crosswalk](https://resources.data.gov/resources/dcat-us-3-crosswalk/)
 - [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — **the implementation this ADR depends on**, already vendored as `_external/dcat-us`
-- [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — `payload_hash` content-addressing that makes import produce reuse
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — why user accounts need no migration
 - [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on that upstream code, and why v1's fork is not the source
 - `ckanext/datagov_inventory/dcat/dcat_converter.py` — v1's stale fork of the upstream converter; **not** the source for v2

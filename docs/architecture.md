@@ -13,8 +13,8 @@ related_files:
 
 > **Status: `draft`.** This document describes a *target* architecture, not a
 > built system. Every significant choice here is backed by a decision record in
-> [`docs/decisions/`](decisions/README.md), and **all nine of those records are
-> `proposed`, not `accepted`** — all nine carry explicit blockers that could change
+> [`docs/decisions/`](decisions/README.md), and **all ten of those records are
+> `proposed`, not `accepted`** — all ten carry explicit blockers that could change
 > the design. See [Open blockers](#9-open-blockers).
 >
 
@@ -226,7 +226,7 @@ Three properties carry the requirements:
    changes. Its DCAT properties — `title`, `description`, `publisher` — and its
    top-level `dataset[]` / `service[]` / `datasetSeries[]` membership live in the
    object graph, reached through `catalog.root_object_id`. See
-   [Catalog identity is separate from catalog content](#catalog-identity-is-separate-from-catalog-content).
+   [ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md#catalog-identity-is-separate-from-catalog-content).
 
 **Highest-risk surface:** graph assembly. Mitigations are non-optional —
 property-based round-trip tests (`assemble ∘ decompose ≡ identity`), cycle
@@ -618,7 +618,7 @@ works, telemetry does not.
 | Solr scaffolding | Already dead in v1: 12 files, 3 Makefile targets, a `pysolr` pin, a placeholder `CKAN_SOLR_URL`, a `/solr` nginx route                           |
 | Redis + RQ | No remaining need                                                                                                                                |
 | DataStore + xloader + `datastore_ro` provisioning | [ADR 0007](decisions/0007-retire-tabular-datastore-api.md) — **a user-visible regression**, see below                                            |
-| `pysaml2`, `xmlsec1`, `apt.yml`, `apt-buildpack` | Switch from SAML to OpenID Login.gov integration |                                                                                                |
+| `pysaml2`, `xmlsec1`, `apt.yml`, `apt-buildpack` | Switch from SAML to OpenID Login.gov integration                                                                                                 |
 | repoze.who + Beaker | Vestigial since CKAN 2.9                                                                                                                         |
 | `create_inventory_user`, `reactivate_user`, roles-table admin UI | ~278 lines of `plugin.py`, 152 of `action.py`, 115-line template ([ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md))          |
 | `Jenkinsfile`, `bin/jenkins_build` | Dead: gated on a branch that no longer exists                                                                                                    |
@@ -718,23 +718,14 @@ being an import rather than an extraction:
 
 ## 9. Open blockers
 
-No record should be accepted — and no build should start on the affected
-area — until these clear. Reproduced from
-[`docs/decisions/README.md`](decisions/README.md).
+Every decision record is `proposed`. No record should be accepted — and no build
+should start on the affected area — until its blockers clear.
 
-| ADR | Blocker | Type |
-|---|---|---|
-| 0001 | Request `GSA/datagov-inventory` per the new-repository checklist. | Organizational |
-| 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. (B) reverses the decision toward an SPA. A reversal condition is **already triggered** (anonymous editing scheduled 2.1). | Product |
-| 0004 | Confirm whether an email-domain allowlist is wanted; define how the first `admin` grant on a new catalog happens. | Product + design |
-| 0005 | Decide the role of `inventory_publishers.csv` now that there is no tenant entity (seed data for DCAT `Organization` objects; hierarchy; global vs. per-catalog). | Design |
-| 0005 | Specify the class-scoped convergence list and where the import-run content hash is computed. | Design |
-| 0006 | Query existing S3 objects for actual file-size distribution to confirm 500 MB. | Data |
-| 0007 | Query access logs and New Relic for `datastore_search` consumers (required CM-4 impact analysis). | Data |
-| 0008 | Records-officer determination on NARA retention of v1 edit history; archive the v1 database if required. | Compliance |
-| 0008 | Confirm import is onboarding-shaped and Inventory is never a publishing conduit for metadata authored elsewhere. | Product |
-| 0009 | Verify module `variables.tf` for a Flask app; Terraform vs. OpenTofu; provision the encrypted state backend; scope of `logshipper`. | Design + organizational |
-| 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode`, tags, `requires-python`) is an acceptable target; choose the initial pinned submodule commit. | External + design |
+**The blockers are listed once, in
+[`docs/decisions/README.md`](decisions/README.md#blockers-before-any-record-is-accepted),
+with the record each belongs to.** They are deliberately not duplicated here: this
+section previously carried a copy, and the copy drifted from the list in both
+directions.
 
 ## 10. Compliance posture
 
@@ -755,14 +746,14 @@ changes relative to v1:
   `yes-boundary` decisions (ADR 0006 adds a scanner and an outbound flow;
   ADR 0007 removes a brokered data store and a public API).
 - **Requires a decision not yet made:** SI-12 retention policy for
-  `object_version`, which grows without bound by design.
+  audit records, which grow without bound by design.
 
 ## 11. References
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — the v2 feature list
-- [Decision records index](decisions/README.md) — ADRs 0001–0010
+- [Decision records index](decisions/README.md) — ADRs 0001–0011
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) · [1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) · [GSA/dcat-us](https://github.com/GSA/dcat-us)
-- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — schemas **and** `transforms.py`, `convert_dcat_1_1_to_3_0.py`, `v1.1_definitions/`; the dependency described in [§1](#the-conversion-code-already-exists--upstream-not-in-v1)
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — schemas **and** `transforms.py`, `convert_dcat_1_1_to_3_0.py`, `v1.1_definitions/`; the dependency described in [§8](#consume-upstream-own-only-the-graph-layer)
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) · [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — the pattern being followed
 - [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) · [harvest.data.gov wiki](https://github.com/GSA/data.gov/wiki/harvest.data.gov) — `LoadManager` sweeper precedent
 - [inventory.data.gov wiki](https://github.com/GSA/data.gov/wiki/inventory.data.gov) — current-state operations
