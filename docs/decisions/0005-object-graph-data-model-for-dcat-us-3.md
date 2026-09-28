@@ -88,10 +88,14 @@ JSON Schema, not RDF — the fidelity is not worth the platform cost here.
 ### Shape
 
 ```
-user_account      ── created ──▶ catalog                  (creator; not a tenant boundary)
+catalog(id, root_object_id → metadata_object UNIQUE, created_by, created_at)
+    identity + authorization anchor only; survives re-import unchanged
+
+catalog           ── root_object_id ──▶ metadata_object (dcat_class='Catalog')
 catalog           ── catalog_link ──▶ catalog            (embedded catalogs, live only)
-catalog           ── catalog_member ──▶ metadata_object  (top-level dataset[]/service[]/datasetSeries[])
 catalog           ── catalog_permission ──▶ user_account | catalog   (read | edit | admin)
+catalog           ── scopes ──▶ metadata_object          (catalog_id on every object)
+user_account      ── created ──▶ catalog                 (creator; not a tenant boundary)
 
 metadata_object(id, catalog_id, dcat_class, state, payload JSONB,
                 search_vector tsvector)
@@ -100,23 +104,90 @@ object_version(id, object_id, version_no, payload JSONB,
                editor_user_id, created_at, change_summary)
 ```
 
-Two properties do the work, each mapping to a stated requirement:
+Top-level catalog membership is `object_reference` from the root object with
+`property = 'dcat:dataset' | 'dcat:service' | 'dcat:datasetSeries'`.
+
+Three properties do the work, each mapping to a stated requirement:
 
 - **`object_reference` is the reuse mechanism.** One `Kind` row referenced by
   fifty datasets. Export is a recursive walk that assembles nested JSON; import
-  is the inverse.
+  is the inverse. `ordinal` preserves JSON array order — DCAT-US properties are
+  ordered arrays and SQL rows are not, so without it the round-trip property
+  asserted below is false for any object with two or more children.
 - **`state` on `metadata_object`** makes "drafts are not exported" a
   `WHERE state = 'live'` predicate on the export walk — one authoritative field,
   replacing the v1 three-way confusion.
+- **`catalog` holds identity, a `Catalog`-class `metadata_object` holds content.**
+  The authorization anchor and the export URL are permanent; the DCAT properties
+  are replaceable. Separating them makes ADR 0008's re-import swap a single
+  pointer write.
 
 Search uses Postgres full-text search (`tsvector` + GIN) on
 `metadata_object.search_vector`. **OpenSearch is explicitly not adopted**;
 `catalog.data.gov` needs it at 515k datasets, Inventory does not.
 
+### Catalog identity is separate from Catalog content
+
+`Catalog` is a DCAT-US 3.0 class and it makes sense to treat it like all other `metadata_object` types.
+
+At the same time, the `catalog` type genuinely does carry non-DCAT
+responsibilities: it is the `catalog_permission` anchor, the export URL, and the
+identity that [ADR 0008](0008-onboard-via-data-json-reimport.md) requires to
+survive a re-import.
+
+**Those are two different lifetimes, so they are two different rows.**
+
+| Row | Holds | Lifetime |
+|---|---|---|
+| `catalog` | `id`, `root_object_id`, `created_by`, `created_at` | Permanent |
+| `metadata_object` where `dcat_class = 'Catalog'` | DCAT scalars in `payload`; top-level membership as outbound `object_reference` edges | Replaced wholesale by re-import |
+
+#### `catalog_link` is its own table
+
+Embedded catalogs are **not** folded into `object_reference`. An embedding edge
+must reference the *identity* of the embedded catalog, because
+[ADR 0008](0008-onboard-via-data-json-reimport.md#what-the-catalog-identity-carries-across-a-swap)
+guarantees inbound embedding survives a re-import of the embedded catalog. An
+edge pointing at that catalog's root *object* would dangle the moment its
+`root_object_id` moved — breaking the guarantee that is the main reason identity
+transfer was chosen over creating a new catalog.
+
+So `catalog_link(parent_catalog_id, child_catalog_id, ordinal)` references
+`catalog(id)`, and the export walk has two edge kinds by design. The uniformity
+gain is available for membership and not for embedding; taking it only where it is
+sound is the point.
+
+This also means cycle handling keeps both mechanisms already specified in this
+record: write-time acyclicity on `catalog_link`, and a depth bound on the
+`object_reference` walk.
+
+#### The walk re-authorizes at every catalog boundary
+
+`AC-3` below states that "every query is scoped by `catalog_id`." A walk crossing
+a `catalog_link` **leaves that scope by construction**, so scope-plus-permission
+is no longer sufficient on its own.
+
+**Requirement:** when the walk enters an embedded catalog, it re-checks
+`catalog_permission` for that catalog — including transitive grants — before
+emitting any of its content. Having `catalog_link` as a separate table helps
+here, since the crossing is a visible seam in the code rather than an
+indistinguishable graph edge. This is an explicit requirement with its own test,
+not an emergent property.
+
+#### Two schema constraints, both required
+
+- **`UNIQUE` on `catalog.root_object_id`.** Without it, two catalogs can share a
+  root object and the identity/content separation collapses.
+- **The foreign keys are mutually circular** — `catalog.root_object_id` →
+  `metadata_object.id` and `metadata_object.catalog_id` → `catalog.id`. One side
+  must be `DEFERRABLE INITIALLY DEFERRED`, or nullable and set immediately after
+  insert within the same transaction. This is DDL friction to handle in the
+  Alembic baseline, not a design problem, but it will not work if written naively.
+
 ### Positive Consequences
 
 - Every DCAT-US 3.0 class is representable, including ones with no CKAN analogue
-  (`DatasetSeries`, `DataService`, `CatalogRecord`, `ConceptScheme`).
+  (`Catalog`, `DatasetSeries`, `DataService`, `CatalogRecord`, `ConceptScheme`).
 - Adding or changing a class is a submodule bump plus form-model regeneration —
   no DDL migration, because class-specific fields live in `payload`.
 - Version history is append-only with `editor_user_id`, satisfying AU-2/AU-3
@@ -149,8 +220,8 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
   merges objects whose scalars coincide. Two deliberately-distinct `Organization`
   rows survive export as indistinguishable inlined copies and re-import as one.
   This is inherent, not a defect to fix — but the test suite must not claim a
-  round-trip property it does not have, and the loss should be stated where users
-  can see it (see the `payload_hash` amendment above).
+  round-trip property it does not have, and the loss should be stated in the UI
+  where users can see it before they re-import.
 - **Cycles are possible** — embedded catalogs and `object_reference` edges can
   both form loops. The walk needs cycle detection with a depth bound, and
   `catalog_link` needs an acyclicity check on write. A cycle discovered only at
@@ -168,6 +239,13 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
   copy-on-write must be offered. Without this, reuse becomes a footgun.
 - Reference counting is needed to identify genuinely orphaned objects, and
   "orphan" is ambiguous for a reusable object deliberately kept unattached.
+- **The export walk traverses two kinds of edge**, `object_reference` within a
+  catalog and `catalog_link` between catalogs. Membership is uniform; embedding is not. The walk
+  therefore has a mode switch, and that switch is where catalog-boundary
+  re-authorization must happen.
+- **The `catalog` ⟷ `metadata_object` foreign keys are mutually circular**, so the
+  Alembic baseline needs a deferrable constraint or a nullable pointer set
+  post-insert. Minor, but it fails if written naively.
 - More joins than a document store. Acceptable at this scale; mitigated by
   indexes on `object_reference(parent_object_id)` and
   `metadata_object(catalog_id, dcat_class, state)`.
@@ -178,7 +256,9 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
   append-only with actor, timestamp, full payload, and change summary. Inserts
   only; no `UPDATE`/`DELETE` grant on that table for the application role.
 - **AU-10 (Non-repudiation)** — editor attribution on every version, bound to a
-  Login.gov subject via `user_account` (ADR 0004).
+  Login.gov subject via `user_account` (ADR 0004). A re-import swap is additionally 
+  a single audit event in its own right ([ADR 0008](0008-onboard-via-data-json-reimport.md#compliance-consequences-of-the-amendment)),
+  recording the outgoing and incoming `root_object_id`.
 - **AC-3 (Access Enforcement)** — every query is scoped by `catalog_id` and
   checked against `catalog_permission`. **Object identifiers must not be
   treated as authorization**; a direct-object-reference check is required on
@@ -189,6 +269,10 @@ Search uses Postgres full-text search (`tsvector` + GIN) on
   handle a **catalog** principal and **transitive** grants through embedded
   catalogs from the first release — not only the direct user-to-catalog case.
   Transitive resolution is the harder half and needs its own test coverage.
+  **The `catalog_id` scope is not sufficient on its own during the export walk**,
+  which crosses catalog boundaries via `catalog_link` by design; the walk must
+  re-authorize on entering an embedded catalog (see
+  [the amendment above](#the-walk-re-authorizes-at-every-catalog-boundary)).
 - **SI-10 (Input Validation)** — all imports and exports validated against
   DCAT-US JSON Schema (Draft 2020-12) by the single Python validator.
 - **SI-12 (Information Management and Retention)** — append-only history implies

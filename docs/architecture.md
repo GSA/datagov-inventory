@@ -157,8 +157,8 @@ erDiagram
     USER_ACCOUNT ||--o{ CATALOG : created
     USER_ACCOUNT ||--o{ CATALOG_PERMISSION : holds
     CATALOG ||--o{ CATALOG_PERMISSION : "granted on"
-    CATALOG ||--o{ CATALOG_LINK : "embeds (acyclic)"
-    CATALOG ||--o{ CATALOG_MEMBER : "dataset[] service[] datasetSeries[]"
+    CATALOG ||--|| METADATA_OBJECT : "root_object_id → dcat_class='Catalog'"
+    CATALOG ||--o{ CATALOG_LINK : "embeds (acyclic, live only)"
     CATALOG ||--o{ METADATA_OBJECT : scopes
     METADATA_OBJECT ||--o{ OBJECT_VERSION : "append-only history"
     METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "parent of"
@@ -168,10 +168,21 @@ erDiagram
     CATALOG ||--o{ EXPORT_RUN : produces
     METADATA_OBJECT ||--o{ URL_AUDIT : "scanned for"
 
+    CATALOG {
+        uuid id PK "identity and authorization anchor — never swapped"
+        uuid root_object_id FK "UNIQUE, deferrable — the Catalog-class object"
+        uuid created_by FK "provenance only — conveys no privilege"
+        timestamptz created_at
+    }
+    CATALOG_LINK {
+        uuid parent_catalog_id FK
+        uuid child_catalog_id FK "catalog identity, not root object"
+        int ordinal
+    }
     METADATA_OBJECT {
         uuid id PK
         uuid catalog_id FK
-        text dcat_class "Dataset DatasetSeries DataService Distribution Kind Organization Concept ConceptScheme Location"
+        text dcat_class "Catalog CatalogRecord Dataset DatasetSeries DataService Distribution Kind Organization Concept ConceptScheme Location"
         text state "draft | live"
         jsonb payload "own scalar properties only"
         tsvector search_vector
@@ -179,8 +190,8 @@ erDiagram
     OBJECT_REFERENCE {
         uuid parent_object_id FK
         uuid child_object_id FK
-        text property "dcat:distribution dcat:contactPoint dcat:theme"
-        int ordinal
+        text property "dcat:dataset dcat:service dcat:distribution dcat:contactPoint dcat:theme"
+        int ordinal "preserves JSON array order"
     }
     OBJECT_VERSION {
         uuid id PK
@@ -208,16 +219,24 @@ erDiagram
     }
 ```
 
-Two properties carry the requirements:
+Three properties carry the requirements:
 
 1. **`object_reference` is the reuse mechanism.** A `Kind` (contact point) or
    `Organization` (publisher) is one row referenced by many datasets. `payload`
    holds only that class's own scalar properties; nesting is edges. Export walks
-   the graph and assembles nested JSON; import is the inverse.
+   the graph and assembles nested JSON; import is the inverse. `ordinal`
+   preserves JSON array order, without which the round-trip property below is
+   false for any object with two or more children.
 2. **`state` is per object.** "Drafts are not exported" becomes
    `WHERE state = 'live'` on the export walk. This replaces v1's documented
    three-way confusion between CKAN `private`, DCAT `accessLevel`, and Inventory
    publishing status ([GSA/data.gov#2095](https://github.com/GSA/data.gov/issues/2095)).
+3. **`catalog` holds identity; a `Catalog`-class `metadata_object` holds content.**
+   The `catalog` row is the authorization anchor and the export URL, and it never
+   changes. Its DCAT properties — `title`, `description`, `publisher` — and its
+   top-level `dataset[]` / `service[]` / `datasetSeries[]` membership live in the
+   object graph, reached through `catalog.root_object_id`. See
+   [Catalog identity is separate from catalog content](#catalog-identity-is-separate-from-catalog-content).
 
 **Highest-risk surface:** graph assembly. Mitigations are non-optional —
 property-based round-trip tests (`assemble ∘ decompose ≡ identity`), cycle
@@ -305,7 +324,9 @@ deferrable:
    transitive case, not just the direct one.
 3. **A `state` precondition on sharing.** A catalog may only be shared once it is
    no longer `draft`, so the share operation carries a state check distinct from
-   the export-time `WHERE state = 'live'` filter.
+   the export-time `WHERE state = 'live'` filter. A catalog's state is the `state`
+   of the object at `catalog.root_object_id`; there is no separate state column on
+   `catalog`, because the catalog row carries identity rather than content.
 
 Depth bounding on the walk remains necessary even with write-time acyclicity
 enforcement: `object_reference` edges can also form loops, enforcement could have
@@ -361,7 +382,7 @@ sequenceDiagram
     U->>W: GET /catalog/{id}/export?format=dcat-us-3
     W->>DB: authorize (catalog_permission)
     W->>DB: INSERT export_run (status=running, schema_commit)
-    W->>DB: recursive walk catalog_member → object_reference<br/>WHERE state='live' (cycle-detected, depth-bounded)
+    W->>DB: recursive walk from catalog.root_object_id<br/>object_reference (+ catalog_link, re-authorized)<br/>WHERE state='live' (cycle-detected, depth-bounded)
     DB-->>W: object graph
     W->>V: assemble nested JSON
     V->>V: validate against Catalog.json (Draft 2020-12)
