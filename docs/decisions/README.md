@@ -20,8 +20,9 @@ records, to preserve the audit trail.
 | [0008](0008-onboard-via-data-json-reimport.md) | Onboard agencies by re-importing published data.json rather than migrating from CKAN | proposed | 2026-09-21 | yes-internal | CM-3, SI-10, SI-12, CP-9, CM-4, SA-8 |
 | [0009](0009-terraform-cloudgov-for-infrastructure.md) | Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules | proposed | 2026-09-21 | **yes-boundary** | CM-2, CM-3, CM-6, CM-8, CM-9, SC-7, SC-12, SC-28, AC-3, AC-5, SA-8, SR-3 |
 | [0010](0010-depend-on-upstream-dcat-us-code.md) | Consume DCAT-US conversion and validation code from the pinned GSA/dcat-us submodule rather than forking it | proposed | 2026-09-24 | yes-internal | SR-3, SR-4, SR-11, RA-5, CM-2, CM-3, CM-8, SI-10, SA-8 |
+| [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
 
-**By status:** 9 proposed, 0 accepted, 0 deprecated, 0 superseded.
+**By status:** 10 proposed, 0 accepted, 0 deprecated, 0 superseded.
 
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
@@ -35,15 +36,17 @@ For a reviewer coming to this cold, [`docs/architecture.md`](../architecture.md)
 first, then the records in numeric order. 0001 is deliberately first because it
 determines where every other decision is recorded and built. 0005 is the
 technical core — the CKAN data-model mismatch is the reason v2 exists at all.
+Read [0011](0011-audit-trail-mechanism.md) directly after 0005: it assumes 0005's
+data model and supersedes 0005's hand-written audit tables.
 
 ## Controls referenced across all records
 
-`AC-2`, `AC-2(3)`, `AC-3`, `AC-5`, `AC-6`, `AC-12`, `AU-2`, `AU-3`, `AU-10`,
-`CM-2`, `CM-3`, `CM-4`, `CM-6`, `CM-7`, `CM-8`, `CM-9`, `CP-9`, `IA-2`,
-`IA-2(1)`, `IA-2(12)`, `IA-5`, `IA-8`, `IR-4`, `IR-6`, `PS-4`, `RA-5`, `SA-5`,
-`SA-8`, `SA-15`, `SC-7`, `SC-8`, `SC-12`, `SC-13`, `SC-17`, `SC-18`, `SC-28`,
-`SI-3`, `SI-3(1)`, `SI-3(2)`, `SI-7`, `SI-10`, `SI-12`, `SI-15`, `SR-3`, `SR-4`,
-`SR-11`
+`AC-2`, `AC-2(3)`, `AC-3`, `AC-5`, `AC-6`, `AC-12`, `AU-2`, `AU-3`, `AU-9`,
+`AU-10`, `AU-12`, `CM-2`, `CM-3`, `CM-4`, `CM-6`, `CM-7`, `CM-8`, `CM-9`, `CP-9`,
+`IA-2`, `IA-2(1)`, `IA-2(12)`, `IA-5`, `IA-8`, `IR-4`, `IR-6`, `PS-4`, `RA-5`,
+`SA-5`, `SA-8`, `SA-15`, `SC-7`, `SC-8`, `SC-12`, `SC-13`, `SC-17`, `SC-18`,
+`SC-28`, `SI-3`, `SI-3(1)`, `SI-3(2)`, `SI-7`, `SI-10`, `SI-12`, `SI-15`, `SR-3`,
+`SR-4`, `SR-11`
 
 ## Blockers before any record is accepted
 
@@ -62,6 +65,10 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 | 0008 | Confirm that import is onboarding-shaped (once per agency plus retries) and that Inventory is never a publishing conduit for metadata authored elsewhere. If it is, destroy-and-rebuild re-import is wrong semantics and merge returns as a requirement. | Product |
 | 0009 | Verify each module's `variables.tf` for a Flask (non-Rails) app; decide Terraform vs. OpenTofu; provision and document the encrypted state backend; decide whether Terraform manages CI deployer service keys; confirm `logshipper` scope. | Design + organizational |
 | 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode = true`, tags, a relaxed `requires-python`) is an acceptable target, and choose the initial pinned submodule commit. Neither answer blocks starting on the chosen option. | External + design |
+| 0011 | Time-boxed spike to execute the behavioural claims this record reads from source: null `transaction_id` on session-bypassing writes, `old_data`/`changed_data` shape for a `payload JSONB` edit, write cost on a 2,000-object import, `GRANT INSERT, SELECT`-only viability, and absence of `SECURITY DEFINER`. | Design |
+| 0011 | Decide whether non-row security events (failed authentication, session establishment and idle termination, authorization denials) need a durable table, or whether structured logs with a defined retention satisfy AU-2 for them. | Compliance |
+| 0011 | Decide retention for `activity` together with ADR 0005's `object_version` question and ADR 0008's re-import swap question. All three interact and should be decided in one sitting. | Compliance |
+| 0011 | Confirm the cloud.gov brokered RDS application role may create triggers and functions in the application schema. No `CREATE EXTENSION` is required, which is the usual obstacle. | Organizational |
 
 ## Status lifecycle
 

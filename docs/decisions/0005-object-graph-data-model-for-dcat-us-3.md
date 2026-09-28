@@ -100,8 +100,6 @@ user_account      ── created ──▶ catalog                 (creator; not
 metadata_object(id, catalog_id, dcat_class, state, payload JSONB,
                 search_vector tsvector)
 object_reference(parent_object_id, child_object_id, property, ordinal)
-object_version(id, object_id, version_no, payload JSONB,
-               editor_user_id, created_at, change_summary)
 ```
 
 Top-level catalog membership is `object_reference` from the root object with
@@ -190,8 +188,6 @@ not an emergent property.
   (`Catalog`, `DatasetSeries`, `DataService`, `CatalogRecord`, `ConceptScheme`).
 - Adding or changing a class is a submodule bump plus form-model regeneration —
   no DDL migration, because class-specific fields live in `payload`.
-- Version history is append-only with `editor_user_id`, satisfying AU-2/AU-3
-  and AU-10 without `sqlalchemy-continuum`, temporal tables, or trigger magic.
 - Catalog-to-catalog sharing is native: `catalog_permission` accepts either a
   user or a catalog as principal. Since that feature is MVP scope, the model
   carries it from the first release rather than requiring a later schema change.
@@ -201,9 +197,6 @@ not an emergent property.
   `user_account ── created ──▶ catalog` is provenance for audit, not ownership,
   and conveys no privilege. See
   [`architecture.md` §4](../architecture.md#there-is-no-agencybureau-tenant-entity).
-- Draft autosave (ADR 0002) writes `object_version` rows with
-  `change_summary='autosave'`, making in-progress work both recoverable and
-  auditable.
 - One Postgres service. With the DataStore retired (ADR 0007) and Redis dropped,
   v2 has a single stateful backing service where v1 had three.
 
@@ -252,13 +245,6 @@ not an emergent property.
 
 ### Compliance Consequences
 
-- **AU-2, AU-3 (Audit Events, Content)** — *addressed.* `object_version` is
-  append-only with actor, timestamp, full payload, and change summary. Inserts
-  only; no `UPDATE`/`DELETE` grant on that table for the application role.
-- **AU-10 (Non-repudiation)** — editor attribution on every version, bound to a
-  Login.gov subject via `user_account` (ADR 0004). A re-import swap is additionally 
-  a single audit event in its own right ([ADR 0008](0008-onboard-via-data-json-reimport.md#compliance-consequences-of-the-amendment)),
-  recording the outgoing and incoming `root_object_id`.
 - **AC-3 (Access Enforcement)** — every query is scoped by `catalog_id` and
   checked against `catalog_permission`. **Object identifiers must not be
   treated as authorization**; a direct-object-reference check is required on
@@ -275,11 +261,6 @@ not an emergent property.
   [the amendment above](#the-walk-re-authorizes-at-every-catalog-boundary)).
 - **SI-10 (Input Validation)** — all imports and exports validated against
   DCAT-US JSON Schema (Draft 2020-12) by the single Python validator.
-- **SI-12 (Information Management and Retention)** — append-only history implies
-  unbounded growth; a retention policy for `object_version` is required and is
-  not decided here. Note that a "delete my data" request cannot be satisfied by
-  deleting a row, by design — the audit trail is the point. Metadata is public
-  open data, so this is low-risk, but it should be stated rather than discovered.
 - **CM-3 (Configuration Change Control)** — schema version (`_external/dcat-us`
   submodule commit) should be recorded on `export_run` so an export is
   reproducible against the schema that validated it.
@@ -309,7 +290,7 @@ building the publisher picker, not after.**
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) and [DCAT-US 1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) — structural differences driving this model
 - [DCAT-US 3.0 Catalog class](https://resources.data.gov/standards/catalog/dcat-us-3/catalog/#catalog) — embedded-catalog semantics
 - [GSA/data.gov#2095](https://github.com/GSA/data.gov/issues/2095) — the v1 visibility confusion this model replaces
-- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) — consumes the schema→form model and autosave
+- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) — consumes the schema→form model
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — `catalog_permission` semantics
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — import path that produces the shared-object structure
 - [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream validator and converter v2 consumes; `ckanext/datagov_inventory/dcat/` is a stale fork of it, not a source ([`architecture.md` §1](../architecture.md#the-conversion-code-already-exists--upstream-not-in-v1))

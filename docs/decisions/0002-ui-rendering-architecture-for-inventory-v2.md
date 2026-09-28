@@ -91,9 +91,10 @@ a schema-coupled server-rendered form would need the same rewrite.
 ## Considered Options
 
 1. **Server-rendered Jinja + USWDS + HTMX, with scoped JavaScript islands.**
-   Flask renders pages and form partials. HTMX handles partial swaps and
-   autosave. Discrete mounted components ("islands") handle the few genuinely
-   interactive widgets. One Python schema-renderer, one Python validator.
+   Flask renders pages and form partials. HTMX handles partial swaps; drafts
+   autosave to browser storage. Discrete mounted components ("islands") handle
+   the few genuinely interactive widgets. One Python schema-renderer, one Python
+   validator.
 
 2. **Full single-page application (React + `@trussworks/react-uswds`)**
    against a stateless JSON API. Client owns routing and editing state. The
@@ -111,9 +112,8 @@ a schema-coupled server-rendered form would need the same rewrite.
 Chosen option: **Option 1 — server-rendered Jinja + USWDS + HTMX with scoped
 JavaScript islands**, conditional on the editing model being the *decomposed*
 one (see below), because it keeps schema interpretation and validation in a
-single Python implementation, starts from accessible native HTML, makes draft
-autosave auditable by construction, and matches the two sibling Data.gov
-applications.
+single Python implementation, starts from accessible native HTML, and matches
+the two sibling Data.gov applications.
 
 Three commitments make this choice reversible at low cost, and they are part of
 the decision rather than implementation detail:
@@ -206,10 +206,8 @@ This should be decided together with the editing-model question, since (B) plus
   regressions* rather than *reconstructing semantics*.
 - The accessibility surface requiring bespoke audit shrinks to three islands
   instead of the whole application.
-- Server-side autosave into `object_version` (with
-  `change_summary='autosave'`) means long-form work survives the AC-12 idle
-  timeout **and** appears in the audit trail — a v1 complaint and a compliance
-  gap closed by one mechanism.
+- Draft autosave to **browser storage** means long-form work survives the AC-12
+  idle timeout without writing in-progress edits to the database.
 - Tooling, CI accessibility gates, and operational runbooks are shared with
   `datagov-catalog`.
 - No client-side build chain, bundler, or JS dependency tree on the critical
@@ -228,6 +226,15 @@ This should be decided together with the editing-model question, since (B) plus
   below) or a separate client. This is a real, acknowledged debt — **and it is
   now dated at 2.1**, not open-ended; see
   [Reversal condition triggered](#reversal-condition-triggered).
+- **In-progress edits are not auditable.** Autosaved drafts live in browser
+  storage, so they are absent from `object_version` until the user deliberately
+  saves. The AU-2/AU-3 audit trail covers saved versions only, which is the same
+  position v1 is in.
+- **Browser-storage drafts are per-browser and losable.** Clearing site data,
+  switching machines, or private-browsing loses unsaved work, and the server
+  cannot recover it. Draft recovery must be offered explicitly on return to a
+  form rather than applied silently, since a stale local draft can otherwise
+  overwrite a newer saved version.
 - **USWDS JS components must be re-initialized after HTMX swaps.** A known,
   solved problem, but a recurring source of subtle breakage that needs an
   explicit pattern and a test.
@@ -246,13 +253,16 @@ This should be decided together with the editing-model question, since (B) plus
 - **SI-15 / SC-18 (Output Filtering / Mobile Code)** — *addressed.* Jinja
   autoescaping covers the primary render path; the reduced JS surface narrows
   where DOM-injection review is needed. Island code remains in scope for review.
-- **AU-2 / AU-3 (Audit Events / Content)** — *strengthened.* Server-side
-  autosave puts in-progress edits in the `object_version` trail with
-  `editor_user_id` and timestamp, rather than leaving them invisible in a
-  client buffer.
-- **AC-12 (Session Termination)** — *mitigated.* Autosave decouples "work
-  preserved" from "session alive," so the 900-second idle timeout can be
-  retained without data loss as the justification for relaxing it.
+- **AU-2 / AU-3 (Audit Events / Content)** — *unchanged from v1.* Autosaved drafts
+  sit in browser storage and are **not** in the audit trail, so in-progress work
+  is invisible until saved. This record claims no audit improvement from the
+  editor.
+- **AC-12 (Session Termination)** — *mitigated, client-side.* Browser-storage
+  autosave decouples "work preserved" from "session alive," so the 900-second
+  idle timeout is retained without data loss as the justification for relaxing
+  it. The mitigation depends on the user's own browser rather than on the server,
+  so it is weaker than server-side persistence: it does not survive clearing site
+  data or moving to another machine.
 - **Section 508 / WCAG 2.1 AA** — verification is required regardless of
   option. `pa11y-ci` plus `axe` in CI as blocking gates, matching
   `datagov-catalog`, with manual keyboard and screen-reader testing on each

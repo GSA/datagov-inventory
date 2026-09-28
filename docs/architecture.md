@@ -160,11 +160,9 @@ erDiagram
     CATALOG ||--|| METADATA_OBJECT : "root_object_id → dcat_class='Catalog'"
     CATALOG ||--o{ CATALOG_LINK : "embeds (acyclic, live only)"
     CATALOG ||--o{ METADATA_OBJECT : scopes
-    METADATA_OBJECT ||--o{ OBJECT_VERSION : "append-only history"
     METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "parent of"
     METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "referenced by (reuse)"
     METADATA_OBJECT ||--o| RESOURCE_FILE : "Distribution hosts"
-    USER_ACCOUNT ||--o{ OBJECT_VERSION : edited
     CATALOG ||--o{ EXPORT_RUN : produces
     METADATA_OBJECT ||--o{ URL_AUDIT : "scanned for"
 
@@ -192,15 +190,6 @@ erDiagram
         uuid child_object_id FK
         text property "dcat:dataset dcat:service dcat:distribution dcat:contactPoint dcat:theme"
         int ordinal "preserves JSON array order"
-    }
-    OBJECT_VERSION {
-        uuid id PK
-        uuid object_id FK
-        int version_no
-        jsonb payload
-        uuid editor_user_id FK
-        timestamptz created_at
-        text change_summary
     }
     CATALOG_PERMISSION {
         uuid catalog_id FK
@@ -246,6 +235,12 @@ writes, and schema validation of every export before delivery.
 **Second risk:** reusable objects are addressable independently of the catalog a
 user reached them through, so **every object route needs an explicit
 direct-object-reference authorization check**. Object IDs are not authorization.
+
+### Auditability
+
+To meet our auditability requirements (*"we will maintain historical object tracking
+along with user edit information. All changes will be available for
+auditability."*), we will use a third-party audit library, as discussed in ([ADR 0011](decisions/0011-audit-trail-mechanism.md)).
 
 ### There is no agency/bureau tenant entity
 
@@ -701,7 +696,6 @@ area — until these clear. Reproduced from
 | 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. (B) reverses the decision toward an SPA. A reversal condition is **already triggered** (anonymous editing scheduled 2.1). | Product |
 | 0004 | Confirm whether an email-domain allowlist is wanted; define how the first `admin` grant on a new catalog happens. | Product + design |
 | 0005 | Decide the role of `inventory_publishers.csv` now that there is no tenant entity (seed data for DCAT `Organization` objects; hierarchy; global vs. per-catalog). | Design |
-| 0005 | Decide what happens to `object_version` history when a re-import swaps a catalog's object set — collides with the append-only AU-10 guarantee. Decide with the 0008 retention question. | Compliance |
 | 0005 | Specify the class-scoped convergence list and where the import-run content hash is computed. | Design |
 | 0006 | Query existing S3 objects for actual file-size distribution to confirm 500 MB. | Data |
 | 0007 | Query access logs and New Relic for `datastore_search` consumers (required CM-4 impact analysis). | Data |
@@ -715,12 +709,13 @@ area — until these clear. Reproduced from
 Control mappings live in the individual decision records. Summary of what
 changes relative to v1:
 
-- **Strengthened:** SI-3 (malware scanning, previously absent), AU-2/AU-3/AU-10
-  (append-only version history with editor attribution; structured logs with
-  correlation IDs), AC-6 (default privilege is exactly none), CM-7 (DataStore
-  and Solr surfaces removed).
+- **Strengthened:** SI-3 (malware scanning, previously absent), AC-6 (default
+  privilege is exactly none), CM-7 (DataStore and Solr surfaces removed), and
+  structured logs with correlation IDs where v1 has none.
 - **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC)
-  AC-12 900-second idle timeout, now with autosave so the timeout costs no work;
+  AC-12 900-second idle timeout, with browser-storage draft autosave so the
+  timeout costs no work — a client-side mitigation, so it does not survive
+  clearing site data or changing machines;
   SC-7 boundary protection via the two-app topology.
 - **Changed and requiring SSP updates:** AC-2 (accounts created automatically,
   with zero-privilege as the compensating control — an assessor must see both

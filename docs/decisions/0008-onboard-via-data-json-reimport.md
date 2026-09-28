@@ -144,21 +144,6 @@ time**: a rebuilt catalog can close a loop that the previous object set did not.
 Swapping without that check is the one way this design can introduce a cycle, and
 a cycle is a denial-of-service against the export walk.
 
-#### What a swap destroys
-
-Both of these are limitations to state, not problems to solve here:
-
-1. **Curation is discarded.** This record requires human review of the converted
-   draft plus authoring of genuinely new 3.0 fields — `DataService`, structured
-   `Location`, `Concept` vocabularies — that have no 1.1 source. A re-import wipes
-   all of it, because the incoming `data.json` cannot contain it. Re-import is
-   appropriate for a retry during onboarding and is **not an update mechanism** for
-   a curated catalog. The UI must say so before the user commits, not after.
-2. **`object_version` history for the replaced objects.** The version trail is
-   declared append-only and hangs off `metadata_object`, so deleting those rows
-   either cascades the history away or leaves it dangling. This collides with
-   AU-2/AU-3/AU-10.
-
 #### Open question: is Inventory ever a publishing conduit?
 
 This amendment assumes import is **onboarding-shaped** — roughly once per agency,
