@@ -304,6 +304,12 @@ listed as a blocker below rather than settled here.
 2. **Decide whether non-row security events need a durable table** — failed
    authentication, session establishment and termination, authorization denials —
    or whether structured logs with a defined retention satisfy AU-2 for them.
+   **The "defined retention" half now has a candidate answer:** logs drain to the
+   shared Logstack shipper's S3 archive, whose retention v2 inherits
+   ([`architecture.md` §6](../architecture.md#logging-uses-shared-infrastructure-this-repository-does-not-own)).
+   Two caveats before that closes this blocker — the inherited retention value must
+   actually be written down, and a drain is best-effort, so AU-5 detection of drain
+   loss is a prerequisite for relying on logs as the AU-2 record of these events.
 3. **Decide retention for `activity`**.
 4. **Confirm the cloud.gov brokered RDS role may create triggers and functions**
    in the application schema. No `CREATE EXTENSION` is needed, which is the usual

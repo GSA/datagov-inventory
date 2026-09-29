@@ -241,10 +241,15 @@ argument for adopting them:
    (`cloudfoundry_service_key`), but those keys are credentials and land in state.
    Recommendation: manage the *service account*, create the *key* manually — but
    this needs confirmation.
-5. **Confirm `logshipper` scope.** The module builds a log-drain app with New
-   Relic credentials. `datagov-catalog`'s wiki describes "Logstack (cloud.gov log
-   drain)." Whether v2 adopts the module or the catalog's existing arrangement is
-   undecided and out of scope here.
+5. ~~**Confirm `logshipper` scope.**~~ **Resolved — not a blocker.** v2 adopts the
+   existing shared arrangement: it binds `logstack-space-drain` (as
+   `datagov-catalog` does, on both the app and the proxy) and does **not** deploy
+   the module's `logshipper`, which would stand up a redundant drain app inside
+   inventory's own spaces. The shared `logstack-shipper` lives in the `management`
+   space — inside the same authorization boundary, outside inventory's spaces, and
+   not provisioned by this repository's Terraform. Log retention is inherited from
+   it. See
+   [`architecture.md` §6](../architecture.md#logging-uses-shared-infrastructure-this-repository-does-not-own).
 
 ## Links
 

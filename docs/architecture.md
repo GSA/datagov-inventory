@@ -1,17 +1,11 @@
 ---
 title: "inventory.data.gov v2 System Architecture"
 description: "Target architecture for the non-CKAN rewrite of inventory.data.gov — components, technologies, data model, and key flows"
-status: draft
-tier: 2
-last_updated: "2026-09-28"
-related_files:
-  - "docs/decisions/README.md"
-  - "README.md"
 ---
 
 # inventory.data.gov v2 — System Architecture
 
-> **Status: `draft`.** This document describes a *target* architecture, not a
+> This document describes a *target* architecture, not a
 > built system. Every significant choice here is backed by a decision record in
 > [`docs/decisions/`](decisions/README.md), and **all ten of those records are
 > `proposed`, not `accepted`** — all ten carry explicit blockers that could change
@@ -56,22 +50,30 @@ flowchart TB
 
     IDP["<b>Login.gov</b><br/>OIDC · IAL1 · AAL3 + HSPD-12<br/> private_key_jwt"]
 
-    subgraph cf["cloud.gov · org gsa-datagov · spaces development / staging / prod"]
-        PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist<br/>HSTS · cookie flags · body cap"]
+    subgraph org["cloud.gov · org gsa-datagov"]
+        subgraph cf["spaces development / staging / prod"]
+            PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist<br/>HSTS · cookie flags · body cap"]
 
-        subgraph internal["*.apps.internal — no public route"]
-            WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX + islands<br/>Authlib · Flask-Login · Talisman"]
-            SCAN["<b>inventory-scanner</b><br/>clamav-rest (terraform-cloudgov module)<br/>POST /scan · apps.internal only<br/>~3G · sweeper on instance 0"]
-            TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · import-publishers"]
+            subgraph internal["*.apps.internal — no public route"]
+                WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX + islands<br/>Authlib · Flask-Login · Talisman"]
+                SCAN["<b>inventory-scanner</b><br/>clamav-rest (terraform-cloudgov module)<br/>POST /scan · apps.internal only<br/>~3G · sweeper on instance 0"]
+                TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · import-publishers"]
+            end
+
+            PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · scan state")]
+            S3[("<b>inventory-s3</b><br/>quarantine/ · clean/ · exports/")]
+            SEC[["<b>inventory-secrets</b> · UPS<br/>OIDC private key · Flask secret"]]
+            EGRESS["egress proxy"]
+            DRAIN[["<b>logstack-space-drain</b> · UPS<br/>bound to inventory + proxy<br/>created out-of-band"]]
         end
 
-        PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · scan state")]
-        S3[("<b>inventory-s3</b><br/>quarantine/ · clean/ · exports/")]
-        SEC[["<b>inventory-secrets</b> · UPS<br/>OIDC private key · Flask secret"]]
-        EGRESS["egress proxy"]
+        subgraph mgmt["space management — shared, not owned by this repo"]
+            SHIP["<b>logstack-shipper</b><br/>shared: catalog · harvester · inventory"]
+            LOGS3[("log archive · S3<br/>retention inherited")]
+            MEGRESS["egress proxy<br/>(management allowlist)"]
+        end
     end
 
-    LOG["cloud.gov log drain → Logstack"]
     SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>schemas + conversion code<br/>pinned commit — ADR 0010"]
 
     GOV --> PROXY
@@ -93,11 +95,19 @@ flowchart TB
     WEB -->|"OIDC discovery + JWKS"| EGRESS
     SCAN -->|"freshclam"| EGRESS
     TASK -->|"URL audit · data.json import"| EGRESS
+    WEB -->|"New Relic APM agent · :61443"| EGRESS
     EGRESS --> OUT["secure.login.gov<br/>database.clamav.net<br/>gov-collector.newrelic.com<br/>agency URLs"]
 
     SCHEMA -.->|"build time"| WEB
-    WEB --> LOG
-    SCAN --> LOG
+
+    PROXY -.->|"stdout — access logs"| DRAIN
+    WEB -.->|"stdout — JSON logs<br/>request + actor IDs"| DRAIN
+    SCAN -.->|"stdout"| DRAIN
+    TASK -.->|"stdout"| DRAIN
+    DRAIN -.->|"platform-mediated<br/>syslog drain"| SHIP
+    SHIP --> LOGS3
+    SHIP -->|"log ingest"| MEGRESS
+    MEGRESS --> NR["New Relic<br/>(management allowlist,<br/>not inventory's)"]
 ```
 
 ### Why the two-app topology is retained
@@ -137,7 +147,7 @@ deployed environment.
 | Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check. |
 | Proxy | nginx via cloud.gov nginx-buildpack | Retained; see above. |
 | Headers | Flask-Talisman + nginx | Testable in unit tests, enforced at the edge. |
-| Observability | New Relic (gov-collector) + structured JSON logs with request and actor IDs | v1 logs are plain text with no correlation IDs, and nginx access logs omit client IP, timestamp, and latency (`proxy/nginx.conf:8-9`). |
+| Observability | New Relic (gov-collector) for APM + structured JSON logs with request and actor IDs, drained to the shared Logstack shipper via `logstack-space-drain` | v1 logs are plain text with no correlation IDs, and nginx access logs omit client IP, timestamp, and latency (`proxy/nginx.conf:8-9`). Same drain service `datagov-catalog` binds. |
 | Tests | pytest, Playwright, pa11y-ci + axe, ruff/black/isort | Replaces Cypress 13; shares tooling with catalog. |
 | CI/CD | GitHub Actions → `gsa/data.gov/.github/workflows/deploy-template.yml@main` | Same reusable templates. |
 
@@ -165,7 +175,6 @@ erDiagram
     METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "referenced by (reuse)"
     METADATA_OBJECT ||--o| RESOURCE_FILE : "Distribution hosts"
     CATALOG ||--o{ EXPORT_RUN : produces
-    METADATA_OBJECT ||--o{ URL_AUDIT : "scanned for"
 
     CATALOG {
         uuid id PK "identity and authorization anchor — never swapped"
@@ -503,9 +512,25 @@ Per-environment sizing follows v1 (`vars.*.yml`), minus the removed services.
 | Postgres plan | `small-psql`                               | `medium-psql-redundant`                      | `medium-psql-redundant`   |
 | New Relic monitoring | off                                        | on                                           | on                        |
 
-**Services bound:** `inventory-db`, `inventory-s3`, `inventory-secrets`.
-Removed relative to v1: `inventory-datastore`, `inventory-redis`,
-`sysadmin-users`.
+**Services bound:** `inventory-db`, `inventory-s3`, `inventory-secrets`,
+`logstack-space-drain`. Removed relative to v1: `inventory-datastore`,
+`inventory-redis`, `sysadmin-users`.
+
+### Logging uses shared infrastructure this repository does not own
+
+`logstack-space-drain` is bound to **both** `inventory` and `inventory-proxy`,
+matching `datagov-catalog`'s manifest. Everything downstream of that binding is
+shared with `catalog.data.gov` and `harvest.data.gov`:
+
+| Component | Owner | Consequence for v2 |
+|---|---|---|
+| `logstack-space-drain` (UPS, per space) | Platform/team, created out-of-band | v2 binds it; it is **not** in the Terraform table below |
+| `logstack-shipper` (app, space `management`) | Shared, outside inventory's spaces | v2 has no control over its availability or configuration |
+| Log archive (S3) | The shipper | **Retention is inherited, not set here** |
+| Management-space egress to New Relic | The management space's allowlist | Not inventory's allowlist — see [§2](#2-container-view) |
+
+The management space is **inside the same authorization boundary** as inventory,
+so this is an internal data flow rather than an external interconnection.
 
 ### Infrastructure is provisioned with Terraform
 
@@ -522,6 +547,8 @@ modules pinned by tag, replacing v1's `create-cloudgov-services.sh`.
 | Egress proxy + allowlist | `egress_proxy` |
 | Egress space | `cg_space` |
 | Container-network policies, space roles, deployer accounts | provider resources |
+
+Not managed here: `logstack-space-drain` and everything downstream of it (above).
 
 **Two boundaries matter.** Terraform manages service *existence* and topology but
 **not secret values** — `inventory-secrets` credentials stay in `cf cups`/`uups`,
@@ -744,9 +771,20 @@ changes relative to v1:
   with zero-privilege as the compensating control — an assessor must see both
   statements together), and the data-flow and component inventory for the two
   `yes-boundary` decisions (ADR 0006 adds a scanner and an outbound flow;
-  ADR 0007 removes a brokered data store and a public API).
+  ADR 0007 removes a brokered data store and a public API). Also AU-9 / AC-6: logs
+  carrying actor IDs are drained to a **shared** archive in the `management`
+  space, readable by principals who hold no access to Inventory
+  ([§6](#logging-uses-shared-infrastructure-this-repository-does-not-own)).
 - **Requires a decision not yet made:** SI-12 retention policy for
-  audit records, which grow without bound by design.
+  audit records, which grow without bound by design. Note the two retention
+  questions are now distinct: `activity` retention is Inventory's to set
+  ([ADR 0011](decisions/0011-audit-trail-mechanism.md) blocker 3), whereas log
+  retention is **inherited** from the shared shipper — inherited is only an answer
+  once the inherited value is written down, which it is not yet.
+- **Newly relevant and unaddressed:** AU-5 (response to audit processing
+  failures). Log drains are best-effort and ADR 0011 leaves non-row security
+  events in the logs, so undetected drain loss is undetected audit loss. AU-5
+  appears in no decision record.
 
 ## 11. References
 
