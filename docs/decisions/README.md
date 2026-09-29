@@ -9,9 +9,9 @@ records, to preserve the audit trail.
 
 ## Records
 
-| # | Title | Status | Date | ATO | NIST controls |
-|---|-------|--------|------|-----|---------------|
-| [0001](0001-repository-topology-for-inventory-v2.md) | Build Inventory v2 in a new GSA/datagov-inventory repository | proposed | 2026-09-21 | yes-internal | CM-2, CM-3, CM-9, AC-3, SA-5, SA-8, SR-3, RA-5 |
+| # | Title | Status   | Date       | ATO | NIST controls |
+|---|-------|----------|------------|-----|---------------|
+| [0001](0001-repository-topology-for-inventory-v2.md) | Build Inventory v2 in a new GSA/datagov-inventory repository | accepted | 2026-09-29 | yes-internal | CM-2, CM-3, CM-9, AC-3, SA-5, SA-8, SR-3, RA-5 |
 | [0002](0002-ui-rendering-architecture-for-inventory-v2.md) | Use server-rendered Jinja + USWDS with JavaScript islands for the Inventory v2 metadata editor | proposed | 2026-09-21 | yes-internal | SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15 |
 | [0004](0004-jit-user-provisioning-and-catalog-rbac.md) | Provision user accounts just-in-time on first Login.gov authentication, with authorization held in per-catalog permissions | proposed | 2026-09-21 | yes-internal | AC-2, AC-2(3), AC-3, AC-6, AC-5, AU-2, AU-3, IA-8, PS-4 |
 | [0005](0005-object-graph-data-model-for-dcat-us-3.md) | Store DCAT-US 3.0 metadata as a versioned object graph in Postgres | proposed | 2026-09-21 | yes-internal | AU-2, AU-3, AU-10, AC-3, SI-10, SI-12, CM-3, SC-28 |
@@ -22,7 +22,7 @@ records, to preserve the audit trail.
 | [0010](0010-depend-on-upstream-dcat-us-code.md) | Consume DCAT-US conversion and validation code from the pinned GSA/dcat-us submodule rather than forking it | proposed | 2026-09-24 | yes-internal | SR-3, SR-4, SR-11, RA-5, CM-2, CM-3, CM-8, SI-10, SA-8 |
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
 
-**By status:** 10 proposed, 0 accepted, 0 deprecated, 0 superseded.
+**By status:** 9 proposed, 1 accepted, 0 deprecated, 0 superseded.
 
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
@@ -50,12 +50,11 @@ data model and supersedes 0005's hand-written audit tables.
 
 ## Blockers before any record is accepted
 
-Every record is `proposed`. These are verification tasks that gate acceptance,
+Every record mentioned in the following table is `proposed`. These are verification tasks that gate acceptance,
 not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 
 | ADR | Blocker | Type |
 |-----|---------|------|
-| 0001 | Request `GSA/datagov-inventory` per the [new-repository checklist](https://github.com/GSA/data.gov/wiki/Checklist-for-new-repositories). | Organizational |
 | 0002 | Confirm the editing model: **(A)** decomposed per-object screens vs. **(B)** unified tree-plus-detail workspace. Option (B) reverses the decision toward an SPA. **A reversal condition has already been triggered** — anonymous browser-memory editing is now scheduled 2.1, not long-term — so Options 1, 2, and 3 must be re-weighed together with the editing model. | Product |
 | 0004 | Confirm whether an email-domain allowlist is wanted, and define how the *first* `admin` permission on a new catalog is granted (bootstrap path). | Product + design |
 | 0005 | Decide what `inventory_publishers.csv` becomes now that there is no tenant entity — seed data for reusable DCAT `Organization` objects, whether the department→bureau hierarchy is represented, and global vs. per-catalog seeding. Decide before building the publisher picker. | Design |

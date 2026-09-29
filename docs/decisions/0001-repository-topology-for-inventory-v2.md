@@ -1,8 +1,8 @@
 ---
 title: "Build Inventory v2 in a new GSA/datagov-inventory repository"
-status: "proposed"
-date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+status: "accepted"
+date: "2026-09-29"
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Deployment and Infrastructure"
 nist_controls: ["CM-2", "CM-3", "CM-9", "AC-3", "SA-5", "SA-8", "SR-3", "RA-5"]
 impact_level: "moderate"
