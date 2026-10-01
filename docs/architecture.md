@@ -382,7 +382,6 @@ sequenceDiagram
     participant W as inventory
     participant DB as Postgres
     participant V as upstream dcat-us code
-    participant S3
 
     U->>W: GET /catalog/{id}/export?format=dcat-us-3
     W->>DB: authorize (catalog_permission)
