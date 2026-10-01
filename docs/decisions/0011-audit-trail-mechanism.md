@@ -41,22 +41,22 @@ two retention questions already open on this record and on
 
 [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) chose the **hybrid
 object graph**: a `metadata_object` table carrying `dcat_class`, `state`, and a
-`JSONB payload` of own-scalar properties, with nesting and reuse held as edges in
+`JSONB metadata_properties` of own-scalar properties, with nesting and reuse held as edges in
 `object_reference`, embedding in `catalog_link`, and authorization in
 `catalog_permission`.
 
-That data model has a direct consequence for auditing. Because `payload` holds
-scalars only and *structure is edges*, per-object payload versioning cannot see
+That data model has a direct consequence for auditing. Because `metadata_properties` holds
+scalars only and *structure is edges*, per-object properties versioning cannot see
 most of what changes:
 
-| Change | Where it lives | Visible to payload versioning? |
-|---|---|---|
-| Edit a title or description | `metadata_object.payload` | Yes |
-| Attach or detach a reusable object; add, remove, or reorder catalog membership | `object_reference` rows | **No** |
-| Embed or un-embed a catalog | `catalog_link` rows | **No** |
-| Publish or unpublish (`draft ⇄ live`) | `metadata_object.state` column | **No** |
-| Grant, revoke, or change a permission | `catalog_permission` rows | **No** |
-| Replace a catalog's object set by re-import | `catalog.root_object_id` + mass delete | **No** |
+| Change | Where it lives                         | Visible to properties versioning? |
+|---|----------------------------------------|-----------------------------------|
+| Edit a title or description | `metadata_object.metadata_properties`  | Yes                               |
+| Attach or detach a reusable object; add, remove, or reorder catalog membership | `object_reference` rows                | **No**                            |
+| Embed or un-embed a catalog | `catalog_link` rows                    | **No**                            |
+| Publish or unpublish (`draft ⇄ live`) | `metadata_object.state` column         | **No**                            |
+| Grant, revoke, or change a permission | `catalog_permission` rows              | **No**                            |
+| Replace a catalog's object set by re-import | `catalog.root_object_id` + mass delete | **No**                            |
 
 The first of these matters most: *"entry by class and re-use"* makes **attach an
 existing object** the characteristic user action of the product. An audit trail
@@ -67,7 +67,7 @@ that covers text edits and misses reuse is not an audit trail of this system.
 - **Every gap above is a row mutation.** Edges, state, permissions, and
   membership are all `INSERT`/`UPDATE`/`DELETE` on ordinary tables. A mechanism
   that audits *table changes* covers them all mechanically; a mechanism that
-  audits *payloads* covers none of them.
+  audits *properties objects* covers none of them.
 - **Attribution must be unbypassable, and application-layer discipline is not
   (AU-2, AU-12).** The weakest point of the hand-written design is that nothing
   prevents a view from mutating `object_reference` and writing no event. The
@@ -194,7 +194,7 @@ listed as a blocker below rather than settled here.
 
 ### Positive Consequences
 
-- **Every change the data model puts outside `payload` is covered, mechanically.**
+- **Every change the data model puts outside `metadata_properties` is covered, mechanically.**
   Versioning `object_reference`, `catalog_link`, `metadata_object`,
   `catalog_permission`, and `catalog` captures all five of the changes marked
   invisible in [the table above](#how-to-implement-auditability) — reuse and
@@ -202,7 +202,7 @@ listed as a blocker below rather than settled here.
   the re-import swap — without a line of event-writing code.
 - **"What happened to 'Business Survey'?" becomes answerable.** The `DELETE`
   branch of the trigger sets `old_data = row_to_json(OLD.*)::jsonb`, retaining
-  the full row — including `payload`, and therefore the title — after the object
+  the full row — including `metadata_properties`, and therefore the title — after the object
   is gone. A bespoke event table would have to be told to capture the title
   deliberately; here it falls out of the mechanism. This is the clearest concrete
   win.
@@ -243,10 +243,10 @@ listed as a blocker below rather than settled here.
   every versioned table carries `audit_trigger_row` is required, not optional.
   This is exactly the "trigger magic" ADR 0005 recoiled from; the judgment here
   is that unbypassable capture is worth the opacity for a compliance control.
-- **A `payload` edit stores the whole payload, not a key-level diff.** The trigger
-  computes `changed_data` by JSONB subtraction at the top level, so `payload` is a
-  single key: any change to it records the entire new payload. *Which field* changed
-  inside a payload must be derived by comparing `old_data` to `changed_data`
+- **A `metadata_properties` edit stores the whole properties object, not a key-level diff.** The trigger
+  computes `changed_data` by JSONB subtraction at the top level, so `metadata_properties` is a
+  single key: any change to it records the entire new properties object. *Which field* changed
+  inside a properties object must be derived by comparing `old_data` to `changed_data`
   rather than read directly. Acceptable, but it means the UI cannot show a
   field-level diff for free.
 - **Smallest maintainer base of the three candidates** — 12 contributors, one
@@ -264,7 +264,7 @@ listed as a blocker below rather than settled here.
   versioned table yields an `activity` row with verb, before/after data,
   timestamp, and transaction. `old_data` retains the full prior row, which is
   what makes records intelligible after their subject is deleted. Coverage now
-  includes structural change, not only payload change. The scope is **attribution, not
+  includes structural change, not only `metadata_properties` change. The scope is **attribution, not
   reconstruction**, which is a recorded choice
   ([What we mean by auditability](#what-we-mean-by-auditability));
   the SSP should state that scope rather than implying point-in-time recovery.
@@ -296,7 +296,7 @@ listed as a blocker below rather than settled here.
 1. **A time-boxed spike, because the behavioural claims in this record are read
    from source and not executed.** It must measure: whether a null
    `transaction_id` is in fact what a session-bypassing write produces; what
-   `old_data`/`changed_data` actually contain for a `payload JSONB` edit; write
+   `old_data`/`changed_data` actually contain for a `properties JSONB` edit; write
    cost and `activity` row count for a realistic 2,000-object import; that
    `GRANT INSERT, SELECT`-only works end to end; and that the trigger functions
    are not `SECURITY DEFINER` (none was observed, but this was not verified by

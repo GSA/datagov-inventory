@@ -60,7 +60,7 @@ sharing.
 ## Considered Options
 
 1. **Hybrid object graph.** A `metadata_object` table with `dcat_class`, `state`,
-   and a `JSONB payload` holding only that object's *own scalar* properties.
+   and a `JSONB metadata_properties` holding only that object's *own scalar* properties.
    Nesting and reuse are edges in an `object_reference` table
    (`parent_object_id`, `child_object_id`, `property`, `ordinal`).
 2. **Document store.** One `JSONB` column per catalog holding the entire nested
@@ -96,7 +96,7 @@ catalog           ── catalog_permission ──▶ user_account | catalog   (
 catalog           ── scopes ──▶ metadata_object          (catalog_id on every object)
 user_account      ── created ──▶ catalog                 (creator; not a tenant boundary)
 
-metadata_object(id, catalog_id, dcat_class, state, payload JSONB,
+metadata_object(id, catalog_id, dcat_class, state, metadata_properties JSONB,
                 search_vector tsvector)
 object_reference(parent_object_id, child_object_id, property, ordinal)
 ```
@@ -134,10 +134,10 @@ survive a re-import.
 
 **Those are two different lifetimes, so they are two different rows.**
 
-| Row | Holds | Lifetime |
-|---|---|---|
-| `catalog` | `id`, `root_object_id`, `created_by`, `created_at` | Permanent |
-| `metadata_object` where `dcat_class = 'Catalog'` | DCAT scalars in `payload`; top-level membership as outbound `object_reference` edges | Replaced wholesale by re-import |
+| Row | Holds                                                                                            | Lifetime |
+|---|--------------------------------------------------------------------------------------------------|---|
+| `catalog` | `id`, `root_object_id`, `created_by`, `created_at`                                               | Permanent |
+| `metadata_object` where `dcat_class = 'Catalog'` | DCAT scalars in `metadata_properties`; top-level membership as outbound `object_reference` edges | Replaced wholesale by re-import |
 
 #### `catalog_link` is its own table
 
@@ -186,7 +186,7 @@ not an emergent property.
 - Every DCAT-US 3.0 class is representable, including ones with no CKAN analogue
   (`Catalog`, `DatasetSeries`, `DataService`, `CatalogRecord`, `ConceptScheme`).
 - Adding or changing a class is a submodule bump plus form-model regeneration —
-  no DDL migration, because class-specific fields live in `payload`.
+  no DDL migration, because class-specific fields live in `metadata_properties`.
 - Catalog-to-catalog sharing is native: `catalog_permission` accepts either a
   user or a catalog as principal. Since that feature is MVP scope, the model
   carries it from the first release rather than requiring a later schema change.
@@ -202,7 +202,7 @@ not an emergent property.
 ### Negative Consequences
 
 - **Export requires a recursive graph walk**, which is more code than
-  `SELECT payload` and is the highest-risk correctness surface in the system.
+  `SELECT metadata_properties` and is the highest-risk correctness surface in the system.
   Mitigations: assembly lives in the pure-Python library with property-based
   round-trip tests (assemble∘decompose ≡ identity), and every export is
   validated against `Catalog.json` before delivery.
@@ -222,8 +222,8 @@ not an emergent property.
   [`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing-is-mvp-scope)),
   so embedded catalogs — and therefore the cycle risk — exist from the first
   release.
-- **`JSONB payload` is schemaless at the database layer**, so the database will
-  not catch a malformed payload; validation is entirely an application
+- **`JSONB metadata_properties` is schemaless at the database layer**, so the database will
+  not catch a malformed properties object; validation is entirely an application
   responsibility (SI-10). This is deliberate — it is what buys cheap schema
   evolution — but it means validator coverage is load-bearing.
 - **Shared objects create shared blast radius.** Editing a `Kind` used by 50

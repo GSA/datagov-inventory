@@ -124,32 +124,32 @@ deployed environment.
 
 ## 3. Technology choices
 
-| Layer | Technology | Rationale / departure from v1 |
-|---|---|---|
-| Runtime | Python 3.12 | v1 is pinned to 3.10 by CKAN. Matches catalog and harvester. |
-| Framework | Flask + APIFlask | APIFlask yields OpenAPI for the import/export/validate API. Same as catalog. |
-| Dependencies | Poetry | Replaces the `requirements.in.txt` → `bin/requirements.sh` → `requirements.txt` freeze cycle and the `jsonschema` post-install upgrade hack at `Dockerfile:28-29`. |
-| UI | Jinja2 + USWDS 3 + HTMX, with scoped JS islands | [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md). Islands: reference picker, `Location` geometry entry, catalog preview. |
-| Form generation | Schema-driven renderer over `_external/dcat-us` | Field descriptions come from the schema, per the feature list. Schema releases become a submodule bump. |
-| ORM | SQLAlchemy 2.0 + Alembic + psycopg 3 | v1 is on SQLAlchemy 1.4. |
-| Database | Postgres (`medium-psql-redundant` prod, `small-psql` dev) | One instance. v1 has two plus Redis. |
-| Search | Postgres FTS (`tsvector` + GIN) | **Deliberately not OpenSearch.** Catalog needs it at 515k datasets; Inventory holds thousands per org. |
-| Cache / queue | none | Redis and RQ removed. Nothing in the MVP needs sub-minute async. |
-| Auth | Login.gov OIDC via Authlib | Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`. |
-| Session | Flask-Login + server-side sessions in Postgres, 900 s idle | Real revocation on logout. v1 also stores sessions in Postgres (`.profile:106`) but via Beaker. |
-| Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks. |
-| Audit trail | PostgreSQL-Audit (pinned), plpgsql triggers → `activity` + `transaction` | [ADR 0011](decisions/0011-audit-trail-mechanism.md). Trigger-level capture reaches the edge, `state`, and permission changes payload versioning cannot see. v1 relies on CKAN revisions. Actor arrives via the ORM, so a session-bypassing write is recorded but unattributed — a test must assert no null `transaction_id`. |
-| Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production. |
-| Conversion (1.1 → 3.0) | Upstream `transforms.py` + `convert_dcat_1_1_to_3_0.py` | Not re-implemented, not forked from v1. Consumed from the pinned submodule per [ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md). |
-| Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Already the pattern. **Pinning is now load-bearing**: v2 executes code from this submodule, not only reads schemas ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md); SR-3). |
-| File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | |
-| Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning. |
-| Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check. |
-| Proxy | nginx via cloud.gov nginx-buildpack | Retained; see above. |
-| Headers | Flask-Talisman + nginx | Testable in unit tests, enforced at the edge. |
-| Observability | New Relic (gov-collector) for APM + structured JSON logs with request and actor IDs, drained to the shared Logstack shipper via `logstack-space-drain` | v1 logs are plain text with no correlation IDs, and nginx access logs omit client IP, timestamp, and latency (`proxy/nginx.conf:8-9`). Same drain service `datagov-catalog` binds. |
-| Tests | pytest, Playwright, pa11y-ci + axe, ruff/black/isort | Replaces Cypress 13; shares tooling with catalog. |
-| CI/CD | GitHub Actions → `gsa/data.gov/.github/workflows/deploy-template.yml@main` | Same reusable templates. |
+| Layer | Technology | Rationale / departure from v1                                                                                                                                                                                                                                                                                                              |
+|---|---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Runtime | Python 3.12 | v1 is pinned to 3.10 by CKAN. Matches catalog and harvester.                                                                                                                                                                                                                                                                               |
+| Framework | Flask + APIFlask | APIFlask yields OpenAPI for the import/export/validate API. Same as catalog.                                                                                                                                                                                                                                                               |
+| Dependencies | Poetry | Replaces the `requirements.in.txt` → `bin/requirements.sh` → `requirements.txt` freeze cycle and the `jsonschema` post-install upgrade hack at `Dockerfile:28-29`.                                                                                                                                                                         |
+| UI | Jinja2 + USWDS 3 + HTMX, with scoped JS islands | [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md). Islands: reference picker, `Location` geometry entry, catalog preview.                                                                                                                                                                                           |
+| Form generation | Schema-driven renderer over `_external/dcat-us` | Field descriptions come from the schema, per the feature list. Schema releases become a submodule bump.                                                                                                                                                                                                                                    |
+| ORM | SQLAlchemy 2.0 + Alembic + psycopg 3 | v1 is on SQLAlchemy 1.4.                                                                                                                                                                                                                                                                                                                   |
+| Database | Postgres (`medium-psql-redundant` prod, `small-psql` dev) | One instance. v1 has two plus Redis.                                                                                                                                                                                                                                                                                                       |
+| Search | Postgres FTS (`tsvector` + GIN) | **Deliberately not OpenSearch.** Catalog needs it at 515k datasets; Inventory holds thousands per org.                                                                                                                                                                                                                                     |
+| Cache / queue | none | Redis and RQ removed. Nothing in the MVP needs sub-minute async.                                                                                                                                                                                                                                                                           |
+| Auth | Login.gov OIDC via Authlib | Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`.                                                                                                                                                                                                                                                                                     |
+| Session | Flask-Login + server-side sessions in Postgres, 900 s idle | Real revocation on logout. v1 also stores sessions in Postgres (`.profile:106`) but via Beaker.                                                                                                                                                                                                                                            |
+| Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks.                                                                                                                             |
+| Audit trail | PostgreSQL-Audit (pinned), plpgsql triggers → `activity` + `transaction` | [ADR 0011](decisions/0011-audit-trail-mechanism.md). Trigger-level capture reaches the edge, `state`, and permission changes `metadata_properties` versioning cannot see. v1 relies on CKAN revisions. Actor arrives via the ORM, so a session-bypassing write is recorded but unattributed — a test must assert no null `transaction_id`. |
+| Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production.                                                                                                                                                                            |
+| Conversion (1.1 → 3.0) | Upstream `transforms.py` + `convert_dcat_1_1_to_3_0.py` | Not re-implemented, not forked from v1. Consumed from the pinned submodule per [ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md).                                                                                                                                                                                              |
+| Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Already the pattern. **Pinning is now load-bearing**: v2 executes code from this submodule, not only reads schemas ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md); SR-3).                                                                                                                                                  |
+| File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads |                                                                                                                                                                                                                                                                                                                                            |
+| Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
+| Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check.                                                                                                                                                                                     |
+| Proxy | nginx via cloud.gov nginx-buildpack | Retained; see above.                                                                                                                                                                                                                                                                                                                       |
+| Headers | Flask-Talisman + nginx | Testable in unit tests, enforced at the edge.                                                                                                                                                                                                                                                                                              |
+| Observability | New Relic (gov-collector) for APM + structured JSON logs with request and actor IDs, drained to the shared Logstack shipper via `logstack-space-drain` | v1 logs are plain text with no correlation IDs, and nginx access logs omit client IP, timestamp, and latency (`proxy/nginx.conf:8-9`). Same drain service `datagov-catalog` binds.                                                                                                                                                         |
+| Tests | pytest, Playwright, pa11y-ci + axe, ruff/black/isort | Replaces Cypress 13; shares tooling with catalog.                                                                                                                                                                                                                                                                                          |
+| CI/CD | GitHub Actions → `gsa/data.gov/.github/workflows/deploy-template.yml@main` | Same reusable templates.                                                                                                                                                                                                                                                                                                                   |
 
 ### Deliberate non-adoptions
 
@@ -192,7 +192,7 @@ erDiagram
         uuid catalog_id FK
         text dcat_class "Catalog CatalogRecord Dataset DatasetSeries DataService Distribution Kind Organization Concept ConceptScheme Location"
         text state "draft | live"
-        jsonb payload "own scalar properties only"
+        jsonb metadata_properties "own scalar properties only"
         tsvector search_vector
     }
     OBJECT_REFERENCE {
@@ -221,7 +221,7 @@ erDiagram
 Three properties carry the requirements:
 
 1. **`object_reference` is the reuse mechanism.** A `Kind` (contact point) or
-   `Organization` (publisher) is one row referenced by many datasets. `payload`
+   `Organization` (publisher) is one row referenced by many datasets. `metadata_properties`
    holds only that class's own scalar properties; nesting is edges. Export walks
    the graph and assembles nested JSON; import is the inverse. `ordinal`
    preserves JSON array order, without which the round-trip property below is
@@ -336,7 +336,7 @@ deferrable:
 Depth bounding on the walk remains necessary even with write-time acyclicity
 enforcement: `object_reference` edges can also form loops, enforcement could have
 a defect, and rows can be introduced outside the application path (migrations,
-manual repair). Belt and braces.
+manual repair).
 
 ## 5. Key flows
 
