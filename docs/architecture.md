@@ -76,7 +76,7 @@ flowchart TB
         end
     end
 
-    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>schemas + conversion code<br/>pinned commit — ADR 0010"]
+    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>3.0 schemas + validation code<br/>pinned commit — ADR 0010"]
 
     GOV --> PROXY
     PUB -->|"GET /f/{hosted_file_id}<br/>302 → presigned URL"| PROXY
@@ -145,7 +145,6 @@ deployed environment.
 | Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks.                                                                                                                             |
 | Audit trail | PostgreSQL-Audit (pinned), plpgsql triggers → `activity` + `transaction` | [ADR 0011](decisions/0011-audit-trail-mechanism.md). Trigger-level capture reaches the edge, `state`, and permission changes `metadata_properties` versioning cannot see. v1 relies on CKAN revisions. Actor arrives via the ORM, so a session-bypassing write is recorded but unattributed — a test must assert no null `transaction_id`. |
 | Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production.                                                                                                                                                                            |
-| Conversion (1.1 → 3.0) | Upstream `transforms.py` + `convert_dcat_1_1_to_3_0.py` | Not re-implemented, not forked from v1. Consumed from the pinned submodule per [ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md).                                                                                                                                                                                              |
 | Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Already the pattern. **Pinning is now load-bearing**: v2 executes code from this submodule, not only reads schemas ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md); SR-3).                                                                                                                                                  |
 | File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | Private throughout, across **two** brokered instances (`inventory-s3-quarantine`, `inventory-s3-files`). Immutable per-version objects under `files/`, served via a stable catalog-scoped app route that redirects to a short-lived presigned URL ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).                                                                                                                                                                                                                                                                                                                                                                      |
 | Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
@@ -162,6 +161,7 @@ deployed environment.
 - **Redis** — nothing left needs it once the DataStore and RQ are gone.
 - **A client-side router / SPA** — see [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md), including the conditions that would reverse that decision.
 - **Client-side validation as authoritative** — a second validator would drift from the upstream Python one. Any client-side check is advisory only.
+- **DCAT-US 1.1 → 3.0 conversion** — see [ADR 0008](decisions/0008-onboard-via-data-json-reimport.md). The upstream converter exists and works; v2 simply does not host it.
 
 ## 4. Data model
 
@@ -524,23 +524,17 @@ flowchart LR
     E --> G["human review → swap old Catalog to point to new metadata_object  → export"]
 ```
 
-### 5.5 Import DCAT-US 1.1 catalog
+### 5.5 Agency onboarding
 
-```mermaid
-flowchart LR
-    A["upload or fetch v1.1 JSON file"] --> D["upstream transforms.py<br/>13 dataset-level transforms"]
-    D --> D2["upstream isPartOf →<br/>DatasetSeries promotion"]
-    D2 --> E["validate 3.0"]
-    E --> F["decompose to objects<br/>in-run dedupe by content hash"]
-    F --> G["new Catalog object created by user,<br/>new 'catalog' metadata_object in draft state"]
-    G --> H["share catalog with other users"]
-    H --> I["human review → live → export"]
-```
+Agency onboarding to Inventory 2.0 is simply the
+[Import DCAT-US 3.0 catalog](#54-import-dcat-us-30-catalog) workflow, which must be
+managed manually by a data manager from the agency.
 
-### 5.6 Agency onboarding
-
-Agency onboarding to Inventory 2.0 is simply the [Import DCAT-US 1.1 catalog](#55-import-dcat-us-11-catalog) workflow, which must be managed manually
-by a data manager from the agency.
+**The agency must supply a 3.0 file.** v2 does not convert 1.1
+([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)), so onboarding has a prerequisite that
+Inventory cannot satisfy on the agency's behalf: either export 3.0 from v1 while it
+is still running, or run upstream's converter out-of-band. Until that file exists,
+there is no onboarding path for that agency.
 
 ## 6. Deployment
 
@@ -717,7 +711,7 @@ flowchart TB
         SCANAPP["scanner/ — clamd wrapper app"]
         PROXYD["proxy/ — nginx config"]
         DOCS["docs/ — architecture.md + decisions/"]
-        SUB["_external/dcat-us — git submodule<br/>schemas <b>+ transforms.py + converter</b><br/>pinned to a reviewed commit"]
+        SUB["_external/dcat-us — git submodule<br/>3.0 schemas <b>+ validator + error summarizer</b><br/>pinned to a reviewed commit"]
         APP --> LIB
         LIB --> SUB
     end
@@ -728,7 +722,7 @@ flowchart TB
 
     subgraph plat["Platform"]
         HARV["GSA/datagov-harvester<br/><i>own error humanizer + dcat_warnings</i><br/><i>also vendors _external/dcat-us</i>"]
-        UPSTREAM["GSA/dcat-us · jsonschema/<br/>schemas · transforms · converter<br/><b>the source of truth</b>"]
+        UPSTREAM["GSA/dcat-us · jsonschema/<br/>schemas · validator · error summarizer<br/>· transforms + converter (out-of-band CLI)<br/><b>the source of truth</b>"]
     end
 
     SUB -.->|"consume, don't fork"| UPSTREAM
@@ -738,18 +732,32 @@ flowchart TB
 
 ### Consume upstream; own only the graph layer
 
-The DCAT-US 1.1 → 3.0 conversion and validation code v2 needs is already written
+The DCAT-US 3.0 validation and error-reporting code v2 needs is already written
 and already vendored. It lives in
 [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema), the same
 repository that hosts the schemas, which v1 and `datagov-harvester` both already
-carry as the `_external/dcat-us` submodule:
+carry as the `_external/dcat-us` submodule.
 
-| Upstream `jsonschema/` | Lines | What it provides |
+**Consumed by v2:**
+
+| Upstream `jsonschema/` | What it provides |
+|---|---|
+| 3.0 schemas (`Catalog.json` and its definitions) | The validation target, and the source of field descriptions for the generated form |
+| `convert_dcat_1_1_to_3_0.py:38-190` — `summarize_error`, `find_meaningful_errors`, `extract_schema_name`, `format_path` | Error summarization for import and export reports. **The one piece of upstream Python v2 executes** |
+
+**Present in the submodule but *not* used by v2**, because v2 does not convert
+([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)):
+
+| Upstream `jsonschema/` | Lines | Why it is unused |
 |---|---|---|
-| `transforms.py` | 499 | 13 dataset-level 1.1 → 3.0 transforms |
-| `convert_dcat_1_1_to_3_0.py` | 558 | Fetch, dual-side validation, `isPartOf` → `DatasetSeries` promotion, error summarization, CLI |
-| `v1.1_definitions/` (5 files) | — | The DCAT-US 1.1 schemas, which have no other published home |
-| `tests/` (3 files) | 719 | Transform, conversion, and CLI coverage |
+| `transforms.py` | 499 | 13 dataset-level 1.1 → 3.0 transforms — an out-of-band CLI concern, not a v2 code path |
+| `convert_dcat_1_1_to_3_0.py` (the rest) | 558 total | Fetch, dual-side validation, `isPartOf` → `DatasetSeries` promotion, CLI |
+| `v1.1_definitions/` (5 files) | — | The DCAT-US 1.1 schemas. v2 never loads them |
+| `tests/` (3 files) | 719 | Transform, conversion, and CLI coverage — upstream's, for upstream's code |
+
+Listing the unused rows is deliberate: they are on disk, they are the reason the
+submodule is larger than v2 needs, and they are what a reversal of the
+no-conversion decision would switch on.
 
 What upstream does not have, and v2 must build:
 
@@ -770,10 +778,18 @@ The code is already on disk via the submodule, so nothing needs extracting to
   is explicitly not an installable package.
 - The repository has **no tags and no releases**, so there is no version to pin.
 - The scripts are script-shaped, not import-shaped: `import transforms`,
-  `SCRIPT_DIR / "v1.1_definitions"`.
+  `SCRIPT_DIR / "v1.1_definitions"`. This likely bites even for the
+  summarizer-only import, if those statements run at module import time — which
+  should be checked rather than assumed.
 - Upstream declares `requires-python = ">=3.13,<4.0"`, above v2's Python 3.12
   ([§3](#3-technology-choices)). Nothing in the code uses 3.13-only syntax, but
   the floor has to be reconciled.
+- **The error summarizer v2 wants is inside the converter module v2 does not
+  use.** `summarize_error` and its three companions are defined in
+  `convert_dcat_1_1_to_3_0.py`, so importing them means importing from a 1.1
+  conversion CLI that v2 never invokes. The adapter module confines this, but it
+  is an awkward coupling and the obvious upstream fix is to extract the reporter
+  into a module of its own.
 
 ADR 0010 chooses **import from the pinned submodule now, behind a single adapter
 module, with upstream packaging as the declared target.** Two consequences of this
@@ -782,9 +798,11 @@ being an import rather than an extraction:
 - **The submodule must be pinned to a reviewed commit**, because v2 now executes
   code from it. An unpinned `branch = main` submodule means every upstream commit
   is an unreviewed code change in a FISMA-boundary application (SR-3, RA-5).
-- **Gaps get fixed upstream, not locally.** If `transforms.py` is missing a case
-  Inventory needs, the fix is a PR to `GSA/dcat-us`. A local patch recreates
-  exactly the fork this section is correcting.
+- **Gaps get fixed upstream, not locally.** If the error summarizer misreports a
+  3.0 validation failure, the fix is a PR to `GSA/dcat-us`. A local patch recreates
+  exactly the fork this section is correcting — and would make v2 the **fifth**
+  copy of that reporter
+  ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md#not-in-scope-consolidating-the-error-reporters)).
 
 ## 9. Open blockers
 
@@ -805,7 +823,9 @@ Control mappings live in the individual decision records. Summary of what
 changes relative to v1:
 
 - **Strengthened:** SI-3 (malware scanning, previously absent), AC-6 (default
-  privilege is exactly none), CM-7 (DataStore and Solr surfaces removed), and
+  privilege is exactly none), CM-7 (DataStore and Solr surfaces removed, and v2
+  accepts one metadata version rather than two — no 1.1 schemas, transforms, or
+  conversion endpoint inside the boundary), and
   structured logs with correlation IDs where v1 has none. SI-3(2) and SI-7 are
   further strengthened by per-version `signature_version` and `sha256` on
   immutable file versions, which make retroactive re-scan a query and make the
@@ -838,13 +858,19 @@ changes relative to v1:
   failures). Log drains are best-effort and ADR 0011 leaves non-row security
   events in the logs, so undetected drain loss is undetected audit loss. AU-5
   appears in no decision record.
+- **Weakened by the no-conversion decision:** SR-4 / CM-3 provenance for imported
+  catalogs. v2 records the submodule commit that **validated** an import, but
+  conversion now happens outside the boundary at an unrecorded version, so an
+  imported catalog is reproducible against v2's validator and not against whatever
+  produced its input ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)).
+  If conversion provenance matters, the importing user must be asked to record it.
 
 ## 11. References
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — the v2 feature list
 - [Decision records index](decisions/README.md) — ADRs 0001–0012 (no 0003; numbers are never reused)
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) · [1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) · [GSA/dcat-us](https://github.com/GSA/dcat-us)
-- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — schemas **and** `transforms.py`, `convert_dcat_1_1_to_3_0.py`, `v1.1_definitions/`; the dependency described in [§8](#consume-upstream-own-only-the-graph-layer)
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the 3.0 schemas and error summarizer v2 consumes, described in [§8](#consume-upstream-own-only-the-graph-layer); also home to `transforms.py` and `convert_dcat_1_1_to_3_0.py`, which v2 does **not** use ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md))
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) · [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — the pattern being followed
 - [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) · [harvest.data.gov wiki](https://github.com/GSA/data.gov/wiki/harvest.data.gov) — `LoadManager` sweeper precedent
 - [inventory.data.gov wiki](https://github.com/GSA/data.gov/wiki/inventory.data.gov) — current-state operations

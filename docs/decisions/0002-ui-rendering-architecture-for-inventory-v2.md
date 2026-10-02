@@ -45,9 +45,9 @@ a schema-coupled server-rendered form would need the same rewrite.
 
 - **Single source of truth for validation (SI-10).** The authoritative DCAT-US
   validator is Python, and it is upstream:
-  [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema)'s
-  `convert_dcat_1_1_to_3_0.py` (558 lines, 719 lines of tests across `tests/`)
-  using `jsonschema` Draft 2020-12 with `referencing`, already vendored here via
+  [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema)'s 3.0
+  schemas plus the error summarizer in `convert_dcat_1_1_to_3_0.py:38-190`, using
+  `jsonschema` Draft 2020-12 with `referencing`, already vendored here via
   the `_external/dcat-us` submodule ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)).
   Any second validator implementation in JavaScript creates two artifacts that
   will drift, and drift in a validator is a correctness failure that reaches
@@ -115,10 +115,11 @@ Three commitments make this choice reversible at low cost, and they are part of
 the decision rather than implementation detail:
 
 - **API-first.** All DCAT logic lives in a pure-Python library with no web
-  framework dependency (validate, 1.1→3.0 transform, decompose/assemble object
-  graph, schema→form-model), exposed through a stateless APIFlask surface:
-  `POST /api/validate`, `POST /api/convert`, `POST /api/export`,
-  `GET /api/schema/{class}/form`.
+  framework dependency (validate, decompose/assemble object graph,
+  schema→form-model), exposed through a stateless APIFlask surface:
+  `POST /api/validate`, `POST /api/export`,
+  `GET /api/schema/{class}/form`. There is **no** `POST /api/convert`: v2 does not
+  convert DCAT-US 1.1 ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11)).
 - **`GET /api/schema/{class}/form` returns the form model as JSON**, not only
   rendered HTML. The Jinja renderer consumes it server-side today; a future SPA
   or the anonymous client consumes the identical endpoint. This is the single
@@ -278,7 +279,7 @@ This should be decided together with the editing-model question, since (B) plus
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) — sibling Flask + Jinja + USWDS + HTMX application; precedent for this option
 - [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) — sibling Flask application; owns the shared harvest DB
 - [USWDS](https://designsystem.digital.gov/) and [`@trussworks/react-uswds`](https://github.com/trussworks/react-uswds) — design system and its React binding
-- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream Python validator and converter that make a second JavaScript validator unnecessary; already vendored as `_external/dcat-us`
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream Python validator and error summarizer that make a second JavaScript validator unnecessary; already vendored as `_external/dcat-us`
 - NIST SP 800-53 Rev 5.2 — SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15
 - Section 508 / WCAG 2.1 AA — [Section 508 standards](https://www.section508.gov/)
 - Related pending ADRs: Login.gov OIDC over SAML; object-graph data model; quarantine-then-scan antivirus
