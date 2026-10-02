@@ -1,0 +1,878 @@
+---
+title: "inventory.data.gov v2 System Architecture"
+description: "Target architecture for the non-CKAN rewrite of inventory.data.gov — components, technologies, data model, and key flows"
+---
+
+# inventory.data.gov v2 — System Architecture
+
+> This document describes a *target* architecture, not a
+> built system. Every significant choice here is backed by a decision record in
+> [`docs/decisions/`](decisions/README.md), and **ten of those eleven records are
+> `proposed`, not `accepted`** — each carrying explicit blockers that could change
+> the design. Only [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md)
+> (repository topology) is `accepted`. See [Open blockers](#9-open-blockers).
+>
+
+## 1. Why v2 exists
+
+Code for the current, v1 version of inventory.data.gov lives in https://github.com/GSA/inventory-app.
+The current app is a CKAN 2.11.5 monolith (a GSA fork pinned to a
+`-nosolr` branch) with one custom extension and eight third-party or forked CKAN
+extensions. The [v2 feature list](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design)
+identifies the driving problem: *"the CKAN metadata model is not very compatible
+with the nested object classifications of DCAT-US 3.0."*
+
+Four v1 pain points set the scope:
+
+| Pain point | v2 response |
+|---|---|
+| UI rewrite required for Section 508 compliance | Server-rendered USWDS with accessibility gates in CI ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)) |
+| Forked CKAN code will never merge upstream | No CKAN; one first-party application |
+| Custom React form built for DCAT-US 1.1 needs a full rewrite for 3.0 | Form generated from the JSON Schema, so schema releases are a submodule bump |
+| CKAN's flat model cannot express nested, reusable DCAT-US 3.0 classes | Object graph with reuse as edges ([ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md)) |
+
+### This is the platform's third CKAN exit, not a new direction
+
+`catalog.data.gov` ([GSA/datagov-catalog](https://github.com/GSA/datagov-catalog))
+and `harvest.data.gov` ([GSA/datagov-harvester](https://github.com/GSA/datagov-harvester))
+both left CKAN in 2025 for **Python 3.12 / Flask / Postgres / cloud.gov / nginx
+proxy / New Relic**. Inventory v2 is deliberately the third instance of that
+pattern. Where this document departs from those two apps, it says so and why.
+
+## 2. Container view
+
+```mermaid
+flowchart TB
+    subgraph clients["Clients"]
+        GOV["Agency data manager<br/>PIV/CAC"]
+        PUB["Anonymous public user<br/>(MVP: hosted file download)"]
+        HARV["harvest.data.gov<br/>(2.1 - not MVP: dcatus3.0 source)"]
+    end
+
+    IDP["<b>Login.gov</b><br/>OIDC · IAL1 · AAL3 + HSPD-12<br/> private_key_jwt"]
+
+    subgraph org["cloud.gov · org gsa-datagov"]
+        subgraph cf["spaces development / staging / prod"]
+            PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist (incl. /f/*)<br/>HSTS · cookie flags · body cap<br/>rate limit on /f/*"]
+
+            subgraph internal["*.apps.internal — no public route"]
+                WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX + islands<br/>Authlib · Flask-Login · Talisman"]
+                SCAN["<b>inventory-scanner</b><br/>clamav-rest (terraform-cloudgov module)<br/>POST /scan · apps.internal only<br/>~3G · sweeper on instance 0"]
+                TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · audit unreferenced-files<br/>import-publishers"]
+            end
+
+            PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · hosted files")]
+            S3Q[("<b>inventory-s3-quarantine</b><br/>quarantine/<br/>never presigned · never public")]
+            S3F[("<b>inventory-s3-files</b><br/>files/<br/>private · serving content")]
+            SEC[["<b>inventory-secrets</b> · UPS<br/>OIDC private key · Flask secret"]]
+            EGRESS["egress proxy"]
+            DRAIN[["<b>logstack-space-drain</b> · UPS<br/>bound to inventory + proxy<br/>created out-of-band"]]
+        end
+
+        subgraph mgmt["space management — shared, not owned by this repo"]
+            SHIP["<b>logstack-shipper</b><br/>shared: catalog · harvester · inventory"]
+            LOGS3[("log archive · S3<br/>retention inherited")]
+            MEGRESS["egress proxy<br/>(management allowlist)"]
+        end
+    end
+
+    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>3.0 schemas + validation code<br/>pinned commit — ADR 0010"]
+
+    GOV --> PROXY
+    PUB -->|"GET /f/{hosted_file_id}<br/>302 → presigned URL"| PROXY
+    PUB -.->|"GET presigned URL — bytes"| S3F
+    HARV -->|"GET /catalog/{id}/dcat-v3.json"| PROXY
+    PROXY -->|"TLS :61443 internal"| WEB
+    GOV -.->|"auth code"| IDP
+    IDP -.->|"id_token · acr · sub"| WEB
+
+    WEB --> PG
+    WEB -->|"stream upload → quarantine/"| S3Q
+    WEB -->|"presign files/"| S3F
+    WEB --- SEC
+    WEB -->|"POST /scan"| SCAN
+    SCAN -->|"read + delete quarantine/"| S3Q
+    SCAN -->|"copy → files/"| S3F
+    SCAN --> PG
+    TASK --> PG
+    TASK --> S3F
+
+    WEB -->|"OIDC discovery + JWKS"| EGRESS
+    SCAN -->|"freshclam"| EGRESS
+    TASK -->|"URL audit · data.json import"| EGRESS
+    WEB -->|"New Relic APM agent · :61443"| EGRESS
+    EGRESS --> OUT["secure.login.gov<br/>database.clamav.net<br/>gov-collector.newrelic.com<br/>agency URLs"]
+
+    SCHEMA -.->|"build time"| WEB
+
+    PROXY -.->|"stdout — access logs"| DRAIN
+    WEB -.->|"stdout — JSON logs<br/>request + actor IDs"| DRAIN
+    SCAN -.->|"stdout"| DRAIN
+    TASK -.->|"stdout"| DRAIN
+    DRAIN -.->|"platform-mediated<br/>syslog drain"| SHIP
+    SHIP --> LOGS3
+    SHIP -->|"log ingest"| MEGRESS
+    MEGRESS --> NR["New Relic<br/>(management allowlist,<br/>not inventory's)"]
+```
+
+### Why the two-app topology is retained
+
+The CKAN app has **no public route** today; all public traffic traverses
+`inventory-proxy`. That nginx config carries three security controls enforced
+outside the application: default-deny path allowlisting
+(`proxy/nginx.conf:44,48`), HSTS stamping with upstream-HSTS stripping (`:36,59`),
+and cookie hardening (`:62`). Collapsing to one app would lose all three.
+
+v2 keeps the topology **and** additionally implements header policy in
+Flask-Talisman, so the policy is unit-testable rather than only observable in a
+deployed environment.
+
+## 3. Technology choices
+
+| Layer | Technology | Rationale / departure from v1                                                                                                                                                                                                                                                                                                              |
+|---|---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Runtime | Python 3.12 | v1 is pinned to 3.10 by CKAN. Matches catalog and harvester.                                                                                                                                                                                                                                                                               |
+| Framework | Flask + APIFlask | APIFlask yields OpenAPI for the import/export/validate API. Same as catalog.                                                                                                                                                                                                                                                               |
+| Dependencies | Poetry | Replaces the `requirements.in.txt` → `bin/requirements.sh` → `requirements.txt` freeze cycle and the `jsonschema` post-install upgrade hack at `Dockerfile:28-29`.                                                                                                                                                                         |
+| UI | Jinja2 + USWDS 3 + HTMX, with scoped JS islands | [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md). Islands: reference picker, `Location` geometry entry, catalog preview.                                                                                                                                                                                           |
+| Form generation | Schema-driven renderer over `_external/dcat-us` | Field descriptions come from the schema, per the feature list. Schema releases become a submodule bump.                                                                                                                                                                                                                                    |
+| ORM | SQLAlchemy 2.0 + Alembic + psycopg 3 | v1 is on SQLAlchemy 1.4.                                                                                                                                                                                                                                                                                                                   |
+| Database | Postgres (`medium-psql-redundant` prod, `small-psql` dev) | One instance. v1 has two plus Redis.                                                                                                                                                                                                                                                                                                       |
+| Search | Postgres FTS (`tsvector` + GIN) | **Deliberately not OpenSearch.** Catalog needs it at 515k datasets; Inventory holds thousands per org.                                                                                                                                                                                                                                     |
+| Cache / queue | none | Redis and RQ removed. Nothing in the MVP needs sub-minute async.                                                                                                                                                                                                                                                                           |
+| Auth | Login.gov OIDC via Authlib | Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`.                                                                                                                                                                                                                                                                                     |
+| Session | Flask-Login + server-side sessions in Postgres, 900 s idle | Real revocation on logout. v1 also stores sessions in Postgres (`.profile:106`) but via Beaker.                                                                                                                                                                                                                                            |
+| Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks.                                                                                                                             |
+| Audit trail | PostgreSQL-Audit (pinned), plpgsql triggers → `activity` + `transaction` | [ADR 0011](decisions/0011-audit-trail-mechanism.md). Trigger-level capture reaches the edge, `state`, and permission changes `metadata_properties` versioning cannot see. v1 relies on CKAN revisions. Actor arrives via the ORM, so a session-bypassing write is recorded but unattributed — a test must assert no null `transaction_id`. |
+| Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production.                                                                                                                                                                            |
+| Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Already the pattern. **Pinning is now load-bearing**: v2 executes code from this submodule, not only reads schemas ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md); SR-3).                                                                                                                                                  |
+| File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | Private throughout, across **two** brokered instances (`inventory-s3-quarantine`, `inventory-s3-files`). Immutable per-version objects under `files/`, served via a stable catalog-scoped app route that redirects to a short-lived presigned URL ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).                                                                                                                                                                                                                                                                                                                                                                      |
+| Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
+| Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check.                                                                                                                                                                                     |
+| Proxy | nginx via cloud.gov nginx-buildpack | Retained; see above.                                                                                                                                                                                                                                                                                                                       |
+| Headers | Flask-Talisman + nginx | Testable in unit tests, enforced at the edge.                                                                                                                                                                                                                                                                                              |
+| Observability | New Relic (gov-collector) for APM + structured JSON logs with request and actor IDs, drained to the shared Logstack shipper via `logstack-space-drain` | v1 logs are plain text with no correlation IDs, and nginx access logs omit client IP, timestamp, and latency (`proxy/nginx.conf:8-9`). Same drain service `datagov-catalog` binds.                                                                                                                                                         |
+| Tests | pytest, Playwright, pa11y-ci + axe, ruff/black/isort | Replaces Cypress 13; shares tooling with catalog.                                                                                                                                                                                                                                                                                          |
+| CI/CD | GitHub Actions → `gsa/data.gov/.github/workflows/deploy-template.yml@main` | Same reusable templates.                                                                                                                                                                                                                                                                                                                   |
+
+### Deliberate non-adoptions
+
+- **OpenSearch** — wrong scale for Inventory; adds a service to operate.
+- **Redis** — nothing left needs it once the DataStore and RQ are gone.
+- **A client-side router / SPA** — see [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md), including the conditions that would reverse that decision.
+- **Client-side validation as authoritative** — a second validator would drift from the upstream Python one. Any client-side check is advisory only.
+- **DCAT-US 1.1 → 3.0 conversion** — see [ADR 0008](decisions/0008-onboard-via-data-json-reimport.md). The upstream converter exists and works; v2 simply does not host it.
+
+## 4. Data model
+
+The direct answer to the CKAN mismatch. Full reasoning and rejected alternatives
+in [ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md).
+
+```mermaid
+erDiagram
+    USER_ACCOUNT ||--o{ CATALOG : created
+    USER_ACCOUNT ||--o{ CATALOG_PERMISSION : holds
+    CATALOG ||--o{ CATALOG_PERMISSION : "granted on"
+    CATALOG ||--|| METADATA_OBJECT : "root_object_id → dcat_class='Catalog'"
+    CATALOG ||--o{ CATALOG_LINK : "embeds (acyclic, live only)"
+    CATALOG ||--o{ METADATA_OBJECT : scopes
+    METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "parent of"
+    METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "referenced by (reuse)"
+    HOSTED_FILE ||--o{ HOSTED_FILE_VERSION : "immutable versions"
+    CATALOG ||--o{ HOSTED_FILE : "scopes (no edge to METADATA_OBJECT)"
+    CATALOG ||--o{ EXPORT_RUN : produces
+
+    CATALOG {
+        uuid id PK "identity and authorization anchor — never swapped"
+        uuid root_object_id FK "UNIQUE, deferrable — the Catalog-class object"
+        uuid created_by FK "provenance only — conveys no privilege"
+        timestamptz created_at
+    }
+    CATALOG_LINK {
+        uuid parent_catalog_id FK
+        uuid child_catalog_id FK "catalog identity, not root object"
+        int ordinal
+    }
+    METADATA_OBJECT {
+        uuid id PK
+        uuid catalog_id FK
+        text dcat_class "Catalog CatalogRecord Dataset DatasetSeries DataService Distribution Kind Organization Concept ConceptScheme Location"
+        text state "draft | live"
+        jsonb metadata_properties "own scalar properties only"
+        tsvector search_vector
+    }
+    OBJECT_REFERENCE {
+        uuid parent_object_id FK
+        uuid child_object_id FK
+        text property "dcat:dataset dcat:service dcat:distribution dcat:contactPoint dcat:theme"
+        int ordinal "preserves JSON array order"
+    }
+    CATALOG_PERMISSION {
+        uuid catalog_id FK
+        uuid principal_user_id FK "nullable"
+        uuid principal_catalog_id FK "nullable — catalog-to-catalog sharing"
+        text level "read (view-only, incl. drafts) | edit | admin"
+    }
+    HOSTED_FILE {
+        uuid id PK "the stable URL token — never changes"
+        uuid catalog_id FK "immutable — ownership, authz, picker scope"
+        text label "human-meaningful name for the picker"
+        uuid current_version_id FK "nullable — latest clean version"
+        timestamptz withdrawn_at "nullable — explicit withdrawal"
+        bigint download_count "approximate; incremented on redirect"
+        timestamptz first_downloaded_at "nullable"
+        timestamptz last_downloaded_at "nullable"
+        uuid created_by FK
+    }
+    HOSTED_FILE_VERSION {
+        uuid id PK
+        uuid hosted_file_id FK
+        int ordinal "upload order"
+        text s3_key "files/{hosted_file_id}/{id}"
+        text sha256 "SI-7, per version"
+        bigint size_bytes
+        text content_type
+        text original_filename "per version"
+        text scan_state "pending | clean | infected | error"
+        text signature_version "SI-3(2), per version"
+        timestamptz scanned_at
+        uuid uploaded_by FK
+    }
+```
+
+Three properties carry the requirements:
+
+1. **`object_reference` is the reuse mechanism.** A `Kind` (contact point) or
+   `Organization` (publisher) is one row referenced by many datasets. `metadata_properties`
+   holds only that class's own scalar properties; nesting is edges. Export walks
+   the graph and assembles nested JSON; import is the inverse. `ordinal`
+   preserves JSON array order, without which the round-trip property below is
+   false for any object with two or more children.
+2. **`state` is per object.** "Drafts are not exported" becomes
+   `WHERE state = 'live'` on the export walk. This replaces v1's documented
+   three-way confusion between CKAN `private`, DCAT `accessLevel`, and Inventory
+   publishing status ([GSA/data.gov#2095](https://github.com/GSA/data.gov/issues/2095)).
+3. **`catalog` holds identity; a `Catalog`-class `metadata_object` holds content.**
+   The `catalog` row is the authorization anchor and the export URL, and it never
+   changes. Its DCAT properties — `title`, `description`, `publisher` — and its
+   top-level `dataset[]` / `service[]` / `datasetSeries[]` membership live in the
+   object graph, reached through `catalog.root_object_id`. See
+   [ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md#catalog-identity-is-separate-from-catalog-content).
+
+**Highest-risk surface:** graph assembly. Mitigations are non-optional —
+property-based round-trip tests (`assemble ∘ decompose ≡ identity`), cycle
+detection with a depth bound on the walk, an acyclicity check on `catalog_link`
+writes, and schema validation of every export before delivery.
+
+**Second risk:** reusable objects are addressable independently of the catalog a
+user reached them through, so **every object route needs an explicit
+direct-object-reference authorization check**. Object IDs are not authorization.
+
+### Hosted files are catalog-scoped, with a lifecycle independent of metadata
+
+`hosted_file` and `hosted_file_version` are deliberately **not** part of the
+object graph. A `hosted_file` belongs to a `catalog`, references no
+`metadata_object`, and is **not** cascade-deleted with one. Full reasoning in
+[ADR 0012](decisions/0012-catalog-scoped-hosted-files.md).
+
+### Auditability
+
+To meet our auditability requirements (*"we will maintain historical object tracking
+along with user edit information. All changes will be available for
+auditability."*), we will use a third-party audit library, as discussed in ([ADR 0011](decisions/0011-audit-trail-mechanism.md)).
+
+### There is no agency/bureau tenant entity
+
+v1 inherits CKAN's organization: an agency/bureau silo that owns datasets, holds
+user membership, and is the unit of isolation. The wiki's first feature bullet
+still describes v1 that way — *"Agency/organization silos for metadata management
+and managed teams of users isolated from each other."*
+
+**v2 drops it. Agency/bureau silos are not a first-class concept.** The
+consequences are worth stating plainly, because this is a genuine change in the
+product's shape, not a schema tidy-up:
+
+- **The isolation boundary is the catalog, not the agency.** A user sees exactly
+  the catalogs they hold a `catalog_permission` on ([ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md)).
+  There is no enclosing container that grants or restricts access, and no
+  membership list.
+- **Nothing is inherited.** A catalog does not acquire a publisher, a theme, or a
+  default contact point from an owning agency. Every such value is an explicit
+  `metadata_object` reference.
+- **`user_account ── created ──▶ catalog` is provenance only.** It records who
+  created a catalog for audit purposes; it is not ownership and conveys no
+  privilege. The creator's access comes from their `catalog_permission` row like
+  anyone else's.
+- **Cross-agency sharing needs no special case.** Because there is no silo to
+  cross, sharing a catalog with a user or another catalog in a different agency is
+  the same operation as sharing within one.
+
+Two loose ends follow from this, and both are real:
+
+1. **`config/data/inventory_publishers.csv`** (~270 rows;
+   `organization,publisher,publisher_1…publisher_5`, encoding a
+   department → bureau hierarchy, with e.g. `usda-gov` appearing on several rows
+   for different sub-bureaus) is **no longer a tenant registry**. Its remaining
+   value is as **seed data for reusable DCAT `Organization` objects**, so agency
+   staff select a canonical publisher rather than typing one. That is a
+   convenience feature, not a structural one, and it is not yet designed — see
+   the ADR 0005 blocker.
+2. **The first-`admin` bootstrap question in
+   [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md) can no
+   longer be answered with "an agency-scoped role,"** because no agency scope
+   exists. The likely answer is that catalog creation grants the creator `admin`
+   on that catalog, with a Data.gov sysadmin role for recovery. That remains an
+   open ADR 0004 blocker.
+
+### Two distinct things named "Organization"
+
+Avoiding a collision that the ERD above previously invited:
+
+| Term | What it is |
+|---|---|
+| **DCAT `Organization`** | A `metadata_object` row with `dcat_class = 'Organization'`, used as `publisher` and reusable across datasets — exactly like `Kind` |
+| ~~tenant organization~~ | **Does not exist in v2.** The v1 CKAN agency silo, removed |
+
+Every remaining use of "Organization" in this document and in the decision records
+means the DCAT class.
+
+### Catalog-to-catalog sharing
+
+A couple of requirements on catalog-to-catalog sharing:
+
+1. **Acyclicity enforcement on `catalog_link` writes.** Catalog A embedding B
+   embedding A is a cycle, and a cycle reaching production is a denial-of-service
+   against the export path — the walk never terminates. Enforcement is required at
+   write time, not only defended against at read time. The write path must reject
+   an edge that would close a loop, with a clear error naming the conflicting
+   path.
+2. **A second authorization path.** `catalog_permission` grants to either a user
+   (`principal_user_id`) or a catalog (`principal_catalog_id`), so every
+   authorization check must resolve **both** — and permission can arrive
+   transitively through an embedded catalog. This is materially harder to get
+   right than user-only permissions and needs explicit test coverage for the
+   transitive case, not just the direct one.
+
+Depth bounding on the walk remains necessary even with write-time acyclicity
+enforcement: `object_reference` edges can also form loops, enforcement could have
+a defect, and rows can be introduced outside the application path (migrations,
+manual repair).
+
+## 5. Key flows
+
+### 5.1 Authentication and first-login provisioning
+
+```mermaid
+sequenceDiagram
+    actor U as Data manager
+    participant W as inventory
+    participant L as Login.gov
+    participant DB as Postgres
+
+    U->>W: GET /login
+    W->>W: generate state, nonce, PKCE verifier → session
+    W-->>U: 302 → Login.gov (acr_values=AAL3+hspd12, PKCE S256)
+    U->>L: PIV/CAC authentication
+    L-->>U: 302 → /auth/callback?code&state
+    U->>W: GET /auth/callback
+    W->>W: verify state, bind PKCE verifier
+    W->>L: token request (private_key_jwt + code_verifier)
+    L-->>W: id_token
+    W->>W: verify signature (JWKS), iss, aud, exp, nonce, acr
+    Note over W: acr must assert AAL3+HSPD-12.<br/>Unchecked acr silently voids the IA-2 control.
+    W->>DB: SELECT user_account WHERE login_gov_sub = sub
+    alt first login
+        W->>DB: INSERT user_account (sub, email) — ZERO catalog_permission rows
+        W->>DB: audit: account_created
+    end
+    W->>DB: create server-side session
+    W-->>U: 302 → workspace (empty unless permissions exist)
+```
+
+Account existence conveys **no** privilege; authorization is entirely
+`catalog_permission`. See [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md),
+including the unresolved question of how the *first* `admin` grant on a new
+catalog happens.
+
+### 5.2 Export with error reporting
+
+```mermaid
+sequenceDiagram
+    actor U as Data manager
+    participant W as inventory
+    participant DB as Postgres
+    participant V as upstream dcat-us code
+
+    U->>W: GET /catalog/{id}/export?format=dcat-us-3
+    W->>DB: authorize (catalog_permission)
+    W->>DB: INSERT export_run (status=running, schema_commit)
+    W->>DB: recursive walk from catalog.root_object_id<br/>object_reference (+ catalog_link, re-authorized)<br/>WHERE state='live' (cycle-detected, depth-bounded)
+    DB-->>W: object graph
+    W->>V: assemble nested JSON
+    V->>V: validate against Catalog.json (Draft 2020-12)
+    V->>V: summarize_error / find_meaningful_errors
+    V-->>W: data.json + errors.json + errorlog.txt
+    W->>DB: UPDATE export_run (status, error_count, report)
+    W-->>U: data.json + errors.json + errorlog.txt as zip file
+```
+
+`export_run` records the `_external/dcat-us` submodule commit, so an export is
+reproducible against the schema version that validated it.
+
+Export does not consult `hosted_file` at all. A `Distribution`'s `downloadURL` is
+emitted as the string it is, whether it points at an Inventory-hosted file or an
+agency's own server. The publication-time check is the counterpart: before a
+`Distribution` may be `live`, its `downloadURL` must resolve to something real —
+for an Inventory-hosted file, a non-null `current_version_id`; for an external
+URL, the URL validation live catalogs already require.
+
+### 5.3 Upload with quarantine-then-scan
+
+```mermaid
+sequenceDiagram
+    actor U as Data manager
+    participant W as inventory
+    participant SQ as inventory-s3-quarantine
+    participant SF as inventory-s3-files
+    participant SC as inventory-scanner
+    participant DB as Postgres
+
+    U->>W: POST file to a catalog
+    W->>W: size (≤500 MB) + MIME + extension allowlist<br/>applied to <b>every</b> version, not only the first
+    W->>SQ: stream → quarantine/{uuid}
+    W->>DB: INSERT hosted_file (first upload only)<br/>INSERT hosted_file_version (scan_state=pending, sha256,<br/>size_bytes, content_type, original_filename)
+    W->>SC: POST /scan {s3_key, version_id} — fire-and-forget, 2 s timeout
+    W-->>U: 202 — scanning, stable URL still serves the previous version
+    Note over U,W: HTMX polls GET /file/{version_id}/status
+
+    SC->>SQ: stream object
+    SC->>SC: clamd INSTREAM
+    alt clean
+        SC->>SF: copy → files/{hosted_file_id}/{version_id}
+        SC->>SQ: delete quarantine/ object
+        SC->>DB: scan_state=clean, scanned_at, signature_version<br/><b>and</b> hosted_file.current_version_id = version_id<br/>(one transaction)
+    else infected
+        SC->>SQ: delete object (a real deletion — instance is unversioned)
+        SC->>DB: scan_state=infected, threat_name<br/>current_version_id <b>unchanged</b>
+        SC->>W: notify org admin + Data.gov team (SI-3 / IR-6)
+    end
+
+    Note over SC,DB: sweeper, CF_INSTANCE_INDEX==0 only:<br/>pending >5 min → re-dispatch<br/>pending >60 min → scan_state=error + alert
+```
+
+`current_version_id` advances **only** on a clean scan, in the same transaction as
+that state change. That single invariant is what keeps the previously-served
+version in place while a replacement scans, and what prevents an `infected` or
+`error` version from ever being reachable
+([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)). Whether it advances
+automatically or waits for explicit owner confirmation before the public URL
+changes content is an open ADR 0012 blocker.
+
+**The sweeper is why this works without a message broker** — dropped dispatches,
+scanner restarts, and crashed scans all self-heal. It reuses the
+`CF_INSTANCE_INDEX == 0` guard that harvester's `LoadManager` already uses.
+
+### 5.3.1 Hosted file download at a stable URL
+
+```mermaid
+sequenceDiagram
+    actor P as Anonymous public user
+    participant PX as inventory-proxy
+    participant W as inventory
+    participant DB as Postgres
+    participant SF as inventory-s3-files
+
+    P->>PX: GET /f/{hosted_file_id}  ← the bookmark
+    PX->>W: proxied (allowlisted path, rate limited)
+    W->>DB: one row: hosted_file.withdrawn_at, current_version_id<br/>(no join to metadata_object, no state lookup)
+    alt withdrawn, or no clean current version
+        W-->>P: 404 (never 403 — a 403 confirms the identifier names something)
+    else serving
+        W->>DB: increment download_count, set first/last_downloaded_at
+        W-->>P: 302 → presigned URL (TTL minutes)<br/>Content-Disposition from original_filename<br/>Cache-Control: no-store
+        P->>SF: GET presigned URL
+        SF-->>P: bytes
+    end
+```
+
+Comments on the diagram:
+
+- **302 rather than 301, with `no-store`**, because a permanent or cached redirect
+  would survive a withdrawal and defeat it.
+- The **presigned TTL only has to cover redirect-to-transfer-start**, so it is
+  minutes — the bookmark is the app route.
+- **The download counter must not be transactional with the redirect** in a way
+  that fails the download if the increment fails. It is a write on a read path,
+  and it is approximate by construction.
+
+Because `/f/*` is unauthenticated and fronts egress of files up to 500 MB, rate
+limiting is a security control here rather than hygiene, and the route pattern is
+an **interface contract** — it appears in every bookmark and in every exported
+`data.json`, so changing its shape later is a breaking change for consumers
+outside this system (CM-3).
+
+### 5.4 Import DCAT-US 3.0 catalog
+
+```mermaid
+flowchart LR
+    A["upload or fetch v3.0 JSON file"] --> B["validate 3.0"]
+    B --> C["decompose to objects<br/>in-run dedupe by content hash"]
+    C -->|"create new catalog"| D["new Catalog object created by user,<br/>new 'catalog' metadata_object in draft state"]
+    D --> F["share catalog with other users"]
+    F --> H["human review → live → export"]
+    C -->|"re-import existing catalog"| E["new 'catalog' metadata_object"]
+    E --> G["human review → swap old Catalog to point to new metadata_object  → export"]
+```
+
+### 5.5 Agency onboarding
+
+Agency onboarding to Inventory 2.0 is simply the
+[Import DCAT-US 3.0 catalog](#54-import-dcat-us-30-catalog) workflow, which must be
+managed manually by a data manager from the agency. This comes with a "natural" housecleaning step - agencies that once 
+needed an Inventory 1.0 account but have since switched to some other metadata tool will naturally be dropped from Inventory 2.0.
+
+**The agency must supply a 3.0 file.** v2 does not convert 1.1
+([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)), so onboarding has a prerequisite that
+Inventory cannot satisfy on the agency's behalf: either export 3.0 from v1 while it
+is still running, or run upstream's converter out-of-band. Until that file exists,
+there is no onboarding path for that agency.
+
+## 6. Deployment
+
+Per-environment sizing follows v1 (`vars.*.yml`), minus the removed services.
+
+| | development                                | staging                                      | prod                      |
+|---|--------------------------------------------|----------------------------------------------|---------------------------|
+| `inventory` instances | 1                                          | 2                                            | 2                         |
+| Route (public) | `inventory-beta-dev-datagov.app.cloud.gov` | `inventory-beta-stage-datagov.app.cloud.gov` | `inventory-beta.data.gov` |
+| Postgres plan | `small-psql`                               | `medium-psql-redundant`                      | `medium-psql-redundant`   |
+| New Relic monitoring | off                                        | on                                           | on                        |
+
+**Services bound:** `inventory-db`, `inventory-s3-quarantine`,
+`inventory-s3-files`, `inventory-secrets`, `logstack-space-drain`. Removed
+relative to v1: `inventory-datastore`, `inventory-redis`, `sysadmin-users`.
+
+### Logging uses shared infrastructure this repository does not own
+
+`logstack-space-drain` is bound to **both** `inventory` and `inventory-proxy`,
+matching `datagov-catalog`'s manifest. Everything downstream of that binding is
+shared with `catalog.data.gov` and `harvest.data.gov`:
+
+| Component | Owner | Consequence for v2 |
+|---|---|---|
+| `logstack-space-drain` (UPS, per space) | Platform/team, created out-of-band | v2 binds it; it is **not** in the Terraform table below |
+| `logstack-shipper` (app, space `management`) | Shared, outside inventory's spaces | v2 has no control over its availability or configuration |
+| Log archive (S3) | The shipper | **Retention is inherited, not set here** |
+| Management-space egress to New Relic | The management space's allowlist | Not inventory's allowlist — see [§2](#2-container-view) |
+
+The management space is **inside the same authorization boundary** as inventory,
+so this is an internal data flow rather than an external interconnection.
+
+### Infrastructure is provisioned with Terraform
+
+Per [ADR 0009](decisions/0009-terraform-cloudgov-for-infrastructure.md), v2
+provisions cloud.gov infrastructure with
+[`GSA-TTS/terraform-cloudgov`](https://github.com/GSA-TTS/terraform-cloudgov)
+modules pinned by tag, replacing v1's `create-cloudgov-services.sh`.
+
+| Managed by Terraform | Module |
+|---|---|
+| `inventory-db` (Postgres, `prevent_destroy` in prod) | `database` |
+| `inventory-s3-quarantine` (unversioned, short lifecycle expiry) | `s3` |
+| `inventory-s3-files` (serving content; versioning optional) | `s3` |
+| `inventory-scanner` (ClamAV, ~3 GB, `apps.internal` only) | `clamav` |
+| Egress proxy + allowlist | `egress_proxy` |
+| Egress space | `cg_space` |
+| Container-network policies, space roles, deployer accounts | provider resources |
+
+Not managed here: `logstack-space-drain` and everything downstream of it (above).
+
+**Two boundaries matter.** Terraform manages service *existence* and topology but
+**not secret values** — `inventory-secrets` credentials stay in `cf cups`/`uups`,
+because service-key attributes are stored in Terraform state in plaintext. And
+**application deployment stays `cf push --strategy rolling`** via a composite
+GitHub action, as in `datagov-catalog`; the modules' `application` deployment
+module is deliberately unused.
+
+This is the one place v2 diverges from `datagov-catalog` and
+`datagov-harvester`, neither of which uses Terraform. The justification is that
+v2's infrastructure — a scanner app, an egress proxy with an allowlist, and
+network policies across three apps — is materially larger than theirs, and in v1
+that class of configuration exists only as undocumented manual `cf` commands.
+
+### Deployment differences from v1 that matter
+
+- **Migrations run once, via `cf run-task`, before the app rolls.** v1 runs
+  `ckan db upgrade` in `.profile:151` on *every instance at every boot* with
+  `instances: 2` — a concurrency hazard.
+- **One buildpack per app.** Removing SAML removes `xmlsec1`, which is the only
+  reason `apt-buildpack` precedes `python_buildpack` in `manifest.yml:6-8`.
+- **No 15-minute restart cron.** `.github/workflows/restart.yml` currently
+  rolling-restarts prod and staging every 15 minutes. **Eliminating this is a v2
+  acceptance criterion**, not an aspiration — it is the loudest operational
+  signal in the v1 repository.
+- **Background work is a task, not a thread.** Scheduled `cf run-task`
+  invocations of Flask CLI commands, replacing the RQ worker co-located with
+  gunicorn.
+
+### Squash the migration history at 1.0
+
+Pre-1.0 development will accumulate Alembic revisions that exist only because the
+schema was still being discovered — a table added, split, renamed, and dropped
+again. None of that churn is meaningful to a production system, but once it has
+run against production it becomes part of that system's lineage and can never be
+removed.
+
+**Before the first production deploy**, collapse the Alembic history into a
+single baseline revision at the 1.0 tag: drop the accumulated revisions, generate
+one initial migration from the final models, and stamp it. Future schema changes
+migrate forward from that baseline normally.
+
+This is a **time-boxed opportunity, not a cleanup task.** The window closes at
+the first production deploy — after that, squashing means reconciling against a
+deployed database and is no longer worth doing. It is the reason ADR 0008's
+decision to forgo a CKAN migration matters here too: with no v1 data to carry
+forward, the 1.0 baseline can be generated from the models rather than
+reverse-engineered from an existing production schema.
+
+Two practical notes:
+
+- Development and staging databases will need to be reset (dropped and rebuilt
+  from the baseline) at the same time, since their `alembic_version` will
+  reference revisions that no longer exist.
+- The squash must land **after** the schema is genuinely settled. Doing it early
+  and then discovering another model change wastes the one clean opportunity.
+
+Requested in [GSA/data.gov#6349](https://github.com/GSA/data.gov/issues/6349):
+*"we may want to 'reset' the DB on version 1.0 and remove all the complex
+migrations, and then plan for future migrations."*
+
+### Scheduled tasks
+
+| Task | Cadence | Purpose |
+|---|---|---|
+| `flask audit urls` | daily | Scan `live` catalog URLs for malicious content (feature-list requirement) |
+| `flask audit orphans` | daily | Catalogs with no `admin` — one query over `catalog_permission` |
+| `flask audit unreferenced-files` | daily | Hosted files referenced by no `Distribution` and still publicly served. **The report is required; the policy for acting on it is not decided** — permitted indefinitely, flagged for review, or auto-withdrawn is an open [ADR 0012](decisions/0012-catalog-scoped-hosted-files.md) blocker, as is who owns the output |
+| `flask db upgrade` | per deploy | Once, before rollout |
+| `flask import-publishers` | on CSV change | Seeds reusable DCAT `Organization` objects from `inventory_publishers.csv`. **Purpose not yet designed** — see the ADR 0005 blocker; with no tenant entity this is convenience seed data, not a registry |
+| freshclam | per scanner schedule | Signature updates; **alert on signature age**, not only on scan failure |
+
+### Egress allowlist
+
+Three outbound destinations, all through the cloud.gov egress proxy:
+`secure.login.gov` (OIDC discovery and JWKS), `database.clamav.net` (signatures),
+and agency URLs (`data.json` import and URL auditing). All three fail closed.
+OIDC discovery and JWKS documents must be cached with a bounded TTL so a
+transient Login.gov outage does not deny all logins.
+
+The allowlist is a Terraform input to the `egress_proxy` module
+([ADR 0009](decisions/0009-terraform-cloudgov-for-infrastructure.md)), not a
+manual configuration step. **Note `allowports = [443, 61443]`** — the module
+README records that the New Relic Python agent needs 61443 to reach
+`gov-collector.newrelic.com`, discovered on the FAC, which uses the same agent
+and the same FedRAMP collector v2 will use. Omitting it fails silently: the app
+works, telemetry does not.
+
+## 7. What v1 components disappear
+
+| Removed | Notes                                                                                                                                            |
+|---|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| CKAN 2.11.5 (GSA fork, pinned commit) | Plus 8 extensions, 3 of them GSA/vendor forks                                                                                                    |
+| Agency/bureau organizations (tenant silos) | Isolation is per-catalog via `catalog_permission`; nothing is inherited from an enclosing agency ([§4](#there-is-no-agencybureau-tenant-entity)) |
+| Solr scaffolding | Already dead in v1: 12 files, 3 Makefile targets, a `pysolr` pin, a placeholder `CKAN_SOLR_URL`, a `/solr` nginx route                           |
+| Redis + RQ | No remaining need                                                                                                                                |
+| DataStore + xloader + `datastore_ro` provisioning | [ADR 0007](decisions/0007-retire-tabular-datastore-api.md) — **a user-visible regression**, see below                                            |
+| `pysaml2`, `xmlsec1`, `apt.yml`, `apt-buildpack` | Switch from SAML to OpenID Login.gov integration                                                                                                 |
+| repoze.who + Beaker | Vestigial since CKAN 2.9                                                                                                                         |
+| `create_inventory_user`, `reactivate_user`, roles-table admin UI | ~278 lines of `plugin.py`, 152 of `action.py`, 115-line template ([ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md))          |
+| `Jenkinsfile`, `bin/jenkins_build` | Dead: gated on a branch that no longer exists                                                                                                    |
+| `restart.yml` 15-minute cron | Acceptance criterion                                                                                                                             |
+
+**The DataStore removal is a real capability loss, not only cleanup.** Uploaded
+files remain downloadable; what goes away is querying their rows over HTTP.
+[ADR 0007](decisions/0007-retire-tabular-datastore-api.md) requires identifying
+live consumers of `/api/action/datastore_search` before this is announced.
+
+## 8. Code organization
+
+Per [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md), v2 is
+built in this **new repository**, following the pattern of
+`datagov-catalog` and `datagov-harvester`. v1 remains in `GSA/inventory-app` and
+stays in production until every agency has completed re-import
+([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)) — the two
+codebases run and are patched concurrently for months.
+
+```mermaid
+flowchart TB
+    subgraph new["GSA/datagov-inventory (new)"]
+        direction TB
+        APP["app/ — Flask application<br/>views · forms · auth · models"]
+        LIB["dcat/ — pure Python, Inventory-owned<br/>decompose/assemble · schema→form model<br/>export-run orchestration<br/><i>no Flask, no models, no DB</i>"]
+        SCANAPP["scanner/ — clamd wrapper app"]
+        PROXYD["proxy/ — nginx config"]
+        DOCS["docs/ — architecture.md + decisions/"]
+        SUB["_external/dcat-us — git submodule<br/>3.0 schemas <b>+ validator + error summarizer</b><br/>pinned to a reviewed commit"]
+        APP --> LIB
+        LIB --> SUB
+    end
+
+    subgraph old["GSA/inventory-app (v1, maintenance)"]
+        CKAN["ckanext/datagov_inventory/dcat/<br/><i>stale fork of upstream</i><br/><i>not an extraction source</i>"]
+    end
+
+    subgraph plat["Platform"]
+        HARV["GSA/datagov-harvester<br/><i>own error humanizer + dcat_warnings</i><br/><i>also vendors _external/dcat-us</i>"]
+        UPSTREAM["GSA/dcat-us · jsonschema/<br/>schemas · validator · error summarizer<br/>· transforms + converter (out-of-band CLI)<br/><b>the source of truth</b>"]
+    end
+
+    SUB -.->|"consume, don't fork"| UPSTREAM
+    CKAN -.->|"re-sync or retire<br/>(v1 remediation)"| UPSTREAM
+    HARV -.->|"duplicate error reporting —<br/>dedupe belongs upstream"| UPSTREAM
+```
+
+### Consume upstream; own only the graph layer
+
+The DCAT-US 3.0 validation and error-reporting code v2 needs is already written
+and already vendored. It lives in
+[`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema), the same
+repository that hosts the schemas, which v1 and `datagov-harvester` both already
+carry as the `_external/dcat-us` submodule.
+
+**Consumed by v2:**
+
+| Upstream `jsonschema/` | What it provides |
+|---|---|
+| 3.0 schemas (`Catalog.json` and its definitions) | The validation target, and the source of field descriptions for the generated form |
+| `convert_dcat_1_1_to_3_0.py:38-190` — `summarize_error`, `find_meaningful_errors`, `extract_schema_name`, `format_path` | Error summarization for import and export reports. **The one piece of upstream Python v2 executes** |
+
+**Present in the submodule but *not* used by v2**, because v2 does not convert
+([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)):
+
+| Upstream `jsonschema/` | Lines | Why it is unused |
+|---|---|---|
+| `transforms.py` | 499 | 13 dataset-level 1.1 → 3.0 transforms — an out-of-band CLI concern, not a v2 code path |
+| `convert_dcat_1_1_to_3_0.py` (the rest) | 558 total | Fetch, dual-side validation, `isPartOf` → `DatasetSeries` promotion, CLI |
+| `v1.1_definitions/` (5 files) | — | The DCAT-US 1.1 schemas. v2 never loads them |
+| `tests/` (3 files) | 719 | Transform, conversion, and CLI coverage — upstream's, for upstream's code |
+
+Listing the unused rows is deliberate: they are on disk, they are the reason the
+submodule is larger than v2 needs, and they are what a reversal of the
+no-conversion decision would switch on.
+
+What upstream does not have, and v2 must build:
+
+- **Graph decompose / assemble** — 3.0 nested JSON ⟷ the object graph in
+  [§4](#4-data-model). This is the technical core of v2 and is Inventory-specific.
+- **Schema → form-model generation** — driving the editor from the schema
+  ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)).
+- **Export-run orchestration** — `export_run` records, ZIP assembly, presigned
+  delivery ([§5.2](#52-export-with-error-reporting)).
+
+#### Consuming upstream is a packaging problem, not an extraction problem
+
+The code is already on disk via the submodule, so nothing needs extracting to
+*use* it. What is missing is a supported way to *depend* on it — see
+[ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md), which decides this:
+
+- `jsonschema/pyproject.toml` declares `[tool.poetry] package-mode = false` — it
+  is explicitly not an installable package.
+- The repository has **no tags and no releases**, so there is no version to pin.
+- The scripts are script-shaped, not import-shaped: `import transforms`,
+  `SCRIPT_DIR / "v1.1_definitions"`. This likely bites even for the
+  summarizer-only import, if those statements run at module import time — which
+  should be checked rather than assumed.
+- Upstream declares `requires-python = ">=3.13,<4.0"`, above v2's Python 3.12
+  ([§3](#3-technology-choices)). Nothing in the code uses 3.13-only syntax, but
+  the floor has to be reconciled.
+- **The error summarizer v2 wants is inside the converter module v2 does not
+  use.** `summarize_error` and its three companions are defined in
+  `convert_dcat_1_1_to_3_0.py`, so importing them means importing from a 1.1
+  conversion CLI that v2 never invokes. The adapter module confines this, but it
+  is an awkward coupling and the obvious upstream fix is to extract the reporter
+  into a module of its own.
+
+ADR 0010 chooses **import from the pinned submodule now, behind a single adapter
+module, with upstream packaging as the declared target.** Two consequences of this
+being an import rather than an extraction:
+
+- **The submodule must be pinned to a reviewed commit**, because v2 now executes
+  code from it. An unpinned `branch = main` submodule means every upstream commit
+  is an unreviewed code change in a FISMA-boundary application (SR-3, RA-5).
+- **Gaps get fixed upstream, not locally.** If the error summarizer misreports a
+  3.0 validation failure, the fix is a PR to `GSA/dcat-us`. A local patch recreates
+  exactly the fork this section is correcting — and would make v2 the **fifth**
+  copy of that reporter
+  ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md#not-in-scope-consolidating-the-error-reporters)).
+
+## 9. Open blockers
+
+Every decision record except
+[ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md) is `proposed`.
+No record should be accepted — and no build should start on the affected area —
+until its blockers clear.
+
+**The blockers are listed once, in
+[`docs/decisions/README.md`](decisions/README.md#blockers-before-any-record-is-accepted),
+with the record each belongs to.** They are deliberately not duplicated here: this
+section previously carried a copy, and the copy drifted from the list in both
+directions.
+
+## 10. Compliance posture
+
+Control mappings live in the individual decision records. Summary of what
+changes relative to v1:
+
+- **Strengthened:** SI-3 (malware scanning, previously absent), AC-6 (default
+  privilege is exactly none), CM-7 (DataStore and Solr surfaces removed, and v2
+  accepts one metadata version rather than two — no 1.1 schemas, transforms, or
+  conversion endpoint inside the boundary), and
+  structured logs with correlation IDs where v1 has none. SI-3(2) and SI-7 are
+  further strengthened by per-version `signature_version` and `sha256` on
+  immutable file versions, which make retroactive re-scan a query and make the
+  integrity record non-mutable ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).
+- **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC)
+  AC-12 900-second idle timeout, with browser-storage draft autosave so the
+  timeout costs no work — a client-side mitigation, so it does not survive
+  clearing site data or changing machines;
+  SC-7 boundary protection via the two-app topology.
+- **Changed and requiring SSP updates:** AC-2 (accounts created automatically,
+  with zero-privilege as the compensating control — an assessor must see both
+  statements together), and the data-flow and component inventory for the three
+  `yes-boundary` decisions (ADR 0006 adds a scanner and an outbound flow;
+  ADR 0007 removes a brokered data store and a public API; ADR 0012 adds an
+  unauthenticated public data flow serving file content at MVP, and splits object
+  storage into two brokered service instances). Also AU-9 / AC-6: logs
+  carrying actor IDs are drained to a **shared** archive in the `management`
+  space, readable by principals who hold no access to Inventory
+  ([§6](#logging-uses-shared-infrastructure-this-repository-does-not-own)).
+- **Requires a decision not yet made:** SI-12 retention policy for
+  audit records, which grow without bound by design. Note the two retention
+  questions are now distinct: `activity` retention is Inventory's to set
+  ([ADR 0011](decisions/0011-audit-trail-mechanism.md) blocker 3), whereas log
+  retention is **inherited** from the shared shipper — inherited is only an answer
+  once the inherited value is written down, which it is not yet. **A third
+  retention question now joins them:** every superseded hosted-file version is
+  retained, and withdrawal does not delete bytes, so file storage also grows
+  without bound ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).
+- **Newly relevant and unaddressed:** AU-5 (response to audit processing
+  failures). Log drains are best-effort and ADR 0011 leaves non-row security
+  events in the logs, so undetected drain loss is undetected audit loss. AU-5
+  appears in no decision record.
+- **Weakened by the no-conversion decision:** SR-4 / CM-3 provenance for imported
+  catalogs. v2 records the submodule commit that **validated** an import, but
+  conversion now happens outside the boundary at an unrecorded version, so an
+  imported catalog is reproducible against v2's validator and not against whatever
+  produced its input ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)).
+  If conversion provenance matters, the importing user must be asked to record it.
+
+## 11. References
+
+- [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — the v2 feature list
+- [Decision records index](decisions/README.md) — ADRs 0001–0012 (no 0003; numbers are never reused)
+- [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) · [1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) · [GSA/dcat-us](https://github.com/GSA/dcat-us)
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the 3.0 schemas and error summarizer v2 consumes, described in [§8](#consume-upstream-own-only-the-graph-layer); also home to `transforms.py` and `convert_dcat_1_1_to_3_0.py`, which v2 does **not** use ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md))
+- [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) · [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — the pattern being followed
+- [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) · [harvest.data.gov wiki](https://github.com/GSA/data.gov/wiki/harvest.data.gov) — `LoadManager` sweeper precedent
+- [inventory.data.gov wiki](https://github.com/GSA/data.gov/wiki/inventory.data.gov) — current-state operations
+- [data.gov SYSTEMS.md](https://github.com/GSA/data.gov/blob/main/SYSTEMS.md) — platform systems list
