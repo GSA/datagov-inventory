@@ -63,7 +63,7 @@ flowchart TB
 
             PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · hosted files")]
             S3Q[("<b>inventory-s3-quarantine</b><br/>quarantine/<br/>never presigned · never public")]
-            S3F[("<b>inventory-s3-files</b><br/>files/ · exports/<br/>private · serving content")]
+            S3F[("<b>inventory-s3-files</b><br/>files/<br/>private · serving content")]
             SEC[["<b>inventory-secrets</b> · UPS<br/>OIDC private key · Flask secret"]]
             EGRESS["egress proxy"]
             DRAIN[["<b>logstack-space-drain</b> · UPS<br/>bound to inventory + proxy<br/>created out-of-band"]]
@@ -88,7 +88,7 @@ flowchart TB
 
     WEB --> PG
     WEB -->|"stream upload → quarantine/"| S3Q
-    WEB -->|"presign files/ · write exports/"| S3F
+    WEB -->|"presign files/"| S3F
     WEB --- SEC
     WEB -->|"POST /scan"| SCAN
     SCAN -->|"read + delete quarantine/"| S3Q
@@ -528,7 +528,8 @@ flowchart LR
 
 Agency onboarding to Inventory 2.0 is simply the
 [Import DCAT-US 3.0 catalog](#54-import-dcat-us-30-catalog) workflow, which must be
-managed manually by a data manager from the agency.
+managed manually by a data manager from the agency. This comes with a "natural" housecleaning step - agencies that once 
+needed an Inventory 1.0 account but have since switched to some other metadata tool will naturally be dropped from Inventory 2.0.
 
 **The agency must supply a 3.0 file.** v2 does not convert 1.1
 ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)), so onboarding has a prerequisite that
