@@ -4,7 +4,7 @@ status: "proposed"
 date: "2026-09-21"
 decision_makers: ["Data.gov engineering team"]
 category: "Authentication and Identity"
-nist_controls: ["AC-2", "AC-2(3)", "AC-3", "AC-6", "AC-5", "AU-2", "AU-3", "IA-8", "PS-4"]
+nist_controls: ["AC-2", "AC-2(3)", "AC-3", "AC-6", "AC-5", "AU-2", "AU-3", "AU-10", "IA-8", "PS-4"]
 impact_level: "moderate"
 ato_relevance: "yes-internal"
 risk_treatment: "mitigate"
@@ -92,8 +92,8 @@ Three levels on `catalog_permission.level`:
 
 | Level | Grants |
 |---|---|
-| `read` | View the catalog and its non-draft objects |
-| `edit` | `read`, plus create, modify, and change the `state` of objects |
+| `read` | View the catalog and **all** its objects, including `draft` ones, and reach any clean version of the catalog's hosted files — including superseded and withdrawn ones, which are not public. Confers no write capability. |
+| `edit` | `read`, plus create, modify, and change the `state` of objects, upload files to the catalog |
 | `admin` | `edit`, plus grant and revoke permissions on the catalog |
 
 The enum uses **`edit`**, not `write`, to match the vocabulary already in use by
@@ -111,11 +111,28 @@ authorization check, both MVP-blocking:
 - Resolution must handle a **catalog** principal, and grants may arrive
   **transitively** through an embedded catalog. The transitive case is the harder
   half and needs its own tests.
-- A catalog may only be shared once it is no longer `draft`, per the wiki, so the
-  share operation carries a state precondition distinct from the export-time
-  `WHERE state = 'live'` filter.
 
-See [`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing-is-mvp-scope).
+See [`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing).
+
+### Hosted file access is a direct-object-reference check
+
+[ADR 0012](0012-catalog-scoped-hosted-files.md) introduces two routes to a
+hosted file, and only one of them consults `catalog_permission`:
+
+| Route | Authorization |
+|---|---|
+| `GET /f/{hosted_file_id}` | None. Public, gated on the **file's own** state — not withdrawn, and has a clean current version. Independent of any `Distribution`. 404 otherwise — never 403, which would confirm the identifier names something. |
+| `GET /catalog/{cid}/file/{hosted_file_id}/v/{vid}` | `read` on `{cid}` (including transitive grants), **and** `hosted_file.catalog_id == cid` |
+
+The second condition is not redundant with the first. A `hosted_file` is
+addressable by an identifier that does not itself carry scope, so without the
+equality check a user holding `read` on any catalog could read any hosted file by
+supplying their own `cid` with someone else's file id. This is the
+direct-object-reference hazard
+[`architecture.md` §4](../architecture.md#4-data-model) states for reusable
+objects, reappearing on a different table: **object identifiers are not
+authorization**. It requires its own test case, not reliance on the permission
+check alone.
 
 ### Open question: is an email-domain allowlist wanted?
 
@@ -142,8 +159,10 @@ this is acceptable before this record is accepted.
   and the `cf run-task ... ckan user add` procedure disappear from the runbook.
 - **The deleted-user reactivation failure mode is eliminated by construction.**
   Offboarding removes `catalog_permission` rows (revoking access) rather than
-  soft-deleting the account, so there is no state in which a valid PIV holder is
-  authenticated but unusable. `reactivate_user` has nothing to do.
+  marking the account deleted at all, so there is no state in which a valid PIV
+  holder is authenticated but unusable. `reactivate_user` has nothing to do.
+  **This depends on soft-delete being reserved for genuine account retirement**,
+  not used as the offboarding mechanism — see the note below.
 - Authorization becomes a single readable table rather than an emergent property
   of CKAN organization membership plus 15 chained auth functions, 2 rewritten
   auth functions, a regex path carve-out (`plugin.py:80-81`), and two
@@ -191,14 +210,36 @@ this is acceptable before this record is accepted.
   catalog, and level.
 - **AU-2, AU-3** — new audit events required: account created (with Login.gov
   subject, `acr`, timestamp), permission granted, permission revoked, permission
-  level changed. These are ATO-relevant evidence.
+  level changed. These are ATO-relevant evidence. All four are row mutations on
+  `user_account` and `catalog_permission`, so
+  [ADR 0011](0011-audit-trail-mechanism.md)'s triggers capture them without
+  event-writing code. **Authentication failures, session establishment and idle
+  termination, and authorization denials are not row mutations** and are therefore
+  *not* captured by that mechanism — they remain in the structured logs, and
+  whether they need a durable table is an open blocker on ADR 0011.
+- **AU-10 (Non-repudiation) — `user_account` rows must be soft-deleted, never
+  hard-deleted.** [ADR 0011](0011-audit-trail-mechanism.md) binds a change to an
+  actor through `transaction.actor_id` → `user_account`, which dangles if the row
+  is removed.
 - **PS-4 (Personnel Termination)** — offboarding is permission revocation. The
   wiki's "remove from orgs before deleting the user" ordering hazard goes away,
-  since revocation is the primary mechanism and account deletion is optional.
+  since revocation is the primary mechanism and account deletion is unnecessary.
+  Where an account is retired, it is **soft-deleted** per AU-10 above; a hard
+  delete would break the audit trail's actor binding.
 - **Orphaned-catalog audit.** The wiki requires an audit for "all catalogs with
   no admin (no longer accessible/manageable)." Under this model that is a single
   query over `catalog_permission` — implemented as the `flask audit orphans`
   scheduled task.
+
+## Blockers before acceptance
+
+1. **Confirm whether an email-domain allowlist is wanted**
+   ([above](#open-question-is-an-email-domain-allowlist-wanted)).
+2. **Define how the first `admin` permission on a new catalog is granted.** With
+   no tenant entity, "an agency-scoped role" is not available as an answer; the
+   likely shape is that catalog creation grants the creator `admin`, with a
+   Data.gov sysadmin role for recovery
+   ([`architecture.md` §4](../architecture.md#there-is-no-agencybureau-tenant-entity)).
 
 ## Links
 
@@ -207,5 +248,5 @@ this is acceptable before this record is accepted.
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — defines `catalog_permission` alongside the metadata model
 - `config/ckan.ini:104-113,190` — current `create_user_via_*` settings
 - `ckanext/datagov_inventory/action.py`, `ckanext/datagov_inventory/plugin.py:91-127,218-344,410-519` — code this decision removes
-- NIST SP 800-53 Rev 5.2 — AC-2, AC-3, AC-5, AC-6, AU-2, AU-3, IA-8, PS-4
+- NIST SP 800-53 Rev 5.2 — AC-2, AC-3, AC-5, AC-6, AU-2, AU-3, AU-10, IA-8, PS-4
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.

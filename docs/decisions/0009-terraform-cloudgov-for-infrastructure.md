@@ -80,7 +80,17 @@ module "database" {
   tags            = ["postgres", "inventory"]
 }
 
-module "s3"    { source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.5.0" ... }
+module "s3_quarantine" {
+  source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.5.0"
+  name   = "inventory-s3-quarantine"             # unversioned; short lifecycle expiry
+  ...
+}
+
+module "s3_files" {
+  source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.5.0"
+  name   = "inventory-s3-files"                  # serving content; versioning optional
+  ...
+}
 
 module "clamav" {
   source         = "github.com/GSA-TTS/terraform-cloudgov//clamav?ref=v2.5.0"
@@ -125,13 +135,34 @@ high-value target.
 | Terraform manages | Stays outside Terraform |
 |---|---|
 | `aws-rds` instance and plan, per environment | `inventory-secrets` **credential values** (`cf cups` / `cf uups`) |
-| `s3` instance | Key rotation procedures |
+| **Two** `s3` instances — `inventory-s3-quarantine` and `inventory-s3-files` | Key rotation procedures |
 | ClamAV scanner app (`clamav` module) | |
 | Egress proxy and its allowlist (`egress_proxy`) | |
 | Egress space (`cg_space`) | |
 | Container-network policies between apps | |
 | Space roles and CI deployer service accounts | |
 | Existence of the `inventory-secrets` UPS, not its contents | |
+
+### Two S3 instances, because they are two trust boundaries
+
+[ADR 0012](0012-catalog-scoped-hosted-files.md) splits object storage into
+`inventory-s3-quarantine` (holding `quarantine/`) and `inventory-s3-files`
+(holding `files/` and `exports/`), rather than two prefixes in one instance.
+Untrusted inbound bytes and vetted serving content should not share a policy
+surface: retention can then differ, and a policy mistake on the serving instance
+cannot expose unscanned uploads.
+
+Two properties this record must carry:
+
+- **The quarantine instance must be unversioned**, because ADR 0006's deletion of
+  an infected object has to be a real deletion — in a versioned bucket an
+  unqualified `DELETE` writes a delete marker and retains the bytes.
+- **S3-native versioning on the serving instance is optional**, not required by
+  ADR 0012's design. It buys retention of superseded bytes; it does not deliver
+  the stable-URL or replacement-safety properties, which come from the database
+  row pointer. **Whether a cloud.gov tenant can enable it through the broker is
+  unverified**, and so is the cost of a second instance; both are ADR 0012
+  blockers that land here as Terraform work.
 
 **Application deployment stays `cf push --strategy rolling`** via a composite
 GitHub action, matching `datagov-catalog`. The modules include `application`,
@@ -231,7 +262,10 @@ argument for adopting them:
    README describes the modules as serving `rails-template`-based apps. Nothing in
    `database`, `s3`, `clamav`, `egress_proxy`, or `cg_space` appeared
    Rails-coupled on inspection, but each should be confirmed for a Flask app
-   before commitment.
+   before commitment. **For `s3` specifically**, confirm that the broker exposes
+   bucket versioning and lifecycle expiry to a tenant, and the cost of a second
+   instance — the two-instance split
+   ([ADR 0012](0012-catalog-scoped-hosted-files.md)) depends on both.
 2. **Decide Terraform vs. OpenTofu.** `datagov-ssb` uses OpenTofu
    (`install-opentofu.sh`, `tofu init`). Licensing and agency direction should
    determine this, not this record.
@@ -259,6 +293,7 @@ argument for adopting them:
 - [GSA/datagov-ssb](https://github.com/GSA/datagov-ssb) — the team's existing Terraform, on the deprecated community provider
 - [ADR 0001](0001-repository-topology-for-inventory-v2.md) — the repository this Terraform lives in
 - [ADR 0006](0006-quarantine-then-scan-antivirus.md) — the scanner this provisions; amended by this record's 3 GB and `max_file_size` findings
+- [ADR 0012](0012-catalog-scoped-hosted-files.md) — requires the two S3 service instances provisioned above, and leaves serving-instance versioning as an open question
 - [`docs/architecture.md`](../architecture.md) §6 — deployment
 - NIST SP 800-53 Rev 5.2 — CM-2, CM-3, CM-6, CM-8, CM-9, SC-7, SC-12, SC-28, AC-3, AC-5, SA-8, SR-3
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.

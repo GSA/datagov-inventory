@@ -13,7 +13,7 @@ records, to preserve the audit trail.
 |---|-------|----------|------------|-----|---------------|
 | [0001](0001-repository-topology-for-inventory-v2.md) | Build Inventory v2 in a new GSA/datagov-inventory repository | accepted | 2026-09-29 | yes-internal | CM-2, CM-3, CM-9, AC-3, SA-5, SA-8, SR-3, RA-5 |
 | [0002](0002-ui-rendering-architecture-for-inventory-v2.md) | Use server-rendered Jinja + USWDS with JavaScript islands for the Inventory v2 metadata editor | proposed | 2026-09-21 | yes-internal | SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15 |
-| [0004](0004-jit-user-provisioning-and-catalog-rbac.md) | Provision user accounts just-in-time on first Login.gov authentication, with authorization held in per-catalog permissions | proposed | 2026-09-21 | yes-internal | AC-2, AC-2(3), AC-3, AC-6, AC-5, AU-2, AU-3, IA-8, PS-4 |
+| [0004](0004-jit-user-provisioning-and-catalog-rbac.md) | Provision user accounts just-in-time on first Login.gov authentication, with authorization held in per-catalog permissions | proposed | 2026-09-21 | yes-internal | AC-2, AC-2(3), AC-3, AC-6, AC-5, AU-2, AU-3, AU-10, IA-8, PS-4 |
 | [0005](0005-object-graph-data-model-for-dcat-us-3.md) | Store DCAT-US 3.0 metadata as a versioned object graph in Postgres | proposed | 2026-09-21 | yes-internal | AU-2, AU-3, AU-10, AC-3, SI-10, SI-12, CM-3, SC-28 |
 | [0006](0006-quarantine-then-scan-antivirus.md) | Scan uploaded data files with a quarantine-then-scan antivirus service and cap hosted files at 500 MB | proposed | 2026-09-21 | **yes-boundary** | SI-3, SI-3(1), SI-3(2), SI-7, SI-10, SC-7, AC-3, AU-2, AU-3, IR-4, IR-6 |
 | [0007](0007-retire-tabular-datastore-api.md) | Retire the tabular DataStore API in Inventory v2 | proposed | 2026-09-21 | **yes-boundary** | CM-7, SA-8, AC-3, SI-10, CM-4 |
@@ -21,14 +21,17 @@ records, to preserve the audit trail.
 | [0009](0009-terraform-cloudgov-for-infrastructure.md) | Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules | proposed | 2026-09-21 | **yes-boundary** | CM-2, CM-3, CM-6, CM-8, CM-9, SC-7, SC-12, SC-28, AC-3, AC-5, SA-8, SR-3 |
 | [0010](0010-depend-on-upstream-dcat-us-code.md) | Consume DCAT-US conversion and validation code from the pinned GSA/dcat-us submodule rather than forking it | proposed | 2026-09-24 | yes-internal | SR-3, SR-4, SR-11, RA-5, CM-2, CM-3, CM-8, SI-10, SA-8 |
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
+| [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | proposed | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
 
-**By status:** 9 proposed, 1 accepted, 0 deprecated, 0 superseded.
+**By status:** 10 proposed, 1 accepted, 0 deprecated, 0 superseded.
 
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
-leave the boundary), and ADR 0009 (egress allowlist and container-network policies
-become managed boundary controls). All three require SSP component-inventory and
-data-flow diagram updates and should be reviewed by the ISSO.
+leave the boundary), ADR 0009 (egress allowlist and container-network policies
+become managed boundary controls), and ADR 0012 (an unauthenticated public data
+flow serving file content, plus a second S3 service
+instance). All four require SSP component-inventory and data-flow diagram updates
+and should be reviewed by the ISSO.
 
 ## Reading order
 
@@ -38,6 +41,9 @@ determines where every other decision is recorded and built. 0005 is the
 technical core — the CKAN data-model mismatch is the reason v2 exists at all.
 Read [0011](0011-audit-trail-mechanism.md) directly after 0005: it assumes 0005's
 data model and supersedes 0005's hand-written audit tables.
+[0012](0012-catalog-scoped-hosted-files.md) is best read after 0006 and 0008: it
+decides what a hosted file is, and deliberately decouples it from the metadata
+those records describe.
 
 ## Controls referenced across all records
 
@@ -63,12 +69,19 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 | 0008 | Records officer determination on whether v1 edit history requires NARA retention; if so, archive the v1 database before decommissioning.                                                                                                                                                                                                                                 | Compliance |
 | 0008 | Confirm that import is onboarding-shaped (once per agency plus retries) and that Inventory is never a publishing conduit for metadata authored elsewhere. If it is, destroy-and-rebuild re-import is wrong semantics and merge returns as a requirement.                                                                                                                 | Product |
 | 0008 | Specify how import converges repeated objects onto shared ones — which DCAT classes are eligible for convergence, what equality means for each, and where in the import run the comparison happens. "Import produces reuse automatically" is a stated decision driver, but no record now says how. Decide before building the import path.                               | Design |
-| 0009 | Verify each module's `variables.tf` for a Flask (non-Rails) app; decide Terraform vs. OpenTofu; provision and document the encrypted state backend; decide whether Terraform manages CI deployer service keys.                                                                                                                                                           | Design + organizational |
+| 0009 | Verify each module's `variables.tf` for a Flask (non-Rails) app — including whether the `s3` broker exposes bucket versioning and lifecycle expiry to a tenant, which the ADR 0012 two-instance split depends on; decide Terraform vs. OpenTofu; provision and document the encrypted state backend; decide whether Terraform manages CI deployer service keys.                                                                                                                                                           | Design + organizational |
 | 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode = true`, tags, a relaxed `requires-python`) is an acceptable target, and choose the initial pinned submodule commit. Neither answer blocks starting on the chosen option.                                                                                       | External + design |
 | 0011 | Time-boxed spike to execute the behavioural claims this record reads from source: null `transaction_id` on session-bypassing writes, `old_data`/`changed_data` shape for a `properties JSONB` edit, write cost on a 2,000-object import, `GRANT INSERT, SELECT`-only viability, and absence of `SECURITY DEFINER`.                                                       | Design |
 | 0011 | Decide whether non-row security events (failed authentication, session establishment and idle termination, authorization denials) need a durable table, or whether structured logs with a defined retention satisfy AU-2 for them.                                                                                                                                       | Compliance |
 | 0011 | Decide retention for `activity`. It is append-only and grows without bound.                                                                                                                                                                                                                                                                                              | Compliance |
-| 0011 | Confirm the cloud.gov brokered RDS application role may create triggers and functions in the application schema. No `CREATE EXTENSION` is required, which is the usual obstacle.                                                                                                                                                                                         | Organizational |
+| 0011 | Confirm the cloud.gov brokered RDS application role may create triggers and functions in the application schema. No `CREATE EXTENSION` is required, which is the usual obstacle.                                                                                                                                                    | Organizational |
+| 0012 | Decide the unreferenced-file policy. A hosted file referenced by no `Distribution` is public with no metadata describing it. Permitted indefinitely, flagged for review, or auto-withdrawn — and who acts on the report. Same problem as ADR 0005's orphan definition.                                                   | Product + compliance |
+| 0012 | Decide retention for superseded file versions and withdrawn files (SI-12). Coordinate with the `exports/` lifecycle decision and ADR 0011's `activity` retention blocker — all three are one conversation.                                                                                                              | Compliance |
+| 0012 | Decide whether `current_version_id` auto-advances on a clean scan or waits for explicit owner confirmation before the public URL changes content.                                                                                                                                                                       | Product |
+| 0012 | Set the presigned-URL TTL (minutes) and confirm expiry behaviour available with the credentials the cloud.gov S3 broker issues via service binding.                                                                                                                                                                     | Design |
+| 0012 | Set rate limits for the unauthenticated `/f/*` route and confirm its `inventory-proxy` allowlist entry, including egress and connection-budget implications of large downloads.                                                                                                                                         | Design |
+| 0012 | Confirm the two-instance S3 split (`inventory-s3-quarantine`, `inventory-s3-files`) is available and worth its cost under the cloud.gov broker, and decide whether the serving instance enables versioning. Tenant access to bucket versioning is unverified. Both are ADR 0009 Terraform changes.                      | Design + organizational |
+| 0012 | Design the withdrawal prompt: the editor must offer to withdraw a file when its last referencing `Distribution` is unpublished or deleted. Without it, losing implicit withdrawal trades a surprising behaviour for a silent one.                                                                                       | Product + design |
 
 ## Status lifecycle
 

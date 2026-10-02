@@ -190,6 +190,12 @@ report differently.
   Agencies with unpublished drafts in v1 must re-enter them or use the Option 3
   fallback (v1 has an "Export Drafts" capability at
   `templates/organization/read.html:9`, which makes this recoverable).
+- **Uploaded data files.** The incoming `data.json` carries `accessURL` /
+  `downloadURL` strings, not bytes, so onboarding imports **no** file content. An
+  agency whose v1 files were hosted by Inventory must upload them to the v2
+  catalog and repoint the `downloadURL`. This is distinct from the swap case
+  above, where existing v2 hosted files are untouched because nothing links them
+  to the replaced objects.
 - **`config/data/inventory_publishers.csv`** (271 lines, ~350 organizations) is
   *reference* data, not migration data. It is **not** a tenant registry in v2 —
   agency/bureau silos are not a first-class concept
@@ -273,6 +279,7 @@ report differently.
 - [DCAT-US 3.0 migration guide](https://resources.data.gov/resources/dcat-us-3-migration/) and [M-25-05 crosswalk](https://resources.data.gov/resources/dcat-us-3-crosswalk/)
 - [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — **the implementation this ADR depends on**, already vendored as `_external/dcat-us`
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — why user accounts need no migration
+- [ADR 0012](0012-catalog-scoped-hosted-files.md) — makes hosted files catalog-scoped and independent of metadata, which is why a swap cannot affect them
 - [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on that upstream code, and why v1's fork is not the source
 - `ckanext/datagov_inventory/dcat/dcat_converter.py` — v1's stale fork of the upstream converter; **not** the source for v2
 - `ckanext/datagov_inventory/plugin.py:345-407` — v1 `generate_dcat_v3` export, the Option 3 fallback

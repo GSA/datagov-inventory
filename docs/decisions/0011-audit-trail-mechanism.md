@@ -165,12 +165,19 @@ values into the transaction row. The `transaction` table therefore carries:
 |---|---|
 | `actor_id` | The acting `user_account`; populated from `flask_login.current_user` |
 | `actor_kind` | `user` \| `system` — scheduled `cf run-task` commands and the scanner have no user |
-| `operation` | `edit_object`, `attach_reference`, `detach_reference`, `reorder_references`, `publish`, `unpublish`, `grant_permission`, `revoke_permission`, `import`, `reimport_swap`, `create_catalog`, `embed_catalog` |
+| `operation` | `edit_object`, `attach_reference`, `detach_reference`, `reorder_references`, `publish`, `unpublish`, `grant_permission`, `revoke_permission`, `import`, `reimport_swap`, `create_catalog`, `embed_catalog`, `upload_version`, `advance_current_version`, `withdraw_file`, `reinstate_file` |
 | `request_id` | Correlates to the structured logs, so a database record and a log line are one story |
 
 Every write path opens an `activity_values(operation=..., request_id=...)` block.
 The semantic layer is thus **columns on the library's transaction table**, not a
 parallel table of our own — one mechanism, not two.
+
+The last four operations come from
+[ADR 0012](0012-catalog-scoped-hosted-files.md). `withdraw_file` in particular
+**must** record its actor, because withdrawal is a deliberate act with
+consequences for bookmark holders rather than a side effect of a metadata state
+change — "the file stopped being public" is not a usable audit record without a
+`who`.
 
 ### What still needs a hand-written table
 
@@ -181,7 +188,9 @@ ADR 0005's model, and are captured automatically:
 |---|---|
 | Account created (ADR 0004) | `INSERT user_account` |
 | Permission granted / revoked / changed (ADR 0004) | `INSERT`/`UPDATE`/`DELETE catalog_permission` |
-| Upload accepted, scan result, deletion on detection (ADR 0006) | `INSERT`/`UPDATE resource_file` |
+| Upload accepted, scan result per version, deletion on detection (ADR 0006, ADR 0012) | `INSERT`/`UPDATE hosted_file_version` |
+| Hosted file created, current-version advance, withdrawal, reinstatement (ADR 0012) | `INSERT`/`UPDATE hosted_file` |
+| Public download (ADR 0012) | `UPDATE hosted_file` — the counter and first/last-seen timestamps |
 | Export run started and completed | `INSERT`/`UPDATE export_run` |
 | Re-import swap (ADR 0008) | `UPDATE catalog.root_object_id`, one transaction |
 
@@ -257,6 +266,14 @@ listed as a blocker below rather than settled here.
   would matter if that ever changed.
 - **Two new transitive dependencies**, `SQLAlchemy-Utils` and the library itself,
   both inside the FISMA boundary and subject to scanning (RA-5).
+- **The download counter makes a read path an audited write path.** Capturing
+  public downloads as a row update on `hosted_file`
+  ([ADR 0012](0012-catalog-scoped-hosted-files.md)) is what keeps them inside this
+  mechanism, but it means every public download writes an `activity` row. At
+  Inventory's scale that is irrelevant; it is nonetheless the one event class
+  whose volume is driven by anonymous traffic rather than by authenticated
+  editing, so it is the first place `activity` growth would show up and it should
+  be considered when retention is decided (blocker 3).
 
 ### Compliance Consequences
 
@@ -274,14 +291,17 @@ listed as a blocker below rather than settled here.
   controlled centrally.
 - **AU-10 (Non-repudiation)** — `transaction.actor_id` binds a change to a
   `user_account` and thence to a Login.gov subject. This requires that
-  `user_account` rows are **never hard-deleted**; see
-  [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md), which is amended to
-  require soft-delete only.
+  `user_account` rows are **never hard-deleted**. That amendment has now been made
+  in [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md), which records
+  soft-delete-only under AU-10 and narrows its PS-4 wording accordingly.
 - **AU-12 (Audit Generation)** — generation is at the database, not the
   application, which is the strongest available placement. The caveat is the
   actor-attribution path above.
 - **SI-12 (Retention)** — `activity` is append-only and unbounded.
-  Retention is **not decided here** and is a blocker.
+  Retention is **not decided here** and is a blocker. It is now one of **three**
+  retention questions that should be decided together: `activity`, the log archive
+  whose retention v2 inherits, and the superseded hosted-file versions and
+  withdrawn files that [ADR 0012](0012-catalog-scoped-hosted-files.md) accumulates.
 - **SR-3, RA-5 (Supply Chain, Vulnerability Monitoring)** — a third-party
   dependency now implements an ATO-relevant control. It must be pinned exactly,
   appear in the SBOM, and be named in the SSP as an audit-mechanism component.
@@ -320,12 +340,18 @@ listed as a blocker below rather than settled here.
 
 - **[ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)** — permission
   events are captured by versioning `catalog_permission`. Its soft-delete-only
-  requirement for `user_account` is load-bearing for AU-10 here.
+  requirement for `user_account` is load-bearing for AU-10 here, and **is now
+  recorded in that record** rather than only assumed by this one.
 - **[ADR 0006](0006-quarantine-then-scan-antivirus.md)** — scanner events are
-  captured by versioning `resource_file`, with `actor_kind = 'system'`.
+  captured by versioning `hosted_file_version`, with `actor_kind = 'system'`.
 - **[ADR 0008](0008-onboard-via-data-json-reimport.md)** — its "swap must be a
   single audit event" requirement is met by one `transaction` with
   `operation = 'reimport_swap'`.
+- **[ADR 0012](0012-catalog-scoped-hosted-files.md)** — every event in its design
+  is a row mutation on `hosted_file` or `hosted_file_version`, including the
+  download counter, so it needs no event-writing code. It contributes the four
+  operations `upload_version`, `advance_current_version`, `withdraw_file`, and
+  `reinstate_file`, and it does **not** make blocker 2 above load-bearing.
 
 ## Links
 
@@ -336,7 +362,7 @@ listed as a blocker below rather than settled here.
 - [SQLAlchemy-History](https://github.com/corridor/sqlalchemy-history) — rejected; temporal design, SQLAlchemy 2.x-native fork of Continuum
 - [Audit trigger by 2ndQuadrant](https://github.com/2ndQuadrant/audit-trigger) and [PostgreSQL wiki: Audit trigger](https://wiki.postgresql.org/wiki/Audit_trigger_91plus) — the prior art PostgreSQL-Audit derives from
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the hybrid object graph this record audits, and the attribution-not-reconstruction scope it assumes
-- [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) · [ADR 0006](0006-quarantine-then-scan-antivirus.md) · [ADR 0008](0008-onboard-via-data-json-reimport.md) — the records whose audit-event requirements this mechanism satisfies
+- [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) · [ADR 0006](0006-quarantine-then-scan-antivirus.md) · [ADR 0008](0008-onboard-via-data-json-reimport.md) · [ADR 0012](0012-catalog-scoped-hosted-files.md) — the records whose audit-event requirements this mechanism satisfies
 - [`docs/architecture.md` §3](../architecture.md#3-technology-choices) and [§4](../architecture.md#auditability) — the stack this must fit and the narrative form of this decision
 - NIST SP 800-53 Rev 5.2 — AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15
 - **Library metadata** (versions, dates, licences, dependency constraints, stars, contributor counts) was verified against PyPI and the GitHub API on 2026-09-28. **Behavioural claims** were read from the sources linked above and were **not executed**; blocker 1 exists to close that gap.

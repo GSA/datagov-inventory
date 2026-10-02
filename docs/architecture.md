@@ -7,9 +7,10 @@ description: "Target architecture for the non-CKAN rewrite of inventory.data.gov
 
 > This document describes a *target* architecture, not a
 > built system. Every significant choice here is backed by a decision record in
-> [`docs/decisions/`](decisions/README.md), and **all ten of those records are
-> `proposed`, not `accepted`** — all ten carry explicit blockers that could change
-> the design. See [Open blockers](#9-open-blockers).
+> [`docs/decisions/`](decisions/README.md), and **ten of those eleven records are
+> `proposed`, not `accepted`** — each carrying explicit blockers that could change
+> the design. Only [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md)
+> (repository topology) is `accepted`. See [Open blockers](#9-open-blockers).
 >
 
 ## 1. Why v2 exists
@@ -44,7 +45,7 @@ pattern. Where this document departs from those two apps, it says so and why.
 flowchart TB
     subgraph clients["Clients"]
         GOV["Agency data manager<br/>PIV/CAC"]
-        PUB["Anonymous public user<br/>(2.1 — not MVP)"]
+        PUB["Anonymous public user<br/>(MVP: hosted file download)"]
         HARV["harvest.data.gov<br/>(2.1 - not MVP: dcatus3.0 source)"]
     end
 
@@ -52,16 +53,17 @@ flowchart TB
 
     subgraph org["cloud.gov · org gsa-datagov"]
         subgraph cf["spaces development / staging / prod"]
-            PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist<br/>HSTS · cookie flags · body cap"]
+            PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist (incl. /f/*)<br/>HSTS · cookie flags · body cap<br/>rate limit on /f/*"]
 
             subgraph internal["*.apps.internal — no public route"]
                 WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX + islands<br/>Authlib · Flask-Login · Talisman"]
                 SCAN["<b>inventory-scanner</b><br/>clamav-rest (terraform-cloudgov module)<br/>POST /scan · apps.internal only<br/>~3G · sweeper on instance 0"]
-                TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · import-publishers"]
+                TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · audit unreferenced-files<br/>import-publishers"]
             end
 
-            PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · scan state")]
-            S3[("<b>inventory-s3</b><br/>quarantine/ · clean/ · exports/")]
+            PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · hosted files")]
+            S3Q[("<b>inventory-s3-quarantine</b><br/>quarantine/<br/>never presigned · never public")]
+            S3F[("<b>inventory-s3-files</b><br/>files/ · exports/<br/>private · serving content")]
             SEC[["<b>inventory-secrets</b> · UPS<br/>OIDC private key · Flask secret"]]
             EGRESS["egress proxy"]
             DRAIN[["<b>logstack-space-drain</b> · UPS<br/>bound to inventory + proxy<br/>created out-of-band"]]
@@ -77,20 +79,23 @@ flowchart TB
     SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>schemas + conversion code<br/>pinned commit — ADR 0010"]
 
     GOV --> PROXY
-    PUB --> PROXY
+    PUB -->|"GET /f/{hosted_file_id}<br/>302 → presigned URL"| PROXY
+    PUB -.->|"GET presigned URL — bytes"| S3F
     HARV -->|"GET /catalog/{id}/dcat-v3.json"| PROXY
     PROXY -->|"TLS :61443 internal"| WEB
     GOV -.->|"auth code"| IDP
     IDP -.->|"id_token · acr · sub"| WEB
 
     WEB --> PG
-    WEB --> S3
+    WEB -->|"stream upload → quarantine/"| S3Q
+    WEB -->|"presign files/ · write exports/"| S3F
     WEB --- SEC
     WEB -->|"POST /scan"| SCAN
-    SCAN --> S3
+    SCAN -->|"read + delete quarantine/"| S3Q
+    SCAN -->|"copy → files/"| S3F
     SCAN --> PG
     TASK --> PG
-    TASK --> S3
+    TASK --> S3F
 
     WEB -->|"OIDC discovery + JWKS"| EGRESS
     SCAN -->|"freshclam"| EGRESS
@@ -142,7 +147,7 @@ deployed environment.
 | Validation | jsonschema 4.x Draft 2020-12 + `referencing` | Upstream `GSA/dcat-us` validation and error summarization. Pinned explicitly: v1 leaves `jsonschema` unpinned and silently falls back to Draft 4 in production.                                                                                                                                                                            |
 | Conversion (1.1 → 3.0) | Upstream `transforms.py` + `convert_dcat_1_1_to_3_0.py` | Not re-implemented, not forked from v1. Consumed from the pinned submodule per [ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md).                                                                                                                                                                                              |
 | Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Already the pattern. **Pinning is now load-bearing**: v2 executes code from this submodule, not only reads schemas ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md); SR-3).                                                                                                                                                  |
-| File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads |                                                                                                                                                                                                                                                                                                                                            |
+| File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | Private throughout, across **two** brokered instances (`inventory-s3-quarantine`, `inventory-s3-files`). Immutable per-version objects under `files/`, served via a stable catalog-scoped app route that redirects to a short-lived presigned URL ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).                                                                                                                                                                                                                                                                                                                                                                      |
 | Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
 | Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check.                                                                                                                                                                                     |
 | Proxy | nginx via cloud.gov nginx-buildpack | Retained; see above.                                                                                                                                                                                                                                                                                                                       |
@@ -173,7 +178,8 @@ erDiagram
     CATALOG ||--o{ METADATA_OBJECT : scopes
     METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "parent of"
     METADATA_OBJECT ||--o{ OBJECT_REFERENCE : "referenced by (reuse)"
-    METADATA_OBJECT ||--o| RESOURCE_FILE : "Distribution hosts"
+    HOSTED_FILE ||--o{ HOSTED_FILE_VERSION : "immutable versions"
+    CATALOG ||--o{ HOSTED_FILE : "scopes (no edge to METADATA_OBJECT)"
     CATALOG ||--o{ EXPORT_RUN : produces
 
     CATALOG {
@@ -205,16 +211,32 @@ erDiagram
         uuid catalog_id FK
         uuid principal_user_id FK "nullable"
         uuid principal_catalog_id FK "nullable — catalog-to-catalog sharing"
-        text level "read | edit | admin"
+        text level "read (view-only, incl. drafts) | edit | admin"
     }
-    RESOURCE_FILE {
+    HOSTED_FILE {
+        uuid id PK "the stable URL token — never changes"
+        uuid catalog_id FK "immutable — ownership, authz, picker scope"
+        text label "human-meaningful name for the picker"
+        uuid current_version_id FK "nullable — latest clean version"
+        timestamptz withdrawn_at "nullable — explicit withdrawal"
+        bigint download_count "approximate; incremented on redirect"
+        timestamptz first_downloaded_at "nullable"
+        timestamptz last_downloaded_at "nullable"
+        uuid created_by FK
+    }
+    HOSTED_FILE_VERSION {
         uuid id PK
-        uuid distribution_object_id FK
-        text s3_key
-        text sha256
+        uuid hosted_file_id FK
+        int ordinal "upload order"
+        text s3_key "files/{hosted_file_id}/{id}"
+        text sha256 "SI-7, per version"
+        bigint size_bytes
+        text content_type
+        text original_filename "per version"
         text scan_state "pending | clean | infected | error"
-        text signature_version
+        text signature_version "SI-3(2), per version"
         timestamptz scanned_at
+        uuid uploaded_by FK
     }
 ```
 
@@ -245,6 +267,13 @@ writes, and schema validation of every export before delivery.
 **Second risk:** reusable objects are addressable independently of the catalog a
 user reached them through, so **every object route needs an explicit
 direct-object-reference authorization check**. Object IDs are not authorization.
+
+### Hosted files are catalog-scoped, with a lifecycle independent of metadata
+
+`hosted_file` and `hosted_file_version` are deliberately **not** part of the
+object graph. A `hosted_file` belongs to a `catalog`, references no
+`metadata_object`, and is **not** cascade-deleted with one. Full reasoning in
+[ADR 0012](decisions/0012-catalog-scoped-hosted-files.md).
 
 ### Auditability
 
@@ -307,13 +336,9 @@ Avoiding a collision that the ERD above previously invited:
 Every remaining use of "Organization" in this document and in the decision records
 means the DCAT class.
 
-### Catalog-to-catalog sharing is MVP scope
+### Catalog-to-catalog sharing
 
-The wiki's User and Data Management section specifies that because catalogs can
-embed other catalogs, *"catalogs can be shared with catalogs"*, and that
-*"catalogs can only be shared if they are no longer in `draft` state."* This is
-**MVP scope**, which makes three pieces of work MVP-blocking rather than
-deferrable:
+A couple of requirements on catalog-to-catalog sharing:
 
 1. **Acyclicity enforcement on `catalog_link` writes.** Catalog A embedding B
    embedding A is a cycle, and a cycle reaching production is a denial-of-service
@@ -327,11 +352,6 @@ deferrable:
    transitively through an embedded catalog. This is materially harder to get
    right than user-only permissions and needs explicit test coverage for the
    transitive case, not just the direct one.
-3. **A `state` precondition on sharing.** A catalog may only be shared once it is
-   no longer `draft`, so the share operation carries a state check distinct from
-   the export-time `WHERE state = 'live'` filter. A catalog's state is the `state`
-   of the object at `catalog.root_object_id`; there is no separate state column on
-   `catalog`, because the catalog row carries identity rather than content.
 
 Depth bounding on the walk remains necessary even with write-time acyclicity
 enforcement: `object_reference` edges can also form loops, enforcement could have
@@ -399,45 +419,97 @@ sequenceDiagram
 `export_run` records the `_external/dcat-us` submodule commit, so an export is
 reproducible against the schema version that validated it.
 
+Export does not consult `hosted_file` at all. A `Distribution`'s `downloadURL` is
+emitted as the string it is, whether it points at an Inventory-hosted file or an
+agency's own server. The publication-time check is the counterpart: before a
+`Distribution` may be `live`, its `downloadURL` must resolve to something real —
+for an Inventory-hosted file, a non-null `current_version_id`; for an external
+URL, the URL validation live catalogs already require.
+
 ### 5.3 Upload with quarantine-then-scan
 
 ```mermaid
 sequenceDiagram
     actor U as Data manager
     participant W as inventory
-    participant S3
+    participant SQ as inventory-s3-quarantine
+    participant SF as inventory-s3-files
     participant SC as inventory-scanner
     participant DB as Postgres
 
-    U->>W: POST distribution file
-    W->>W: size (≤500 MB) + MIME + extension allowlist
-    W->>S3: stream → quarantine/{uuid}
-    W->>DB: INSERT resource_file (scan_state=pending, sha256)
-    W->>SC: POST /scan {s3_key, file_id} — fire-and-forget, 2 s timeout
-    W-->>U: 202 — scanning, not yet downloadable
-    Note over U,W: HTMX polls GET /file/{id}/status
+    U->>W: POST file to a catalog
+    W->>W: size (≤500 MB) + MIME + extension allowlist<br/>applied to <b>every</b> version, not only the first
+    W->>SQ: stream → quarantine/{uuid}
+    W->>DB: INSERT hosted_file (first upload only)<br/>INSERT hosted_file_version (scan_state=pending, sha256,<br/>size_bytes, content_type, original_filename)
+    W->>SC: POST /scan {s3_key, version_id} — fire-and-forget, 2 s timeout
+    W-->>U: 202 — scanning, stable URL still serves the previous version
+    Note over U,W: HTMX polls GET /file/{version_id}/status
 
-    SC->>S3: stream object
+    SC->>SQ: stream object
     SC->>SC: clamd INSTREAM
     alt clean
-        SC->>S3: copy → clean/{uuid}, delete quarantine/
-        SC->>DB: scan_state=clean, scanned_at, signature_version
+        SC->>SF: copy → files/{hosted_file_id}/{version_id}
+        SC->>SQ: delete quarantine/ object
+        SC->>DB: scan_state=clean, scanned_at, signature_version<br/><b>and</b> hosted_file.current_version_id = version_id<br/>(one transaction)
     else infected
-        SC->>S3: delete object
-        SC->>DB: scan_state=infected, threat_name
+        SC->>SQ: delete object (a real deletion — instance is unversioned)
+        SC->>DB: scan_state=infected, threat_name<br/>current_version_id <b>unchanged</b>
         SC->>W: notify org admin + Data.gov team (SI-3 / IR-6)
     end
 
     Note over SC,DB: sweeper, CF_INSTANCE_INDEX==0 only:<br/>pending >5 min → re-dispatch<br/>pending >60 min → scan_state=error + alert
 ```
 
-Public download requires `scan_state='clean'`. Presigned URLs are minted only in
-that state; `quarantine/` is never presigned; the bucket has no public-read
-policy. "Unscanned" and "unreachable" are the same condition.
+`current_version_id` advances **only** on a clean scan, in the same transaction as
+that state change. That single invariant is what keeps the previously-served
+version in place while a replacement scans, and what prevents an `infected` or
+`error` version from ever being reachable
+([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)). Whether it advances
+automatically or waits for explicit owner confirmation before the public URL
+changes content is an open ADR 0012 blocker.
 
 **The sweeper is why this works without a message broker** — dropped dispatches,
 scanner restarts, and crashed scans all self-heal. It reuses the
 `CF_INSTANCE_INDEX == 0` guard that harvester's `LoadManager` already uses.
+
+### 5.3.1 Hosted file download at a stable URL
+
+```mermaid
+sequenceDiagram
+    actor P as Anonymous public user
+    participant PX as inventory-proxy
+    participant W as inventory
+    participant DB as Postgres
+    participant SF as inventory-s3-files
+
+    P->>PX: GET /f/{hosted_file_id}  ← the bookmark
+    PX->>W: proxied (allowlisted path, rate limited)
+    W->>DB: one row: hosted_file.withdrawn_at, current_version_id<br/>(no join to metadata_object, no state lookup)
+    alt withdrawn, or no clean current version
+        W-->>P: 404 (never 403 — a 403 confirms the identifier names something)
+    else serving
+        W->>DB: increment download_count, set first/last_downloaded_at
+        W-->>P: 302 → presigned URL (TTL minutes)<br/>Content-Disposition from original_filename<br/>Cache-Control: no-store
+        P->>SF: GET presigned URL
+        SF-->>P: bytes
+    end
+```
+
+Comments on the diagram:
+
+- **302 rather than 301, with `no-store`**, because a permanent or cached redirect
+  would survive a withdrawal and defeat it.
+- The **presigned TTL only has to cover redirect-to-transfer-start**, so it is
+  minutes — the bookmark is the app route.
+- **The download counter must not be transactional with the redirect** in a way
+  that fails the download if the increment fails. It is a write on a read path,
+  and it is approximate by construction.
+
+Because `/f/*` is unauthenticated and fronts egress of files up to 500 MB, rate
+limiting is a security control here rather than hygiene, and the route pattern is
+an **interface contract** — it appears in every bookmark and in every exported
+`data.json`, so changing its shape later is a breaking change for consumers
+outside this system (CM-3).
 
 ### 5.4 Import DCAT-US 3.0 catalog
 
@@ -481,9 +553,9 @@ Per-environment sizing follows v1 (`vars.*.yml`), minus the removed services.
 | Postgres plan | `small-psql`                               | `medium-psql-redundant`                      | `medium-psql-redundant`   |
 | New Relic monitoring | off                                        | on                                           | on                        |
 
-**Services bound:** `inventory-db`, `inventory-s3`, `inventory-secrets`,
-`logstack-space-drain`. Removed relative to v1: `inventory-datastore`,
-`inventory-redis`, `sysadmin-users`.
+**Services bound:** `inventory-db`, `inventory-s3-quarantine`,
+`inventory-s3-files`, `inventory-secrets`, `logstack-space-drain`. Removed
+relative to v1: `inventory-datastore`, `inventory-redis`, `sysadmin-users`.
 
 ### Logging uses shared infrastructure this repository does not own
 
@@ -511,7 +583,8 @@ modules pinned by tag, replacing v1's `create-cloudgov-services.sh`.
 | Managed by Terraform | Module |
 |---|---|
 | `inventory-db` (Postgres, `prevent_destroy` in prod) | `database` |
-| `inventory-s3` | `s3` |
+| `inventory-s3-quarantine` (unversioned, short lifecycle expiry) | `s3` |
+| `inventory-s3-files` (serving content; versioning optional) | `s3` |
 | `inventory-scanner` (ClamAV, ~3 GB, `apps.internal` only) | `clamav` |
 | Egress proxy + allowlist | `egress_proxy` |
 | Egress space | `cg_space` |
@@ -585,6 +658,7 @@ migrations, and then plan for future migrations."*
 |---|---|---|
 | `flask audit urls` | daily | Scan `live` catalog URLs for malicious content (feature-list requirement) |
 | `flask audit orphans` | daily | Catalogs with no `admin` — one query over `catalog_permission` |
+| `flask audit unreferenced-files` | daily | Hosted files referenced by no `Distribution` and still publicly served. **The report is required; the policy for acting on it is not decided** — permitted indefinitely, flagged for review, or auto-withdrawn is an open [ADR 0012](decisions/0012-catalog-scoped-hosted-files.md) blocker, as is who owns the output |
 | `flask db upgrade` | per deploy | Once, before rollout |
 | `flask import-publishers` | on CSV change | Seeds reusable DCAT `Organization` objects from `inventory_publishers.csv`. **Purpose not yet designed** — see the ADR 0005 blocker; with no tenant entity this is convenience seed data, not a registry |
 | freshclam | per scanner schedule | Signature updates; **alert on signature age**, not only on scan failure |
@@ -714,8 +788,10 @@ being an import rather than an extraction:
 
 ## 9. Open blockers
 
-Every decision record is `proposed`. No record should be accepted — and no build
-should start on the affected area — until its blockers clear.
+Every decision record except
+[ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md) is `proposed`.
+No record should be accepted — and no build should start on the affected area —
+until its blockers clear.
 
 **The blockers are listed once, in
 [`docs/decisions/README.md`](decisions/README.md#blockers-before-any-record-is-accepted),
@@ -730,7 +806,10 @@ changes relative to v1:
 
 - **Strengthened:** SI-3 (malware scanning, previously absent), AC-6 (default
   privilege is exactly none), CM-7 (DataStore and Solr surfaces removed), and
-  structured logs with correlation IDs where v1 has none.
+  structured logs with correlation IDs where v1 has none. SI-3(2) and SI-7 are
+  further strengthened by per-version `signature_version` and `sha256` on
+  immutable file versions, which make retroactive re-scan a query and make the
+  integrity record non-mutable ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).
 - **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC)
   AC-12 900-second idle timeout, with browser-storage draft autosave so the
   timeout costs no work — a client-side mitigation, so it does not survive
@@ -738,9 +817,11 @@ changes relative to v1:
   SC-7 boundary protection via the two-app topology.
 - **Changed and requiring SSP updates:** AC-2 (accounts created automatically,
   with zero-privilege as the compensating control — an assessor must see both
-  statements together), and the data-flow and component inventory for the two
+  statements together), and the data-flow and component inventory for the three
   `yes-boundary` decisions (ADR 0006 adds a scanner and an outbound flow;
-  ADR 0007 removes a brokered data store and a public API). Also AU-9 / AC-6: logs
+  ADR 0007 removes a brokered data store and a public API; ADR 0012 adds an
+  unauthenticated public data flow serving file content at MVP, and splits object
+  storage into two brokered service instances). Also AU-9 / AC-6: logs
   carrying actor IDs are drained to a **shared** archive in the `management`
   space, readable by principals who hold no access to Inventory
   ([§6](#logging-uses-shared-infrastructure-this-repository-does-not-own)).
@@ -749,7 +830,10 @@ changes relative to v1:
   questions are now distinct: `activity` retention is Inventory's to set
   ([ADR 0011](decisions/0011-audit-trail-mechanism.md) blocker 3), whereas log
   retention is **inherited** from the shared shipper — inherited is only an answer
-  once the inherited value is written down, which it is not yet.
+  once the inherited value is written down, which it is not yet. **A third
+  retention question now joins them:** every superseded hosted-file version is
+  retained, and withdrawal does not delete bytes, so file storage also grows
+  without bound ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).
 - **Newly relevant and unaddressed:** AU-5 (response to audit processing
   failures). Log drains are best-effort and ADR 0011 leaves non-row security
   events in the logs, so undetected drain loss is undetected audit loss. AU-5
@@ -758,7 +842,7 @@ changes relative to v1:
 ## 11. References
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — the v2 feature list
-- [Decision records index](decisions/README.md) — ADRs 0001–0011
+- [Decision records index](decisions/README.md) — ADRs 0001–0012 (no 0003; numbers are never reused)
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) · [1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) · [GSA/dcat-us](https://github.com/GSA/dcat-us)
 - [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — schemas **and** `transforms.py`, `convert_dcat_1_1_to_3_0.py`, `v1.1_definitions/`; the dependency described in [§8](#consume-upstream-own-only-the-graph-layer)
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) · [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — the pattern being followed

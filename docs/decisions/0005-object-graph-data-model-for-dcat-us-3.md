@@ -104,6 +104,14 @@ object_reference(parent_object_id, child_object_id, property, ordinal)
 Top-level catalog membership is `object_reference` from the root object with
 `property = 'dcat:dataset' | 'dcat:service' | 'dcat:datasetSeries'`.
 
+**Hosted files are deliberately absent from this shape.**
+[ADR 0012](0012-catalog-scoped-hosted-files.md) makes a hosted file a
+catalog-scoped resource — `hosted_file` / `hosted_file_version`, scoped by
+`catalog_id`, referencing no `metadata_object` — and **it is not part of the
+object graph and should not be added to it.** A `Distribution` holds only a
+`downloadURL` string, exactly as it does for an agency-hosted file, so the graph
+has no file-shaped node and no edge kind for one.
+
 Three properties do the work, each mapping to a stated requirement:
 
 - **`object_reference` is the reuse mechanism.** One `Kind` row referenced by
@@ -292,6 +300,7 @@ building the publisher picker, not after.**
 - [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) — consumes the schema→form model
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — `catalog_permission` semantics
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — import path that produces the shared-object structure
+- [ADR 0012](0012-catalog-scoped-hosted-files.md) — hosted files as a catalog-scoped resource **outside** this object graph; shares this record's orphan-definition question
 - [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream validator and converter v2 consumes; `ckanext/datagov_inventory/dcat/` is a stale fork of it, not a source ([`architecture.md` §8](../architecture.md#consume-upstream-own-only-the-graph-layer))
 - NIST SP 800-53 Rev 5.2 — AU-2, AU-3, AU-10, AC-3, SI-10, SI-12, CM-3, SC-28
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.
