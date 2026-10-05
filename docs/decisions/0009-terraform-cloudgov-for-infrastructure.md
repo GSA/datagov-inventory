@@ -106,7 +106,7 @@ module "clamav" {
 module "egress_proxy" {
   source          = "github.com/GSA-TTS/terraform-cloudgov//egress_proxy?ref=v2.5.0"
   cf_egress_space = data.cloudfoundry_space.egress_space   # pre-existing; looked up, not created
-  allowlist = ["secure.login.gov:443", "database.clamav.net:443"]
+  allowlist = ["secure.login.gov:443", "database.clamav.net:443"]   # plus the validator API host (ADR 0010)
   allowports = [443, 61443]                    # see New Relic note below
   ...
 }
@@ -256,7 +256,7 @@ argument for adopting them:
 - **SC-7 (Boundary Protection)** — **the reason this record is
   `yes-boundary`.** Egress allowlist and container-network policies are boundary
   controls, and moving them into Terraform makes them auditable artifacts. The
-  allowlist (`secure.login.gov:443`, `database.clamav.net:443`) becomes reviewable
+  allowlist (`secure.login.gov:443`, `database.clamav.net:443`, and the validator API host) becomes reviewable
   configuration rather than a remembered command.
 - **SC-12, SC-28 (Key Management, Protection at Rest)** — addressed by the scope
   boundary: no secret values in state. The state bucket must be encrypted,

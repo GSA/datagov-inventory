@@ -92,8 +92,8 @@ against or merges into existing objects.
 
 Import does not reject a file for schema errors. Only a file that cannot be parsed
 (not valid JSON, or no recognizable DCAT class) is refused. Each object is validated
-against DCAT-US 3.0 and given a **validation status** of valid or invalid, with its
-errors from the upstream error summarizer. Invalid objects are kept, shown as invalid
+against DCAT-US 3.0 by the Data.gov validator API and given a **validation status** of
+valid or invalid, with its errors, plus any warnings, which never gate `live`. Invalid objects are kept, shown as invalid
 in the UI, and **cannot be set `live`**, so they are never exported as they stand.
 
 This is a validation status, **not a second lifecycle state.** ADR 0005 requires
@@ -214,18 +214,19 @@ revised in v2.
 
 - **SI-10 (Input Validation)** — import is an untrusted-input boundary. The file is
   parsed defensively, with size limits, and fetched through the egress proxy when a URL
-  is given. Every object is validated against **3.0 only**, with `jsonschema` pinned
-  explicitly (v1 leaves it unpinned and silently falls back to Draft 4). Validation
-  gates `live`, not ingest: no invalid object reaches an export.
+  is given. Every object is validated against **3.0 only** by the Data.gov validator API
+  ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). Validation gates `live`, not
+  ingest: no invalid object reaches an export. If the API is unavailable, objects stay
+  unvalidated and cannot go `live`.
 - **SI-12 (Retention)** — v1's history exists only in the snapshot, retained 7 years.
   The retention period should be confirmed with the records officer.
 - **CP-9 (System Backup)** — the final snapshot (database backup plus DCAT-US 3.0
   archive) is the backup for decommissioning.
 - **AU-2, AU-3, AU-10** — a swap is a single audit event recording the source, the
-  `_external/dcat-us` submodule commit, the outgoing and incoming object counts, and
+  validator and schema versions, the outgoing and incoming object counts, and
   the approving actor.
-- **CM-3 (Configuration Change Control)** — each import records the submodule commit
-  that validated it ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). Conversion
+- **CM-3 (Configuration Change Control)** — each import records the validator and schema
+  versions that validated it ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). Conversion
   happens outside v2 at an unrecorded version, so an imported catalog is reproducible
   against v2's validator but not against whatever converted it. If that matters, the
   importing user can record the converter version with the source.

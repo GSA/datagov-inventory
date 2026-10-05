@@ -52,11 +52,10 @@ Answered by the product owner, 2026-10-05:
 
 ## Decision Drivers
 
-- **One validator (SI-10).** The authoritative DCAT-US validator and error
-  summarizer are Python and upstream
-  ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). A second JavaScript
-  implementation would drift, and drift in a validator reaches agencies as bad
-  exports.
+- **One validator (SI-10).** Validation, with warnings, is the shared Data.gov
+  validator API ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). A second
+  implementation in the browser would drift, and drift in a validator reaches
+  agencies as bad exports.
 - **One schema interpreter.** Field descriptions come from the schema, so a
   DCAT-US point release is a submodule bump plus a change in one place.
 - **Section 508 / WCAG 2.1 AA** is the top-stated v1 pain point and a statutory
@@ -95,9 +94,8 @@ Answered by the product owner, 2026-10-05:
    browser-only storage and requiring log and APM exclusion and an ATO boundary
    review. HTMX adds little there because the state is client JavaScript anyway.
 
-The backend language is a separate question. **It stays Python**: the upstream
-validator and error summarizer are Python, the graph library is Python, and the
-team runs Flask services. A TypeScript full stack would allow shared client and
+The backend language is a separate question. **It stays Python**: the graph library is
+Python and the team runs Flask services. A TypeScript full stack would allow shared client and
 server logic, at the cost of reimplementing the upstream integration and
 abandoning the team's operating model.
 
@@ -120,7 +118,7 @@ Commitments, which are part of the decision and not implementation detail:
   returning the form model as **JSON**, plus object CRUD and sync endpoints for the
   editor. There is no `POST /api/convert`
   ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11)).
-- **The server is authoritative for validation.** Client checks are advisory only.
+- **Validation is the shared Data.gov validator API**, called by the server, which is authoritative. Client checks are advisory only.
 - **Local store with sync.** The editor works against a copy in browser storage and
   syncs to the database. The proposed default is **per-object version numbers with
   optimistic concurrency**: a stale write is rejected and the user is asked to
@@ -134,10 +132,10 @@ Commitments, which are part of the decision and not implementation detail:
   Nested modals are a known focus-management failure under WCAG, and the USWDS
   modal is not designed for them.
 - **Anonymous editing in 2.1** is the same editor with sync disabled. How it
-  validates without storing data is decided at 2.1: call the server API (draft
-  data transits the server, needing a boundary review), run the Python validator
-  in the browser with Pyodide (unverified), or run a JSON Schema validator in
-  JavaScript (with the error-summarizer drift risk).
+  validates without storing data is decided at 2.1. The likely path is calling the
+  Data.gov validator API from the browser, which needs its cross-origin policy to
+  allow it; otherwise the request goes through the Inventory server, so the draft
+  data transits it and needs a boundary review.
 
 ### Conditions that reverse this decision
 
@@ -152,7 +150,7 @@ Local-first would then be dropped as a requirement.
 
 - The editor fits its interaction model, and local-first and 2.1 anonymous editing
   come from the same code.
-- One validator and one schema interpreter, both in Python.
+- One shared validator, and one schema interpreter in Python.
 - Accessibility work is confined to one SPA screen; every other page begins as
   native HTML.
 - Tooling, CI, and operations for non-editor pages are shared with `datagov-catalog`.
@@ -177,7 +175,7 @@ Local-first would then be dropped as a requirement.
 
 ### Compliance Consequences
 
-- **SI-10** — one authoritative server-side validator; client checks advisory.
+- **SI-10** — one shared validator, called by the server, which is authoritative; client checks advisory.
 - **SI-15 / SC-18** — React escapes by default, and `dangerouslySetInnerHTML` is
   banned; a Content-Security-Policy applies; all JavaScript is first-party or
   reviewed and pinned.
@@ -200,8 +198,7 @@ Local-first would then be dropped as a requirement.
    (b) a local-store plus sync prototype that chooses the local data format and
    confirms where decompose and assemble run; (c) a USWDS React tree plus
    single-level dialog meeting WCAG 2.1 AA under `axe` and manual screen-reader
-   testing; (d) for information, whether Pyodide can run the upstream validator
-   for 2.1 anonymous editing.
+   testing.
 2. **Confirm the team can build and maintain a React/TypeScript editor**, or name
    who will. The team's experience is Python and Flask, and this choice adds a
    front-end stack.
@@ -210,7 +207,7 @@ Local-first would then be dropped as a requirement.
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — v2 feature list and user/data management model
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) and [GSA/dcat-us](https://github.com/GSA/dcat-us) — schema and `_external/dcat-us` submodule source
-- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — why the authoritative validator stays Python
+- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — validation is the shared Data.gov validator API
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) — sibling Flask + Jinja + USWDS + HTMX application
 - [USWDS](https://designsystem.digital.gov/) and [`@trussworks/react-uswds`](https://github.com/trussworks/react-uswds) — design system and its React binding
 - NIST SP 800-53 Rev 5.2 — SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15, SR-3

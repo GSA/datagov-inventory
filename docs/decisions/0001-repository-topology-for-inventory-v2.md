@@ -134,9 +134,9 @@ pattern.
 - [Checklist for new repositories](https://github.com/GSA/data.gov/wiki/Checklist-for-new-repositories) — provisioning requirements this decision invokes
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) and [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) — the precedent being followed
 - [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — documents `catalog-old.data.gov` running concurrently through fall 2026
-- [GSA/dcat-us](https://github.com/GSA/dcat-us) — schema home **and** the home of the error summarizer v2 consumes; also of `transforms.py` and `convert_dcat_1_1_to_3_0.py`, which v2 does **not** use ([ADR 0008](0008-onboard-via-data-json-reimport.md)). The dependency, not a candidate destination
+- [GSA/dcat-us](https://github.com/GSA/dcat-us) — schema home, read by v2 for its definitions only; also of `transforms.py` and `convert_dcat_1_1_to_3_0.py`, which v2 does **not** use ([ADR 0008](0008-onboard-via-data-json-reimport.md)). The dependency, not a candidate destination
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — no migration path, hence concurrent operation; and v2 imports DCAT-US 3.0 only
-- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md), [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — consumers of the upstream DCAT-US 3.0 validation code and owners of the Inventory-specific graph layer
+- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md), [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — consumers of the DCAT-US 3.0 schemas and validation, and owners of the Inventory-specific graph layer
 - [`docs/architecture.md`](../architecture.md) §8 — code organization
 - NIST SP 800-53 Rev 5.2 — CM-2, CM-3, CM-9, AC-3, SA-5, SA-8, SR-3, RA-5
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.

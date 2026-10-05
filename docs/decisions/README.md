@@ -19,7 +19,7 @@ records, to preserve the audit trail.
 | [0007](0007-retire-tabular-datastore-api.md) | Retire the tabular DataStore API in Inventory v2 | proposed | 2026-09-21 | **yes-boundary** | CM-7, SA-8, AC-3, SI-10, CM-4 |
 | [0008](0008-onboard-via-data-json-reimport.md) | Onboard agencies by importing published DCAT-US 3.0 data.json rather than migrating from CKAN | proposed | 2026-09-21 | yes-internal | CM-3, SI-10, SI-12, CP-9, CM-4, CM-7, SA-8 |
 | [0009](0009-terraform-cloudgov-for-infrastructure.md) | Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules | proposed | 2026-09-21 | **yes-boundary** | CM-2, CM-3, CM-6, CM-8, CM-9, SC-7, SC-12, SC-28, AC-3, AC-5, SA-8, SR-3 |
-| [0010](0010-depend-on-upstream-dcat-us-code.md) | Consume DCAT-US validation and error-reporting code from the pinned GSA/dcat-us submodule rather than forking it | proposed | 2026-09-24 | yes-internal | SR-3, SR-4, SR-11, RA-5, CM-2, CM-3, CM-8, SI-10, SA-8 |
+| [0010](0010-depend-on-upstream-dcat-us-code.md) | Validate DCAT-US 3.0 through the Data.gov validator API and consume only the schema definitions from the pinned GSA/dcat-us submodule | proposed | 2026-09-24 | **yes-boundary** | SR-3, SR-4, SC-7, CM-2, CM-3, CM-8, SI-10, SA-8 |
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
 | [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | proposed | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
 
@@ -28,9 +28,10 @@ records, to preserve the audit trail.
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
 leave the boundary), ADR 0009 (egress allowlist and container-network policies
-become managed boundary controls), and ADR 0012 (an unauthenticated public data
+become managed boundary controls), ADR 0010 (an outbound flow of draft metadata to
+the Data.gov validator API, which stores nothing), and ADR 0012 (an unauthenticated public data
 flow serving file content, plus a second S3 service
-instance). All four require SSP component-inventory and data-flow diagram updates
+instance). All five require SSP component-inventory and data-flow diagram updates
 and should be reviewed by the ISSO.
 
 ## Reading order
@@ -63,7 +64,6 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
 | 0002 | Run a time-boxed editor spike: load and edit a 3,000+ dataset catalog in the browser, prototype local storage plus sync and choose the local data format, and prove a USWDS React tree with single-level dialogs meets WCAG 2.1 AA. Recorded outcome gates acceptance. | Design |
 | 0002 | Confirm the team can build and maintain a React/TypeScript editor, or name who will. | Organizational |
-| 0010 | Confirm with the `GSA/dcat-us` maintainers and the harvester team that upstream packaging (`package-mode = true`, tags, a relaxed `requires-python`) is an acceptable target, and choose the initial pinned submodule commit. Raise two further items in the same conversation: ask upstream to **extract the error reporter out of `convert_dcat_1_1_to_3_0.py`** (v2 imports it but never converts), and confirm whether upstream regards its converter as a **maintained user-facing tool**, since ADR 0008 now has agencies running it out-of-band. Neither answer blocks starting on the chosen option.                                                                                       | External + design |
 | 0011 | Time-boxed spike to execute the behavioural claims this record reads from source: null `transaction_id` on session-bypassing writes, `old_data`/`changed_data` shape for a `properties JSONB` edit, write cost on a 2,000-object import, `GRANT INSERT, SELECT`-only viability, and absence of `SECURITY DEFINER`.                                                       | Design |
 | 0011 | Decide whether non-row security events (failed authentication, session establishment and idle termination, authorization denials) need a durable table, or whether structured logs with a defined retention satisfy AU-2 for them.                                                                                                                                       | Compliance |
 | 0011 | Decide retention for `activity`. It is append-only and grows without bound.                                                                                                                                                                                                                                                                                              | Compliance |
