@@ -320,9 +320,8 @@ Two loose ends follow from this, and both are real:
 2. **The first-`admin` bootstrap question in
    [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md) can no
    longer be answered with "an agency-scoped role,"** because no agency scope
-   exists. The likely answer is that catalog creation grants the creator `admin`
-   on that catalog, with a Data.gov sysadmin role for recovery. That remains an
-   open ADR 0004 blocker.
+   exists. The answer, decided in ADR 0004, is that catalog creation grants the
+   creator `admin` on that catalog, with a Data.gov sysadmin role for recovery.
 
 ### Two distinct things named "Organization"
 
@@ -391,8 +390,8 @@ sequenceDiagram
 
 Account existence conveys **no** privilege; authorization is entirely
 `catalog_permission`. See [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md),
-including the unresolved question of how the *first* `admin` grant on a new
-catalog happens.
+including how the *first* `admin` grant on a new catalog happens (the creator
+receives it).
 
 ### 5.2 Export with error reporting
 
@@ -657,7 +656,7 @@ migrations, and then plan for future migrations."*
 | Task | Cadence | Purpose |
 |---|---|---|
 | `flask audit urls` | daily | Scan `live` catalog URLs for malicious content (feature-list requirement) |
-| `flask audit orphans` | daily | Catalogs with no `admin` — one query over `catalog_permission` |
+| `flask audit orphans` | monthly | Report of catalogs with no `admin` — one query over `catalog_permission`. Report only; action is the Data.gov team's decision |
 | `flask audit unreferenced-files` | monthly | Hosted files referenced by no `Distribution` and still publicly served, reported as-is (age and orphan date are ignored) with recommended cleanup for Data.gov staff to act on. Nothing is withdrawn or purged automatically ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)) |
 | `flask db upgrade` | per deploy | Once, before rollout |
 | `flask import-publishers` | on CSV change | Seeds reusable DCAT `Organization` objects from `inventory_publishers.csv`. **Purpose not yet designed** — see the ADR 0005 blocker; with no tenant entity this is convenience seed data, not a registry |

@@ -266,9 +266,7 @@ tell hosted from agency-hosted. Consequences:
   deleted, and say that the file stays public until then. Without that prompt this
   trades a surprising behaviour for a silent one.
 - **A hosted file can be public with no metadata describing it.** A monthly
-  report of unreferenced files, acted on by Data.gov staff, is the control. ADR 0005 carries the same
-  ambiguity for reusable objects ("orphan is ill-defined for something deliberately
-  unattached").
+  report of unreferenced files, acted on by Data.gov staff, is the control.
 - **It is a more file-hosting-shaped product** than files-attached-to-distributions,
   which sits against ADR 0007's narrowing of Inventory to metadata authoring (CM-7).
 - **Storage grows without bound** for files in use, and for 7 years for superseded

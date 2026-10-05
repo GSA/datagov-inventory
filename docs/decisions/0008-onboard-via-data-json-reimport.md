@@ -179,7 +179,7 @@ Because the `catalog` row survives, so does everything referencing it:
 
 - **`catalog_permission` grants**, including catalog-principal and transitive
   grants ([ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)). Re-import
-  does not re-run the unresolved first-`admin` bootstrap.
+  does not re-run first-`admin` bootstrap.
 - **Inbound `catalog_link` edges.** A catalog embedding this one still embeds it.
   This is the main reason identity transfer is preferable to creating a new
   catalog, since catalog-to-catalog embedding is MVP scope

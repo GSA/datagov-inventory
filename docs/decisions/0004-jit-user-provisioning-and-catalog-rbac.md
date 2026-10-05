@@ -84,7 +84,7 @@ Option 4 is rejected outright: inferring authorization from an email domain is
 implicit privilege grant, and it is exactly the kind of accidental access
 AC-6 exists to prevent.
 
-Option 3 is **deferred, not rejected** — see the open question below.
+Option 3 is **deferred, not rejected** — see [No email-domain allowlist at launch](#no-email-domain-allowlist-at-launch).
 
 ### Permission levels
 
@@ -134,23 +134,53 @@ objects, reappearing on a different table: **object identifiers are not
 authorization**. It requires its own test case, not reliance on the permission
 check alone.
 
-### Open question: is an email-domain allowlist wanted?
+### No email-domain allowlist at launch
 
-Option 1 permits anyone with a Login.gov account meeting AAL3+HSPD-12 to obtain
-an Inventory `user_account` row with no permissions. The security consequence is
-small — they see an empty workspace — but it is not zero:
+Option 1 lets anyone who passes Login.gov at AAL3 with HSPD-12 (PIV/CAC) obtain a
+`user_account` row with no permissions. The security consequence is small, since
+they see an empty workspace, but it is not zero:
 
 - It creates an unbounded, externally-triggerable table of user rows (a minor
-  resource-exhaustion and log-noise surface; mitigate with rate limiting at the
-  proxy and an alert on anomalous creation rates).
-- It means "has an account" no longer signals "is a known government data
-  manager," which may surprise administrators reading the user list.
+  resource-exhaustion and log-noise surface). Mitigate with rate limiting at the
+  proxy and an alert on anomalous creation rates.
+- "Has an account" no longer signals "is a known government data manager", which
+  may surprise administrators reading the user list.
 
-Because an HSPD-12 PIV credential already implies federal affiliation, a domain
-allowlist is arguably redundant. Recommendation is to **start with Option 1 and
-add the allowlist only if the empty-account rate proves to be a nuisance**,
-treating the allowlist as a configuration change rather than a redesign. Confirm
-this is acceptable before this record is accepted.
+A PIV credential already implies federal affiliation, and an allowlist would need
+exceptions for contractors whose email is not `.gov`. **Decided: no allowlist at
+launch.** If the empty-account rate becomes a nuisance, an allowlist is a
+configuration change, not a redesign (Option 3 above, deferred).
+
+### Catalog creation and the first admin
+
+**Any authenticated user can create a catalog, and becomes its first `admin` in
+the same transaction.** This matches the wiki ("users can create their own
+catalogs"). It has a consequence worth stating: under
+[ADR 0012](0012-catalog-scoped-hosted-files.md) a `live` hosted file is public,
+so any PIV holder can publish files under data.gov once they pass a clean scan.
+That is accepted. Catalog creation is rate limited and alerted on like account
+creation, and a per-user limit is a configuration change if abuse appears.
+
+A **Data.gov sysadmin** role exists for recovery, and as an ordinary-operation
+exception nowhere else:
+
+- It is seeded by a Flask CLI command run through `cf run-task`, which needs the
+  person to have logged in once (the account row must exist).
+- It can grant permissions on any catalog when asked, for example by Data.gov
+  staff acting on a report, and every grant is audited with actor, subject, catalog, and level. It
+  confers **no implicit read** on catalogs: to see one, a sysadmin must grant
+  themselves access, which is itself audited (AC-5, AC-6).
+
+### Granting access to a colleague
+
+Accounts exist only after a first login and are keyed on the Login.gov subject.
+So the colleague **logs in once first**, and the admin then finds them by **exact
+email match**. There is no browsable or searchable user list, which would expose
+every user's email address, and lookups are rate limited to prevent enumeration.
+Pending invitations by email are not built: they add state, and a Login.gov
+account can hold several email addresses, so matching at first login can fail.
+The stored email is for display and lookup only; the binding is always the
+subject.
 
 ### Positive Consequences
 
@@ -176,16 +206,14 @@ this is acceptable before this record is accepted.
 ### Negative Consequences
 
 - The user table grows without administrative action and can be grown by any
-  eligible Login.gov user (see open question). Requires rate limiting and a
+  eligible Login.gov user (see [No email-domain allowlist at launch](#no-email-domain-allowlist-at-launch)). Requires rate limiting and a
   creation-rate alert.
 - Administrators lose a coarse implicit signal ("account exists ⇒ vetted") and
   must read `catalog_permission` to reason about access. Acceptable — the
   permission table is the accurate answer and the old signal was misleading.
-- **Someone must still grant the first permission on a new catalog**, and that
-  bootstrap step is not resolved by this ADR. Initial catalog creation and the
-  first `admin` grant need a defined path (likely a Data.gov sysadmin role),
-  otherwise JIT provisioning produces users who can do nothing and no way to fix
-  it. This is a required follow-on design item.
+- **A new user can do nothing until granted access or creating a catalog**, and
+  granting access to a colleague needs that colleague to have logged in once (see
+  [Granting access to a colleague](#granting-access-to-a-colleague)).
 - The account-to-Login.gov binding must key on the **subject identifier**, not
   email. Email is mutable and reusable; keying on it risks conflating two
   people. v1 used email as the SAML attribute (`config/ckan.ini:181`), so this
@@ -199,8 +227,10 @@ this is acceptable before this record is accepted.
   privilege. The SSP account-management section must state this explicitly; an
   assessor reading "accounts are created automatically" without the
   zero-privilege clause would reasonably flag it.
-- **AC-2(3) (Disable Inactive Accounts)** — an inactivity policy should still
-  apply to dormant accounts; JIT creation does not remove that obligation.
+- **AC-2(3) (Disable Inactive Accounts)** — *not implemented as written.*
+  Accounts are not disabled for inactivity. Dormant accounts are reported, and
+  any action is the Data.gov team's decision. Since a dormant account holds
+  only whatever permissions it was granted, the SSP must state this explicitly.
 - **AC-3, AC-6 (Access Enforcement, Least Privilege)** — *strengthened.*
   Default privilege is exactly none, enforced by the absence of
   `catalog_permission` rows rather than by configuration flags.
@@ -226,20 +256,15 @@ this is acceptable before this record is accepted.
   since revocation is the primary mechanism and account deletion is unnecessary.
   Where an account is retired, it is **soft-deleted** per AU-10 above; a hard
   delete would break the audit trail's actor binding.
-- **Orphaned-catalog audit.** The wiki requires an audit for "all catalogs with
-  no admin (no longer accessible/manageable)." Under this model that is a single
-  query over `catalog_permission` — implemented as the `flask audit orphans`
-  scheduled task.
+- **Admin-less catalogs are reported, not prevented.** The wiki requires an audit
+  for "all catalogs with no admin (no longer accessible/manageable)." Under this
+  model that is a single query over `catalog_permission`, implemented as the
+  `flask audit orphans` report. Nothing is blocked, disabled, or removed; action is
+  the Data.gov team's decision.
 
 ## Blockers before acceptance
 
-1. **Confirm whether an email-domain allowlist is wanted**
-   ([above](#open-question-is-an-email-domain-allowlist-wanted)).
-2. **Define how the first `admin` permission on a new catalog is granted.** With
-   no tenant entity, "an agency-scoped role" is not available as an answer; the
-   likely shape is that catalog creation grants the creator `admin`, with a
-   Data.gov sysadmin role for recovery
-   ([`architecture.md` §4](../architecture.md#there-is-no-agencybureau-tenant-entity)).
+None.
 
 ## Links
 

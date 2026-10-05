@@ -237,8 +237,6 @@ not an emergent property.
 - **Shared objects create shared blast radius.** Editing a `Kind` used by 50
   datasets changes all 50. The UI must show reference counts before editing, and
   copy-on-write must be offered. Without this, reuse becomes a footgun.
-- Reference counting is needed to identify genuinely orphaned objects, and
-  "orphan" is ambiguous for a reusable object deliberately kept unattached.
 - **The export walk traverses two kinds of edge**, `object_reference` within a
   catalog and `catalog_link` between catalogs. Membership is uniform; embedding is not. The walk
   therefore has a mode switch, and that switch is where catalog-boundary
