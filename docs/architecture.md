@@ -505,9 +505,10 @@ Comments on the diagram:
   that fails the download if the increment fails. It is a write on a read path,
   and it is approximate by construction.
 
-Because `/f/*` is unauthenticated and fronts egress of files up to 500 MB, rate
-limiting is a security control here rather than hygiene, and the route pattern is
-an **interface contract** — it appears in every bookmark and in every exported
+Because the browser fetches bytes from S3 directly, the proxy's rate limit on
+`/f/*` bounds URL minting and the database work behind each request (a read, plus
+a counter write on an unauthenticated route). It cannot bound download volume.
+The route pattern is an **interface contract** — it appears in every bookmark and in every exported
 `data.json`, so changing its shape later is a breaking change for consumers
 outside this system (CM-3).
 
