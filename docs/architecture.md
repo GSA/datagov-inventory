@@ -581,11 +581,15 @@ modules pinned by tag, replacing v1's `create-cloudgov-services.sh`.
 | `inventory-s3-quarantine` (unversioned, short lifecycle expiry) | `s3` |
 | `inventory-s3-files` (serving content; versioning optional) | `s3` |
 | `inventory-scanner` (ClamAV, ~3 GB, `apps.internal` only) | `clamav` |
-| Egress proxy + allowlist | `egress_proxy` |
-| Egress space | `cg_space` |
-| Container-network policies, space roles, deployer accounts | provider resources |
+| Egress proxy + allowlist (into the existing egress space) | `egress_proxy` |
+| Container-network policies | provider resources |
 
-Not managed here: `logstack-space-drain` and everything downstream of it (above).
+Not managed here: `logstack-space-drain` and everything downstream of it (above),
+and everything space-level — the spaces (including the egress space), space roles,
+security groups, and CI deployer accounts and keys. Those pre-exist, are shared
+with other applications, and are created by hand through a shared process that v2
+leaves unchanged. Bringing them under Terraform is a possible future Data.gov-wide
+epic, contingent on this adoption going well.
 
 **Two boundaries matter.** Terraform manages service *existence* and topology but
 **not secret values** — `inventory-secrets` credentials stay in `cf cups`/`uups`,

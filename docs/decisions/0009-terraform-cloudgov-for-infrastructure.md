@@ -65,8 +65,9 @@ how v2 provisions and records its infrastructure.
 ## Decision Outcome
 
 Chosen option: **Option 1 — `GSA-TTS/terraform-cloudgov` modules**, pinned at a
-released tag, because the modules already encapsulate three of v2's genuinely
-novel components (ClamAV scanner, egress proxy, egress space), they are maintained
+released tag and run with **Terraform** (not OpenTofu — see
+[Design decisions](#design-decisions-made-in-review)), because the modules already encapsulate three of v2's genuinely
+novel components (ClamAV scanner, egress proxy), they are maintained
 and tested inside GSA, and they are built on the **official provider** rather than
 the deprecated v2 API.
 
@@ -103,7 +104,8 @@ module "clamav" {
 }
 
 module "egress_proxy" {
-  source    = "github.com/GSA-TTS/terraform-cloudgov//egress_proxy?ref=v2.5.0"
+  source          = "github.com/GSA-TTS/terraform-cloudgov//egress_proxy?ref=v2.5.0"
+  cf_egress_space = data.cloudfoundry_space.egress_space   # pre-existing; looked up, not created
   allowlist = ["secure.login.gov:443", "database.clamav.net:443"]
   allowports = [443, 61443]                    # see New Relic note below
   ...
@@ -136,12 +138,16 @@ high-value target.
 |---|---|
 | `aws-rds` instance and plan, per environment | `inventory-secrets` **credential values** (`cf cups` / `cf uups`) |
 | **Two** `s3` instances — `inventory-s3-quarantine` and `inventory-s3-files` | Key rotation procedures |
-| ClamAV scanner app (`clamav` module) | |
-| Egress proxy and its allowlist (`egress_proxy`) | |
-| Egress space (`cg_space`) | |
-| Container-network policies between apps | |
-| Space roles and CI deployer service accounts | |
-| Existence of the `inventory-secrets` UPS, not its contents | |
+| ClamAV scanner app (`clamav` module) | The cloud.gov spaces themselves, including the egress space — they pre-exist and are shared with other applications; Terraform looks them up |
+| Egress proxy and its allowlist (`egress_proxy`), deployed into the existing egress space | Space roles and security groups |
+| Container-network policies between apps | CI deployer service accounts **and** their keys |
+| Existence of the `inventory-secrets` UPS, not its contents | The Terraform state bucket (bootstrap paradox) |
+
+Terraform manages **this application's** infrastructure inside spaces it does not
+own. It must never manage space-level resources, which other applications in the
+same spaces depend on and which are managed by a shared, hand-run process that this
+record deliberately leaves unchanged. Consequently the `cg_space` module is not used: it creates
+a space and assigns roles, which needs org-level privilege and is out of scope.
 
 ### Two S3 instances, because they are two trust boundaries
 
@@ -160,9 +166,15 @@ Two properties this record must carry:
 - **S3-native versioning on the serving instance is optional**, not required by
   ADR 0012's design. It buys retention of superseded bytes; it does not deliver
   the stable-URL or replacement-safety properties, which come from the database
-  row pointer. **Whether a cloud.gov tenant can enable it through the broker is
-  unverified**, and so is the cost of a second instance; both are ADR 0012
-  blockers that land here as Terraform work.
+  row pointer. **Whether a cloud.gov tenant can enable it is unverified** and
+  remains an [ADR 0012](0012-catalog-scoped-hosted-files.md) blocker. What was
+  verified here: the `s3` module exposes only `s3_plan_name` and `json_params`,
+  and the cloud.gov broker documents one optional parameter
+  (`object_ownership`). **Neither bucket versioning nor lifecycle expiry can be set
+  through Terraform.** If a tenant can set them at all, it is with bucket
+  credentials (e.g. `aws s3api`) outside Terraform, which also keeps those
+  credentials out of state. The cloud.gov documentation lists no per-instance
+  charge, only 5 TB of included storage per bucket.
 
 **Application deployment stays `cf push --strategy rolling`** via a composite
 GitHub action, matching `datagov-catalog`. The modules include `application`,
@@ -189,7 +201,7 @@ argument for adopting them:
 
 ### Positive Consequences
 
-- Network policies, egress allowlists, the scanner app, and deployer accounts
+- Network policies, egress allowlists, and the scanner app
   become version-controlled, reviewable configuration instead of undocumented
   manual steps. This is the primary benefit.
 - `prevent_destroy = (var.environment == "prod")` gives a hard guard against
@@ -206,7 +218,7 @@ argument for adopting them:
 
 ### Negative Consequences
 
-- **A second toolchain in the app repository** — Terraform/OpenTofu, a state
+- **A second toolchain in the app repository** — Terraform, a state
   backend, provider lockfile, and CI wiring — for a team whose other two
   application repos have none.
 - **Bootstrap paradox.** The S3 bucket holding Terraform state cannot itself be
@@ -250,40 +262,66 @@ argument for adopting them:
   boundary: no secret values in state. The state bucket must be encrypted,
   versioned, and access-restricted regardless.
 - **AC-3, AC-5 (Access Enforcement, Separation of Duties)** — space roles and
-  deployer service accounts become explicit. The CI service account's permissions
-  should be scoped to what the plan requires, and the credentials used for
-  `apply` must not be reusable for ad-hoc production changes.
+  deployer service accounts are created by hand and are **not** in Terraform
+  state, so the CM-9 plan must record who creates them, their scope, their
+  rotation, and which credential runs `apply`. Scope that credential to what the
+  plan requires; it must not be reusable for ad-hoc production changes.
 - **SR-3 (Supply Chain)** — modules pinned by tag; `.terraform.lock.hcl`
   committed; module and provider upgrades reviewed.
 
+### Design decisions made in review
+
+These were open blockers and are now decided.
+
+1. **The module set fits a Flask app.** Each module used (`database`, `s3`,
+   `clamav`, `egress_proxy`) was read against its `variables.tf` and source; none
+   is coupled to Rails (the README is the only file that mentions it). The one
+   gap is bucket versioning and lifecycle expiry on `s3`, which no module can
+   provide (see [above](#two-s3-instances-because-they-are-two-trust-boundaries));
+   it is tracked as an ADR 0012 blocker, not here.
+2. **Terraform, not OpenTofu.** Terraform is pinned in CI, and `.terraform.lock.hcl`
+   is committed.
+3. **Deployer accounts and keys are hand-managed, and the shared process is not
+   changing now.** Terraform manages this application only, inside spaces that
+   already exist with other applications on them. Spaces, space roles, security
+   groups, deployer service accounts and their keys stay outside Terraform and
+   state. Every other Data.gov application relies on the existing hand-managed
+   process, so v2 follows it rather than changing it unilaterally. If Terraform
+   management goes well here, a **future epic** will bring Data.gov's space-level
+   resources under Terraform — the application and egress spaces, space roles,
+   deployer accounts, and log shipping. That epic is out of scope for this record
+   and for v2's MVP.
+4. **Logging scope.** v2 adopts the existing shared arrangement: it binds
+   `logstack-space-drain` (as `datagov-catalog` does, on both the app and the
+   proxy) and does **not** deploy the module's `logshipper`, which would stand up
+   a redundant drain app inside inventory's own spaces. The shared
+   `logstack-shipper` lives in the `management` space — inside the same
+   authorization boundary, outside inventory's spaces, and not provisioned by this
+   repository's Terraform. Log retention is inherited from it. See
+   [`architecture.md` §6](../architecture.md#logging-uses-shared-infrastructure-this-repository-does-not-own).
+
 ### Blockers before acceptance
 
-1. **Verify the module set against `variables.tf` for each module used.** The
-   README describes the modules as serving `rails-template`-based apps. Nothing in
-   `database`, `s3`, `clamav`, `egress_proxy`, or `cg_space` appeared
-   Rails-coupled on inspection, but each should be confirmed for a Flask app
-   before commitment. **For `s3` specifically**, confirm that the broker exposes
-   bucket versioning and lifecycle expiry to a tenant, and the cost of a second
-   instance — the two-instance split
-   ([ADR 0012](0012-catalog-scoped-hosted-files.md)) depends on both.
-2. **Decide Terraform vs. OpenTofu.** `datagov-ssb` uses OpenTofu
-   (`install-opentofu.sh`, `tofu init`). Licensing and agency direction should
-   determine this, not this record.
-3. **Provision and document the state backend** — a dedicated, encrypted,
-   versioned S3 bucket with restricted access, created out-of-band.
-4. **Decide whether Terraform manages CI deployer service keys.** It can
-   (`cloudfoundry_service_key`), but those keys are credentials and land in state.
-   Recommendation: manage the *service account*, create the *key* manually — but
-   this needs confirmation.
-5. ~~**Confirm `logshipper` scope.**~~ **Resolved — not a blocker.** v2 adopts the
-   existing shared arrangement: it binds `logstack-space-drain` (as
-   `datagov-catalog` does, on both the app and the proxy) and does **not** deploy
-   the module's `logshipper`, which would stand up a redundant drain app inside
-   inventory's own spaces. The shared `logstack-shipper` lives in the `management`
-   space — inside the same authorization boundary, outside inventory's spaces, and
-   not provisioned by this repository's Terraform. Log retention is inherited from
-   it. See
-   [`architecture.md` §6](../architecture.md#logging-uses-shared-infrastructure-this-repository-does-not-own).
+None. Remaining open S3 questions belong to
+[ADR 0012](0012-catalog-scoped-hosted-files.md).
+
+### Requirements for completion
+
+Work that must finish before the first `terraform apply`, not before this record
+is accepted. Track each as an issue.
+
+- **Provision and document the state backend** — a dedicated S3 bucket with
+  restricted access, created out-of-band (bootstrap paradox), and recorded in the
+  CM-9 plan. The bucket must be encrypted at rest. Two properties are unverified
+  on the cloud.gov broker and must be confirmed during this task: **versioning**
+  (the same tenant-access question as the ADR 0012 blocker) and **state locking**
+  (the S3 backend's native lockfile needs Terraform 1.10 or later and conditional
+  writes; a brokered bucket has no DynamoDB table to fall back on). If either
+  is unavailable, record the compensating control (for example, serialized
+  `apply` through a single CI job).
+- **Document the hand-managed prerequisites** — the spaces, space roles, security
+  groups (including the egress space's `public_networks_egress`), and deployer
+  accounts and keys that Terraform assumes, with owner and rotation (CM-9).
 
 ## Links
 
