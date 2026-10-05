@@ -681,7 +681,7 @@ works, telemetry does not.
 | Agency/bureau organizations (tenant silos) | Isolation is per-catalog via `catalog_permission`; nothing is inherited from an enclosing agency ([§4](#there-is-no-agencybureau-tenant-entity)) |
 | Solr scaffolding | Already dead in v1: 12 files, 3 Makefile targets, a `pysolr` pin, a placeholder `CKAN_SOLR_URL`, a `/solr` nginx route                           |
 | Redis + RQ | No remaining need                                                                                                                                |
-| DataStore + xloader + `datastore_ro` provisioning | [ADR 0007](decisions/0007-retire-tabular-datastore-api.md) — **a user-visible regression**, see below                                            |
+| DataStore + xloader + `datastore_ro` provisioning | [ADR 0007](decisions/0007-retire-tabular-datastore-api.md) — **a capability removal**, see below                                                 |
 | `pysaml2`, `xmlsec1`, `apt.yml`, `apt-buildpack` | Switch from SAML to OpenID Login.gov integration                                                                                                 |
 | repoze.who + Beaker | Vestigial since CKAN 2.9                                                                                                                         |
 | `create_inventory_user`, `reactivate_user`, roles-table admin UI | ~278 lines of `plugin.py`, 152 of `action.py`, 115-line template ([ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md))          |
@@ -690,8 +690,8 @@ works, telemetry does not.
 
 **The DataStore removal is a real capability loss, not only cleanup.** Uploaded
 files remain downloadable; what goes away is querying their rows over HTTP.
-[ADR 0007](decisions/0007-retire-tabular-datastore-api.md) requires identifying
-live consumers of `/api/action/datastore_search` before this is announced.
+[ADR 0007](decisions/0007-retire-tabular-datastore-api.md) records it as a
+decision, with no consumer analysis; v1 keeps serving it until decommissioned.
 
 ## 8. Code organization
 
