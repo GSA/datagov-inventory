@@ -76,7 +76,7 @@ a published URL.
 its file. This is acceptable because Option 2 never erased bytes either, and an
 explicit withdraw action is a better takedown primitive than a side effect of a
 state change, since it is audited as what it is. The editor must make it
-discoverable (see [blockers](#blockers-before-acceptance)).
+discoverable (see [design decisions](#design-decisions-made-in-review)).
 
 ### Schema
 
@@ -134,7 +134,7 @@ identified by its row, not by where it sits, so `clean/` is gone.
 GET /f/{hosted_file_id}                            -- the public bookmark
   404 unless  hosted_file.withdrawn_at IS NULL
           AND current_version_id IS NOT NULL
-  -> 302 to a presigned URL for the current version (TTL: minutes)
+  -> 302 to a presigned URL for the current version (TTL: 5 minutes)
      Content-Disposition from original_filename
      Cache-Control: no-store
 
@@ -174,7 +174,7 @@ issuing **presigned URLs**:
 only thing that can mint one. A presigned URL is a **bearer token**: anyone holding
 it can fetch the object until it expires, and it cannot be revoked. Hence:
 
-- **The TTL is minutes.** S3 checks it only when the request starts, so it need
+- **The TTL is 5 minutes.** S3 checks it only when the request starts, so it need
   only cover redirect-to-transfer-start. The bookmark is always the app route; the
   presigned URL is never retained.
 - **The bucket is not public-read**, even though a clean file is public by design,
@@ -193,7 +193,7 @@ It cannot limit download volume or bandwidth, and nothing in v2 can. What the li
 does protect is the app: each request is a database read and, for a served file, a
 counter write on an unauthenticated route. Abuse that downloads a large file
 repeatedly is bounded by the per-client mint rate, the 500 MB cap, and S3 itself,
-not by the proxy. `/f/*` must be added to the proxy's default-deny allowlist
+not by the proxy. The resulting S3 egress cost is an accepted risk. `/f/*` must be added to the proxy's default-deny allowlist
 (`proxy/nginx.conf:44,48`). Because the route appears in every bookmark and
 exported `data.json`, it is an **interface contract**; changing its shape later is
 a breaking change for outside consumers (CM-3).
@@ -215,7 +215,8 @@ the stable key plus the row pointer, not from S3. Versioning would only retain
 superseded bytes. **Neither versioning nor lifecycle expiry can be set through
 Terraform or the cloud.gov broker's documented parameters**
 ([ADR 0009](0009-terraform-cloudgov-for-infrastructure.md)); whether a tenant can
-set them with bucket credentials is unverified (see blockers). The quarantine
+set them with bucket credentials is unverified (see
+[requirements for completion](#requirements-for-completion)). The quarantine
 sweeper in [ADR 0006](0006-quarantine-then-scan-antivirus.md) is the primary
 cleanup, so lifecycle expiry is a backstop.
 
@@ -264,19 +265,22 @@ tell hosted from agency-hosted. Consequences:
   to withdraw a file when its last referencing `Distribution` is unpublished or
   deleted, and say that the file stays public until then. Without that prompt this
   trades a surprising behaviour for a silent one.
-- **A hosted file can be public with no metadata describing it.** An unreferenced-file
-  report is required and someone must own acting on it. ADR 0005 carries the same
+- **A hosted file can be public with no metadata describing it.** A monthly
+  report of unreferenced files, acted on by Data.gov staff, is the control. ADR 0005 carries the same
   ambiguity for reusable objects ("orphan is ill-defined for something deliberately
   unattached").
 - **It is a more file-hosting-shaped product** than files-attached-to-distributions,
   which sits against ADR 0007's narrowing of Inventory to metadata authoring (CM-7).
-- **Storage grows without bound.** Every version is retained and withdrawal does not
-  delete bytes. Retention is not decided here (blocker), and joins the open
-  retention questions in ADR 0011 and the `exports/` lifecycle in
-  [`architecture.md` §5.2](../architecture.md#52-export-with-error-reporting).
+- **Storage grows without bound** for files in use, and for 7 years for superseded
+  and withdrawn ones. Nothing is purged automatically. `exports/` lifecycle
+  ([`architecture.md` §5.2](../architecture.md#52-export-with-error-reporting))
+  and ADR 0011's `activity` retention are decided separately.
 - **Withdrawn is not erased.** `withdrawn_at` stops public serving; the object
-  remains in S3 and reachable through the owner route. Destruction is a separate
-  operation this record does not define.
+  remains in S3 and reachable through the owner route. A user-facing **delete** is
+  future work and must not conflict with retention: it should be a soft delete
+  that keeps the bytes for the retention period, and it must be blocked, or at
+  least warn loudly, when a `Distribution` references the file, because those
+  files are kept indefinitely and a deleted one would break a published link.
 - **Download volume is outside v2's control** (see
   [How a download is served](#how-a-download-is-served)).
 - **Public download at MVP moves ADR 0006's malware-distribution risk to launch
@@ -295,7 +299,9 @@ tell hosted from agency-hosted. Consequences:
 - **SI-7, SI-10** — `sha256` per immutable version; ADR 0006's size, MIME, and
   extension allowlist applies to every version, and the R2 check applies to hosted
   and external URLs alike.
-- **SI-12** — open: retention of superseded versions and withdrawn files.
+- **SI-12** — superseded versions and withdrawn files are retained 7 years by
+  default, and files in use indefinitely; confirm the 7 years with the records
+  officer.
 - **SC-7** — the reason this record is `yes-boundary`: an unauthenticated public
   flow in which clients fetch from S3 directly, and a second S3 instance. The SSP
   data-flow diagram and component inventory need updating and the ISSO should
@@ -308,27 +314,65 @@ tell hosted from agency-hosted. Consequences:
   0011's triggers. Withdrawal must record its actor.
 - **CM-3** — the `/f/*` route shape is a published interface (above).
 
+## Design decisions made in review
+
+These were open blockers and are now decided.
+
+1. **`live` means public.** Any file uploaded to Inventory is there to be made
+   available to the public. Confirmed by the product owner, 2026-10-05.
+2. **Retention.** Files made available through a `Distribution` are stored
+   **indefinitely**. Superseded versions and withdrawn files are retained for
+   **7 years** by default. Nothing is purged automatically. This covers hosted
+   files only; `exports/` lifecycle and ADR 0011's `activity` retention remain
+   decided in their own records.
+3. **Unreferenced files are reported, not acted on.** A monthly Data.gov report
+   lists files referenced by no `Distribution`, as-is: it ignores how long a file
+   has been in the system or when it was orphaned, and it recommends cleanup for
+   Data.gov staff to act on. It replaces the daily
+   `flask audit unreferenced-files` cadence. This is a planned ticket, not a
+   decision to be made first.
+4. **A clean scan auto-advances `current_version_id`**, for first uploads and
+   replacements alike. A file may be attached to a draft `Distribution` before it
+   is scanned; its `/f/` link returns 404 until the scan passes, then works. An
+   `infected` or `error` file never serves, so the editor must show scan state
+   next to the reference. R2 is unchanged: a `Distribution` cannot go `live` until
+   its file serves.
+5. **The presigned URL TTL is 5 minutes.** It only has to cover the time until the
+   transfer starts; once started, a transfer is not cut off at expiry. A download
+   interrupted for more than 5 minutes cannot resume on the same URL and is
+   restarted from the bookmark.
+6. **Rate limit on `/f/*`: about 100 requests per 5 minutes per client**, to keep
+   the proxy and app healthy. S3 egress cost from abusive downloading is accepted
+   as a risk. The limit is configuration, not code. The proxy sits behind the
+   cloud.gov router, so it must key on the real client address
+   (`X-Forwarded-For` through nginx `real_ip`), or every client will share one
+   bucket.
+7. **The two-instance S3 split is worth its cost** and is decided.
+8. **Hide and delete are future work.** The file list will offer a **delete**
+   (trash can) button and a **hide** button. Hide sets `withdrawn_at`, so the file
+   is no longer public but stays in Inventory and can be reinstated. Delete is
+   constrained by the retention decision above and is described under
+   [Negative Consequences](#negative-consequences). The editor prompt to withdraw
+   a file when its last referencing `Distribution` is unpublished or deleted
+   remains a requirement of that work.
+
 ## Blockers before acceptance
 
-1. **Confirm the `live`-means-public premise with a named decision maker**, and
-   record it as a product decision.
-2. **Decide the unreferenced-file policy.** Permitted indefinitely, flagged for
-   review, or auto-withdrawn after a period, and who acts on the report. Same
-   problem as ADR 0005's orphan definition.
-3. **Decide retention** for superseded versions and withdrawn files (SI-12),
-   together with `exports/` lifecycle and ADR 0011's `activity` retention.
-4. **Decide whether `current_version_id` auto-advances on a clean scan** or waits
-   for explicit owner confirmation. A product question.
-5. **Set the presigned TTL (minutes)** and confirm the expiry behaviour available
-   with the credentials the cloud.gov S3 broker issues.
-6. **Set rate limits for `/f/*`** (they bound URL minting, not download
-   bandwidth) and confirm its proxy allowlist entry.
-7. **Confirm the two-instance S3 split is available and worth its cost**, and
-   whether a tenant can enable versioning on `inventory-s3-files` or lifecycle
-   expiry on `inventory-s3-quarantine` with bucket credentials, since neither is
-   exposed through Terraform or the module.
-8. **Design the withdrawal prompt** described under Negative Consequences. It is a
-   UX requirement, not a nicety.
+None.
+
+## Requirements for completion
+
+Work that must finish before the feature ships, not before this record is
+accepted. Track each as an issue.
+
+- **Verify S3 capabilities in the development environment.** Confirm that bucket
+  credentials issued by the cloud.gov broker can set lifecycle expiry on
+  `inventory-s3-quarantine` and, optionally, versioning on `inventory-s3-files`,
+  and that a 5-minute presigned URL expires as expected. The design does not
+  depend on the first two: the quarantine sweeper is the primary cleanup, and
+  versioning is optional.
+- **Confirm the 7-year default with the records officer.** It can be raised in the
+  same conversation as ADR 0008's NARA determination for v1 edit history.
 
 ## Links
 
@@ -344,4 +388,4 @@ tell hosted from agency-hosted. Consequences:
 - NIST SP 800-53 Rev 5.2 — AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8
 - **Supersedes an earlier, never-committed draft** that tied a hosted file to a `Distribution`. Its driving requirements, R4 and R5, were withdrawn by the product owner.
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing.
-- **Unverified claims.** The brokered-S3 presigned-URL expiry ceiling, tenant access to bucket versioning and lifecycle expiry, and the cost of a second S3 instance were not confirmed against a live environment. Blockers 5 and 7 close the parts this design depends on.
+- **Unverified claims.** The brokered-S3 presigned-URL expiry ceiling, tenant access to bucket versioning and lifecycle expiry, and the cost of a second S3 instance were not confirmed against a live environment. The first requirement for completion closes the parts this design depends on.

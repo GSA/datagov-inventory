@@ -489,7 +489,7 @@ sequenceDiagram
         W-->>P: 404 (never 403 — a 403 confirms the identifier names something)
     else serving
         W->>DB: increment download_count, set first/last_downloaded_at
-        W-->>P: 302 → presigned URL (TTL minutes)<br/>Content-Disposition from original_filename<br/>Cache-Control: no-store
+        W-->>P: 302 → presigned URL (TTL 5 min)<br/>Content-Disposition from original_filename<br/>Cache-Control: no-store
         P->>SF: GET presigned URL
         SF-->>P: bytes
     end
@@ -500,7 +500,7 @@ Comments on the diagram:
 - **302 rather than 301, with `no-store`**, because a permanent or cached redirect
   would survive a withdrawal and defeat it.
 - The **presigned TTL only has to cover redirect-to-transfer-start**, so it is
-  minutes — the bookmark is the app route.
+  5 minutes — the bookmark is the app route.
 - **The download counter must not be transactional with the redirect** in a way
   that fails the download if the increment fails. It is a write on a read path,
   and it is approximate by construction.
@@ -658,7 +658,7 @@ migrations, and then plan for future migrations."*
 |---|---|---|
 | `flask audit urls` | daily | Scan `live` catalog URLs for malicious content (feature-list requirement) |
 | `flask audit orphans` | daily | Catalogs with no `admin` — one query over `catalog_permission` |
-| `flask audit unreferenced-files` | daily | Hosted files referenced by no `Distribution` and still publicly served. **The report is required; the policy for acting on it is not decided** — permitted indefinitely, flagged for review, or auto-withdrawn is an open [ADR 0012](decisions/0012-catalog-scoped-hosted-files.md) blocker, as is who owns the output |
+| `flask audit unreferenced-files` | monthly | Hosted files referenced by no `Distribution` and still publicly served, reported as-is (age and orphan date are ignored) with recommended cleanup for Data.gov staff to act on. Nothing is withdrawn or purged automatically ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)) |
 | `flask db upgrade` | per deploy | Once, before rollout |
 | `flask import-publishers` | on CSV change | Seeds reusable DCAT `Organization` objects from `inventory_publishers.csv`. **Purpose not yet designed** — see the ADR 0005 blocker; with no tenant entity this is convenience seed data, not a registry |
 | freshclam | per scanner schedule | Signature updates; **alert on signature age**, not only on scan failure |
