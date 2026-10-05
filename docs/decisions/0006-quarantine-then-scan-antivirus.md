@@ -113,19 +113,16 @@ Three properties are load-bearing:
 - **Signature version is recorded per version**, so a retroactive re-scan after a
   signature update is a query rather than a guess (SI-3(2)).
 
-### The 500 MB cap is a policy change, and it is a regression
+### The 500 MB cap
 
-v1 permits 1500 MB. Lowering to 500 MB means some currently-uploadable file is
-no longer uploadable. The rationale is that a cap Inventory can actually *scan*
-is worth more than a cap it can only *accept*, and files above the cap should be
-referenced by agency-hosted URL in the `Distribution` rather than uploaded.
-`clamd` must be configured with `MaxFileSize`/`MaxScanSize` at or above 500 MB,
-and the scanner sized accordingly (~3 GB memory — see the amendment below).
-
-**Before implementation, query existing S3 objects for the actual size
-distribution.** If a meaningful number of hosted files exceed 500 MB, this cap
-needs revisiting — the number should be chosen from data, not from ClamAV's
-defaults. Recorded as a verification task, not an assumption.
+v1 permits 1500 MB, so 500 MB is a lower limit on paper. In practice it removes
+nothing: **the largest file currently hosted is about 200 MB**, confirmed by the
+product owner on 2026-10-05, so 500 MB leaves 2.5 times that of headroom. The
+rationale for the cap is that a limit Inventory can actually *scan* is worth more
+than one it can only *accept*; files above the cap are referenced by an
+agency-hosted URL in the `Distribution` rather than uploaded. `clamd` must be
+configured with `MaxFileSize` and `MaxScanSize` at or above 500 MB, and the scanner
+sized accordingly (~3 GB memory; see the amendment below).
 
 ### Amendment: the scanner app comes from the terraform-cloudgov clamav module
 
@@ -142,13 +139,12 @@ record:
   record was an estimate; 3 GB comes from a module in production use. The space
   memory quota must account for it.
 - **`max_file_size` is a required module input, and its interaction with the
-  500 MB cap needs checking.** The module README's example uses
+  500 MB cap must be tested.** The module README's example uses
   `max_file_size = "30M"` — an order of magnitude below the cap proposed here.
-  That is an example rather than a limit, but it is a signal: the blocker above
-  (measure the real S3 size distribution) should also confirm that a 500 MB scan
-  completes within the module's health-check and request timeouts. **If it does
-  not, the cap must come down.** Scannability, not policy preference, sets the
-  ceiling.
+  That is an example rather than a limit, but it is a signal: see the
+  [requirements for completion](#requirements-for-completion). **If a 500 MB scan
+  does not complete within the module's health-check and request timeouts, the cap
+  must come down.** Scannability, not policy preference, sets the ceiling.
 - **The scanner gets an `apps.internal` route only.** The module wires this
   itself, so this record's requirement that the scanner have no public route is
   enforced by configuration rather than by our own care.
@@ -194,7 +190,7 @@ rather than configured by hand.
 - **ClamAV catches known signatures only.** It is not a guarantee, and the ATO
   documentation should not overstate it. It does not detect malicious *content*
   in a structurally valid CSV.
-- **The 500 MB cap is a user-visible capability reduction** (above).
+- **The 500 MB cap is below v1's 1500 MB limit**, though above every file currently hosted (the largest is about 200 MB), so no existing file is affected.
 - **freshclam requires outbound access to `database.clamav.net`** through the
   egress proxy. Without it, signatures silently staleness-decay — the most
   likely quiet failure of this design. Requires an explicit alert on signature
@@ -246,6 +242,23 @@ rather than configured by hand.
 - **Evidence for the ATO package** — a test demonstrating that a known-malicious
   test file (EICAR) is detected, deleted, and never presigned. This should be an
   automated test, not a one-time manual demonstration.
+
+## Blockers before acceptance
+
+None.
+
+## Requirements for completion
+
+Work that must finish before the upload feature ships, not before this record is
+accepted. Track each as an issue.
+
+- **Prove a 500 MB scan in the development environment.** Set `max_file_size` and
+  `clamd`'s `MaxFileSize` and `MaxScanSize` to at least 500 MB, then confirm a
+  500 MB file scans to completion within the module's health-check and request
+  timeouts and the 3 GB memory limit, including a worst-case compressed file. If it
+  does not, lower the cap.
+- **Set the proxy body limit from the cap**, with headroom for multipart overhead,
+  in place of v1's 1500 MB (`proxy/nginx.conf:31`).
 
 ## Links
 

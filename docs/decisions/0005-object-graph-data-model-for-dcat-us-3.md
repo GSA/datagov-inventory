@@ -45,9 +45,9 @@ sharing.
   DCAT `accessLevel`, and Inventory publishing status — that interact
   confusingly, with resources publicly visible while datasets are not
   (GSA/data.gov#2095). v2 needs exactly one authoritative state field.
-- **The authoritative validator operates on assembled JSON.** The upstream
-  `GSA/dcat-us` validator validates a complete nested catalog against
-  `Catalog.json`. Storage must round-trip losslessly to that shape (SI-10).
+- **The authoritative validator operates on assembled JSON.** The Data.gov validator
+  API ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)) validates a complete
+  nested catalog against `Catalog.json`. Storage must round-trip losslessly to that shape (SI-10).
 - **Schema evolution must be cheap.** DCAT-US 3.0 point releases should be a
   `_external/dcat-us` submodule bump, not a migration.
 - **Import must produce reuse automatically.** Agencies onboard by importing a
@@ -237,8 +237,6 @@ not an emergent property.
 - **Shared objects create shared blast radius.** Editing a `Kind` used by 50
   datasets changes all 50. The UI must show reference counts before editing, and
   copy-on-write must be offered. Without this, reuse becomes a footgun.
-- Reference counting is needed to identify genuinely orphaned objects, and
-  "orphan" is ambiguous for a reusable object deliberately kept unattached.
 - **The export walk traverses two kinds of edge**, `object_reference` within a
   catalog and `catalog_link` between catalogs. Membership is uniform; embedding is not. The walk
   therefore has a mode switch, and that switch is where catalog-boundary
@@ -267,7 +265,7 @@ not an emergent property.
   re-authorize on entering an embedded catalog (see
   [the amendment above](#the-walk-re-authorizes-at-every-catalog-boundary)).
 - **SI-10 (Input Validation)** — all imports and exports validated against
-  DCAT-US JSON Schema (Draft 2020-12) by the single Python validator.
+  DCAT-US 3.0 by the shared Data.gov validator API.
 - **CM-3 (Configuration Change Control)** — schema version (`_external/dcat-us`
   submodule commit) should be recorded on `export_run` so an export is
   reproducible against the schema that validated it.
@@ -276,20 +274,25 @@ not an emergent property.
   data by definition and contains no PII beyond publicly published contact
   points.
 
-### Open question: what becomes of the publishers reference data?
+### No publisher registry or seed data
 
-[config/data/inventory_publishers.csv](https://github.com/GSA/inventory-app/blob/main/config/data/inventory_publishers.csv) (~270 rows encoding a department → bureau
-hierarchy) was v1's organization registry. With no tenant entity in v2 it is no
-longer structural data, and its only remaining candidate purpose is **seed data
-for reusable DCAT `Organization` objects** so that agency staff select a canonical
-publisher instead of typing one.
+v1's `inventory_publishers.csv` (~270 rows encoding a department to bureau
+hierarchy) was an organization registry that had to be maintained by hand. **It is
+not carried into v2, and there is no `flask import-publishers` task.** With no
+tenant entity, it would only ever have been seed data, and DCAT-US 3.0 lets
+agencies define their own structure.
 
-That is a convenience feature and it is not designed. Open sub-questions: whether
-the department → bureau hierarchy is represented at all (DCAT-US 3.0 has no
-required parent/child relation between `Organization` objects); whether seeded
-objects are global or copied per catalog; and whether the existing
-`update_publishers.yml` workflow still has anything to update. **Decide before
-building the publisher picker, not after.**
+A publisher is an ordinary reusable DCAT `Organization` object that an agency
+creates in its own catalog, or receives through import. The graph model supplies
+the consistency the CSV was meant to: an agency selects one `Organization` and
+references it from every dataset, and import converges repeated publishers onto
+shared objects ([ADR 0008](0008-onboard-via-data-json-reimport.md)). Inventory
+does not represent a department to bureau hierarchy; an agency expresses whatever
+structure DCAT-US 3.0 allows through its own objects.
+
+The cost is that nothing enforces one canonical spelling of an agency's name across
+catalogs. That is a naming-consistency concern, not a structural one, and it can be
+addressed later with a validation warning or a report if it proves to matter.
 
 ## Links
 
@@ -301,6 +304,6 @@ building the publisher picker, not after.**
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — `catalog_permission` semantics
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — import path that produces the shared-object structure
 - [ADR 0012](0012-catalog-scoped-hosted-files.md) — hosted files as a catalog-scoped resource **outside** this object graph; shares this record's orphan-definition question
-- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream 3.0 validator and error summarizer v2 consumes; `ckanext/datagov_inventory/dcat/` is a stale fork of it, not a source ([`architecture.md` §8](../architecture.md#consume-upstream-own-only-the-graph-layer))
+- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the 3.0 schema definitions v2 reads; `ckanext/datagov_inventory/dcat/` is a stale fork of the upstream code, not a source ([`architecture.md` §8](../architecture.md#validate-through-the-api-read-only-the-schema-definitions))
 - NIST SP 800-53 Rev 5.2 — AU-2, AU-3, AU-10, AC-3, SI-10, SI-12, CM-3, SC-28
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.

@@ -197,9 +197,9 @@ ADR 0005's model, and are captured automatically:
 The genuine residue is events with **no row behind them**: failed authentication
 attempts, session establishment and idle termination, and authorization denials
 (an AC-3 rejection changes nothing, which is precisely why it must be recorded).
-These are few, and they are security events rather than data-change events. They
-remain in the structured logs for the MVP; whether they need a durable table is
-listed as a blocker below rather than settled here.
+These are few, and they are security events rather than data-change events. **They
+are recorded in the structured logs, with no database table**, as the platform's other
+applications do ([Design decisions](#design-decisions-made-in-review)).
 
 ### Positive Consequences
 
@@ -272,8 +272,8 @@ listed as a blocker below rather than settled here.
   mechanism, but it means every public download writes an `activity` row. At
   Inventory's scale that is irrelevant; it is nonetheless the one event class
   whose volume is driven by anonymous traffic rather than by authenticated
-  editing, so it is the first place `activity` growth would show up and it should
-  be considered when retention is decided (blocker 3).
+  editing, so it is the first place `activity` growth would show up, and the first
+  thing to check when retention is revisited.
 
 ### Compliance Consequences
 
@@ -297,11 +297,10 @@ listed as a blocker below rather than settled here.
 - **AU-12 (Audit Generation)** — generation is at the database, not the
   application, which is the strongest available placement. The caveat is the
   actor-attribution path above.
-- **SI-12 (Retention)** — `activity` is append-only and unbounded.
-  Retention is **not decided here** and is a blocker. It is now one of **three**
-  retention questions that should be decided together: `activity`, the log archive
-  whose retention v2 inherits, and the superseded hosted-file versions and
-  withdrawn files that [ADR 0012](0012-catalog-scoped-hosted-files.md) accumulates.
+- **SI-12 (Retention)** — `activity` is retained **7 years** by default, with the
+  period revisited once real usage is seen. Log retention is inherited from the
+  shared shipper and must be written down in the SSP. Hosted-file retention is
+  decided in [ADR 0012](0012-catalog-scoped-hosted-files.md).
 - **SR-3, RA-5 (Supply Chain, Vulnerability Monitoring)** — a third-party
   dependency now implements an ATO-relevant control. It must be pinned exactly,
   appear in the SBOM, and be named in the SSP as an audit-mechanism component.
@@ -311,30 +310,51 @@ listed as a blocker below rather than settled here.
   records, with actor supplied by the application," and the component inventory
   gains the library at a pinned version.
 
+## Design decisions made in review
+
+These were open blockers and are now decided.
+
+1. **Non-row security events are recorded in logs, not a table.** Failed
+   authentication, session establishment and idle termination, and authorization
+   denials go to the structured logs with request and actor IDs, as in the platform's
+   other applications. No durable table is built for them. The log archive's retention
+   is inherited from the shared shipper, and that value must be written down in the
+   SSP.
+2. **`activity` is retained 7 years by default.** The application is not heavily used,
+   so that is accepted, with a review once full usage is known. Two consequences:
+   - The application role has `INSERT` and `SELECT` only, so purging after the
+     retention period needs a separate privileged maintenance step (for example,
+     partitions dropped by a maintenance role). Nothing is built until it is needed,
+     and the first purge is years away.
+   - `user_account` rows are soft-deleted only (ADR 0004) and must be kept at least as
+     long as the `activity` rows that reference them.
+
 ## Blockers before acceptance
 
-1. **A time-boxed spike, because the behavioural claims in this record are read
-   from source and not executed.** It must measure: whether a null
-   `transaction_id` is in fact what a session-bypassing write produces; what
-   `old_data`/`changed_data` actually contain for a `properties JSONB` edit; write
-   cost and `activity` row count for a realistic 2,000-object import; that
-   `GRANT INSERT, SELECT`-only works end to end; and that the trigger functions
-   are not `SECURITY DEFINER` (none was observed, but this was not verified by
-   execution).
-2. **Decide whether non-row security events need a durable table** — failed
-   authentication, session establishment and termination, authorization denials —
-   or whether structured logs with a defined retention satisfy AU-2 for them.
-   **The "defined retention" half now has a candidate answer:** logs drain to the
-   shared Logstack shipper's S3 archive, whose retention v2 inherits
-   ([`architecture.md` §6](../architecture.md#logging-uses-shared-infrastructure-this-repository-does-not-own)).
-   Two caveats before that closes this blocker — the inherited retention value must
-   actually be written down, and a drain is best-effort, so AU-5 detection of drain
-   loss is a prerequisite for relying on logs as the AU-2 record of these events.
-3. **Decide retention for `activity`**.
-4. **Confirm the cloud.gov brokered RDS role may create triggers and functions**
-   in the application schema. No `CREATE EXTENSION` is needed, which is the usual
-   obstacle, but trigger creation privilege should be confirmed rather than
-   assumed.
+1. **Run a time-boxed spike, because the behavioural claims in this record are read
+   from source and not executed.** It must prove that the **full PostgreSQL-Audit
+   setup works on the cloud.gov brokered RDS service**, not only that triggers can be
+   created:
+   - the application role can create the trigger functions and triggers in the
+     application schema, from the Alembic baseline, with no `CREATE EXTENSION`;
+   - `activity` and `transaction` populate end to end, including the extended
+     `transaction` columns (`actor_id`, `actor_kind`, `operation`, `request_id`) through
+     `activity_values`;
+   - a write that bypasses the ORM session produces a null `transaction_id`, as
+     expected, and the assertion that no such rows exist can be tested;
+   - what `old_data` and `changed_data` contain for a `metadata_properties` JSONB edit;
+   - write cost and `activity` row count for a realistic 2,000-object import;
+   - `GRANT INSERT, SELECT`-only on `activity` and `transaction` works end to end;
+   - the trigger functions are not `SECURITY DEFINER`;
+   - a migration that recreates a table does not silently drop its trigger;
+   - the `enable_versioning` setting can be controlled in one place.
+
+## Requirements for completion
+
+- **Write down the shared log archive's retention** in the SSP, since security events
+  rely on it.
+- **Add the tests** that every versioned table carries `audit_trigger_row` and that no
+  `activity` row has a null `transaction_id`.
 
 ## Consequences for other records
 
@@ -351,7 +371,7 @@ listed as a blocker below rather than settled here.
   is a row mutation on `hosted_file` or `hosted_file_version`, including the
   download counter, so it needs no event-writing code. It contributes the four
   operations `upload_version`, `advance_current_version`, `withdraw_file`, and
-  `reinstate_file`, and it does **not** make blocker 2 above load-bearing.
+  `reinstate_file`, and it does **not** make the security-event decision above load-bearing.
 
 ## Links
 

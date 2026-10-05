@@ -1,5 +1,5 @@
 ---
-title: "Onboard agencies by re-importing published data.json rather than migrating from CKAN"
+title: "Onboard agencies by importing published DCAT-US 3.0 data.json rather than migrating from CKAN"
 status: "proposed"
 date: "2026-09-21"
 decision_makers: ["Data.gov engineering team"]
@@ -14,339 +14,259 @@ risk_treatment: "accept"
 
 ## Context and Problem Statement
 
-Inventory v1 holds agency metadata in CKAN's database as DCAT-US 1.1 datasets.
-v2 uses a different data model (ADR 0005) and a different metadata version
-(DCAT-US 3.0). We must decide whether to build a migration path from the v1
-CKAN database into v2, or have agencies re-establish their catalogs in v2 by
-importing their published `data.json`. If we choose the latter option, we must
-then further decide whether to support import+conversion from a v1.1 `data.json` or
-only support import from v3.0 `data.json`.
+Inventory v1 holds agency metadata in CKAN's database as DCAT-US 1.1 datasets. v2
+uses a different data model ([ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md))
+and a different metadata version (DCAT-US 3.0). We must decide whether to build a
+migration from the v1 CKAN database into v2, or have agencies re-establish their
+catalogs in v2 by importing a DCAT-US 3.0 file, and whether v2 converts 1.1 input.
 
+### Decided requirements
+
+Answered by the product owner, 2026-10-05:
+
+- **No cutover.** Organizations and sub-organizations move to v2 on their own
+  timeline. The **target** is to retire v1 before 2027-09-30. It is a target, not a
+  commitment: it is confirmed or moved once a development timeline exists, and
+  retirement is preceded by a notice period.
+- **Agencies do the move; Data.gov staff do not migrate anyone's data.** Any
+  organization or sub-organization can export from v1 and create its catalog in v2.
+  Users who can reach v1 within an agency decide among themselves who imports and
+  owns the canonical version. Sub-organizations and their parent coordinate sharing
+  and permissions themselves, and Data.gov can be consulted on best practice.
+- **Inventory is the authoring system of record, never a publishing relay.** The
+  canonical catalog is authored in Inventory and exported back to the agency's IT
+  department to publish online and be harvested by data.gov. Re-import exists for
+  retries and corrections.
+- **Abandoned and unused organizations are not carried forward.** That is a feature:
+  a fresh start that keeps junk from perpetuating. An organization whose v1 export
+  does not work is treated as unused, since none has raised it.
+- **A final snapshot** of v1 is taken before shutdown (see
+  [Snapshot and shutdown](#snapshot-and-shutdown)).
+- **No reconciliation on the Data.gov side.** Comparing the imported catalog against
+  v1 is the importing user's review.
 
 ## Decision Drivers
 
-- **Every agency's metadata is already published and publicly reachable.** The
-  entire purpose of Inventory is to generate a `data.json` that the agency hosts
-  at `agency.gov/data.json`. The migration source is therefore public, canonical,
-  and available without any access to the v1 database. *Amended: public and
-  canonical, but **1.1**, so it is no longer directly importable — see the
-  amendment below.*
-- ~~**A 1.1 → 3.0 converter already exists upstream and is well tested.**~~
-  **Withdrawn as a driver for this decision.** The converter does exist and is
-  well tested — [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema)'s
-  `transforms.py` (499 lines) and `convert_dcat_1_1_to_3_0.py` (558 lines), backed
-  by 719 lines of tests — but **v2 does not run it.** It is an out-of-band CLI an
-  agency or Data.gov staff may use to produce a 3.0 file *before* import. "The
-  migration tool is largely written" is therefore no longer an argument for this
-  option; it is an argument that the agency's prerequisite is achievable. The
-  distinction matters because the work moves from v2's critical path to someone
-  else's.
-- **A database-level migration would have to bridge both a model change and a
-  schema-version change simultaneously**, and would need to reproduce CKAN's
-  `package_extras` conventions — the exact thing v2 exists to escape. *This driver
-  is unaffected, and it is now the strongest one remaining.*
-- **Import produces reuse automatically.** The import code merges repeated contact
-  points and publishers into shared objects. Import is not a lossy shortcut; it
-  is the mechanism that produces the desired structure.
-- **v1 remains available during transition.** Nothing is deleted by this
-  decision; v1 continues serving until agencies have re-established in v2.
-  *Amended: v1 is now also one of only two routes to a 3.0 file, which couples its
-  lifetime to onboarding a second way — see the amendment below.*
-- **1.1 → 3.0 is not a lossless mechanical mapping.** Some 3.0 constructs
-  (`DataService`, `Concept` vocabularies, structured `Location`) have no 1.1
-  source and require human authoring regardless of migration approach.
-  `DatasetSeries` is the exception worth naming: 1.1's `isPartOf` ("Collection",
-  a bare identifier string) *is* a source for it, and upstream's converter
-  promotes those relationships — so series structure can survive conversion where
-  the others do not, **provided the agency converts with upstream's converter
-  rather than v1's stale fork.** Lossiness is now the agency's problem to manage,
-  not something v2 can report on. That is a weaker position, not a neutral one.
+- **Metadata is public and exportable.** Each organization can produce a catalog
+  without access to the v1 database.
+- **A database migration would bridge a model change and a schema-version change at
+  once**, and would have to reproduce CKAN's `package_extras` conventions, the exact
+  thing v2 exists to escape.
+- **Import produces reuse.** Merging identical objects during import gives the shared
+  structure v2 wants.
+- **v1 stays available while agencies move**; nothing is deleted by this decision.
+- **1.1 to 3.0 is not a lossless mapping.** Some 3.0 constructs (`DataService`,
+  `Concept` vocabularies, structured `Location`) have no 1.1 source and need human
+  authoring regardless of approach.
+- **Conversion is not Inventory-specific**, and each organization does it once.
 
 ## Considered Options
 
-1. **Import from v3.0 `data.json`.** Agencies import their public DCAT-US 3.0 catalog into Inventory 2.0; conversion from
-  v1.1 to 3.0 must be handled by the agency outside Inventory 2.0. Agencies that use Inventory 1.0 can export to DCAT 3.0
-  from within Inventory 1.0, agencies that don't can run upstream's `convert_dcat_1_1_to_3_0.py` CLI out-of-band.
-2. **Import from v1.1 `data.json`.** Agencies import their public DCAT-US 1.1 catalog into Inventory 2.0; the existing converter
-   produces a 3.0 catalog in `draft` state for review before going `live`.
-3. **Database migration from CKAN.** Read the v1 CKAN database directly,
-   convert packages and extras to v2 objects, and populate v2.
+1. **Import from a 3.0 file.** The agency produces the 3.0 file outside Inventory 2.0.
+2. **Import 1.1 and convert inside v2.** Rejected: v2 would carry the 1.1 schemas, a
+   second validation path, and a dependency on upstream converter code, for an
+   operation performed once per organization.
+3. **Database migration from CKAN.** Rejected: far costlier than import, and it
+   would bypass the review gate.
 
 ## Decision Outcome
 
-Chosen option: **Option 1 — re-import from published 3.0 `data.json`**.
-
-Option 3 is rejected because import is radically cheaper than a database migration, and still produces the right structure.
-
-Option 2 is rejected for reasons described in [Amendment: v2 does not convert 1.1, so producing 3.0 is the agency's prerequisite](#amendment-v2-does-not-convert-11-so-producing-30-is-the-agencys-prerequisite)
-
-
-### Amendment: v2 does not convert 1.1, so producing 3.0 is the agency's prerequisite
-
-**Inventory v2 imports DCAT-US 3.0 only. It does not convert 1.1 input.** The
-conversion step this record originally placed inside the import path is removed
-from v2's scope entirely.
-
-This is a **permanent scope decision, not a deferral.** Framing it as "deferred"
-would understate the user impact and postpone the conversation with affected
-agencies — the same reasoning [ADR 0007](0007-retire-tabular-datastore-api.md)
-applies to the DataStore. If the decision is reversed later, this record should be
-amended again or superseded, not quietly reinterpreted.
-
-#### What this costs, stated plainly
-
-**Every agency's published `data.json` is 1.1 today.** At the time of writing,
-therefore, **no agency can onboard from its published file as-is** — which is the
-exact scenario this record's title describes. Onboarding gains a prerequisite that
-Inventory cannot satisfy on the agency's behalf:
+Chosen option: **Option 1.** **v2 imports DCAT-US 3.0 only and does not convert 1.1.**
+This is a permanent scope decision, not a deferral; reversing it needs a new
+decision, not quiet reinterpretation.
 
 | Route to a 3.0 file | Who runs it | Caveat |
 |---|---|---|
-| v1's `/organization/{id}/dcat-v3.json` | Agency or Data.gov staff, while v1 runs | Stale fork, degraded validator, lossier output |
-| Upstream `convert_dcat_1_1_to_3_0.py` as a CLI | Agency or Data.gov staff, out-of-band | Not a v2 component; requires someone to run and understand it |
-| The agency regenerates `data.json` as 3.0 from its own system | Agency | Only available to agencies that author outside Inventory |
+| v1's `/organization/{id}/dcat-v3.json` | Agency users, while v1 runs | Stale fork of the converter and a degraded validator, so output may be lossier |
+| Upstream `convert_dcat_1_1_to_3_0.py` as a CLI | Agency, out-of-band | Not a v2 component; someone must run it |
+| The agency regenerates `data.json` as 3.0 from its own system | Agency | Only for agencies that author outside Inventory |
 
-Three consequences follow, and none of them is a simplification:
+Gaps in the v1 export's fidelity are accepted, and the agency reviews the draft.
 
-- **An agency that cannot reach 3.0 has no onboarding path, and v2 cannot unblock
-  it.** Previously the conversion was v2's to run and therefore v2's to fix; now it
-  is a dependency on work v2 neither owns nor schedules.
-- **v1's useful life is extended for a second, independent reason.** The CP-9 note
-  below already gates v1 decommissioning on completed re-import. v1 is now *also*
-  one of only two realistic conversion routes, so shutting it down removes a
-  capability agencies may still need. **These two gates must be tracked
-  separately** — "every agency has re-imported" no longer implies "nobody needs v1's
-  converter any more."
-- **v2 can no longer report on conversion quality.** The dual-side (1.1 in, 3.0
-  out) validation this record relied on becomes single-side 3.0 validation. v2 sees
-  only the result, so it cannot tell an agency *what the conversion lost* — only
-  whether what arrived is valid 3.0.
+## Import behavior
 
-#### What holds this together
+Import always decomposes into a **fresh** object set in `draft`. It never diffs
+against or merges into existing objects.
 
-**v2 validates 3.0 on ingest**, so a bad conversion — including one from v1's stale
-fork — fails loudly at import rather than silently entering the catalog. That is
-the mitigation for all three routes above, and it is why the quality gap is a
-coordination problem rather than a correctness one.
+### Invalid objects are ingested and flagged
 
-#### Why this is nonetheless the right trade
+Import does not reject a file for schema errors. Only a file that cannot be parsed
+(not valid JSON, or no recognizable DCAT class) is refused. Each object is validated
+against DCAT-US 3.0 by the Data.gov validator API and given a **validation status** of
+valid or invalid, with its errors, plus any warnings, which never gate `live`. Invalid objects are kept, shown as invalid
+in the UI, and **cannot be set `live`**, so they are never exported as they stand.
 
-The conversion code was never Inventory-specific. Hosting it meant v2 carried the
-1.1 schemas, a second validation path, and a code dependency on an upstream
-converter module, in service of an operation each agency performs **once**. A
-once-per-agency transformation does not need to live in the application's
-boundary; it needs to be available to the people performing it, and it already is.
+This is a validation status, **not a second lifecycle state.** ADR 0005 requires
+exactly one authoritative `state` field (`draft` or `live`), and an object can be a
+`draft` and invalid at once. Because the export walk selects only `state = 'live'`,
+the gate needs no export-side change. An object that references an invalid object is
+itself not exportable as it stands. Validity is recomputed when the object is edited
+and when the pinned schema changes.
 
-What v2 keeps is the part that is genuinely its own: 3.0 validation, graph
-decomposition, and the `draft` review gate.
+### Convergence of identical objects
 
-### Amendment: import never merges — re-import replaces by build-then-swap
+During decompose, **completely identical objects are merged into one shared object**,
+and the import summary reports how many were merged.
 
-The record above describes initial onboarding and leaves the shape of a *second*
-import into an already-populated catalog undefined.
+- **Eligible:** any object other than a `Dataset`. In practice this means
+  `Organization`, `Kind`, `Concept`, `Location`, and `Distribution`. `Dataset`s are
+  never merged; they carry unique identifiers from v1, so the question does not arise.
+- **Equality is exact, with no normalization.** Values are taken as-is: no trimming
+  and no case-folding. Two objects are identical only if all their properties are
+  equal, with JSON key order ignored and array order preserved. Objects are compared
+  from the leaves up, so a parent whose children were merged can itself match.
+- **Scope:** within the incoming file only, never against objects already in
+  Inventory.
+- **Similar-but-not-identical objects are not highlighted at import.** A tool that
+  finds near-duplicates is useful to every user at any time, not just on import, so it
+  is future work and belongs in the editor.
 
-**Import always decomposes into a fresh object set. It never diffs against, or
-merges into, existing objects.** Two cases:
+Merged objects carry the usual shared-object consequences: the UI shows reference
+counts and offers copy-on-write before an edit changes every referrer (ADR 0005).
 
-| Case | Behavior |
-|---|---|
-| Import into a new catalog | Decompose into a new object set in `draft`; this is the onboarding path described above |
-| Re-import over an existing catalog | Decompose into a **new** object set, then transfer the catalog identity to it atomically — *build-then-swap* |
+### Re-import replaces by build-then-swap
 
-Re-import is therefore destroy-and-rebuild, not update. The incoming file is
-authoritative in full; nothing is preserved from the previous object set.
+Re-import over an existing catalog decomposes into a **new** object set and then
+transfers the catalog identity to it atomically. The incoming file is authoritative in
+full; nothing from the previous object set is preserved. Build-then-swap gives:
 
-**Why build-then-swap rather than delete-then-import:**
+- **Atomicity.** A failure cannot leave a catalog deleted and unreplaced.
+- **No serving gap.** The old object set keeps answering
+  `GET /catalog/{id}/dcat-v3.json` until the swap commits.
+- **The `draft` review gate survives.** The new set stays in `draft` until a human
+  approves the swap.
 
-- **Atomicity.** A failure part-way through cannot leave a live catalog deleted
-  and unreplaced.
-- **No serving gap.** The previous object set keeps answering
-  `GET /catalog/{id}/dcat-v3.json` until the swap commits, so
-  `harvest.data.gov` never observes an empty catalog
-  ([`architecture.md` §2](../architecture.md#2-container-view)).
-- **The `draft` review gate survives.** Import produces `draft` so a human
-  reviews before anything is published. Mutating a `live` catalog in place would
-  force a choice between reverting it to `draft` — removing it from exports until
-  re-reviewed — and publishing unreviewed content. Build-then-swap keeps the new
-  object set in `draft` for review and swaps only on approval.
-
-Note that build-then-swap *is* the new-catalog path plus an identity transfer, so
-there is one decompose implementation, not two.
+There is one decompose implementation: build-then-swap is the new-catalog path plus an
+identity transfer.
 
 #### What the catalog identity carries across a swap
 
 Because the `catalog` row survives, so does everything referencing it:
 
-- **`catalog_permission` grants**, including catalog-principal and transitive
-  grants ([ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)). Re-import
-  does not re-run the unresolved first-`admin` bootstrap.
+- **`catalog_permission` grants**, including catalog-principal and transitive grants
+  ([ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)). Re-import does not
+  re-run first-`admin` bootstrap.
 - **Inbound `catalog_link` edges.** A catalog embedding this one still embeds it.
-  This is the main reason identity transfer is preferable to creating a new
-  catalog, since catalog-to-catalog embedding is MVP scope
-  ([`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing-is-mvp-scope)).
 - **The export URL**, which `harvest.data.gov` is intended to consume long term.
 
-**Outbound `catalog_link` edges are part of the replaced content**, so the
-acyclicity check specified on `catalog_link` writes must be **re-run at swap
-time**: a rebuilt catalog can close a loop that the previous object set did not.
-Swapping without that check is the one way this design can introduce a cycle, and
-a cycle is a denial-of-service against the export walk.
+**Outbound `catalog_link` edges are part of the replaced content**, so the acyclicity
+check on `catalog_link` writes must be **re-run at swap time**. Otherwise a rebuilt
+catalog can close a loop, which is a denial-of-service against the export walk.
 
-#### Open question: is Inventory ever a publishing conduit?
+### Snapshot and shutdown
 
-This amendment assumes import is **onboarding-shaped** — roughly once per agency,
-plus retries — because in v2 Inventory *generates* `data.json` rather than relaying
-it. An agency that maintains metadata in its own system does not need Inventory at
-all; it hosts its own file and `harvest.data.gov` harvests it.
+Before v1 is shut down, a **final snapshot** is taken: a database backup and a
+**DCAT-US 3.0 archive** of v1's organizations, for the case where one needs to be
+revised in v2.
 
-**If that assumption is wrong** — if an agency is expected to author elsewhere and
-re-publish through Inventory on a schedule — then destroy-and-rebuild is the wrong
-semantics, because each cycle discards curation and audit history, and merge
-returns as a requirement. Confirm the assumption before this record is accepted.
-
-### Compliance consequences of the build-then-swap amendment
-
-- **AU-2, AU-3, AU-10** — a swap must be a single audit event recording the source
-  URL, the `_external/dcat-us` submodule commit, the outgoing and incoming object
-  counts, and the actor who approved it. Without that, the disappearance of an
-  object set is unexplained in the trail.
-- **CM-4 (Impact Analysis)** — the per-organization dataset-count reconciliation
-  this record already requires applies to each re-import, not only the first,
-  since a swap can silently shrink a catalog if the published file has regressed.
+- **Storage:** the DCAT-US 3.0 export goes to v1's existing S3 bucket, which is kept for
+  **7 years**. The archive file is **provided to an agency on request**.
+- **No read-only period.** Changes made on the final day of use may be lost; this is
+  accepted.
+- **No per-organization completion gate.** Retirement is by date after the notice
+  period, not by every organization finishing. v1's `dcat-v3.json` endpoint ends with
+  v1, so there is no second gate.
+- **Organizations whose v1 export fails** have no 3.0 archive; the database backup
+  covers them.
 
 ### What is not migrated
 
-- **User accounts.** Not needed: ADR 0004 creates accounts just-in-time on first
-  Login.gov authentication.
-- **Version history.** v1's CKAN revision history is not carried into v2.
-  v2's audit trail begins at import. This is the main accepted loss — see below.
-- **Draft datasets.** Anything not in the published `data.json` is not imported.
-  Agencies with unpublished drafts in v1 must re-enter them.
-- **Uploaded data files.** The incoming `data.json` carries `accessURL` /
-  `downloadURL` strings, not bytes, so onboarding imports **no** file content. An
-  agency whose v1 files were hosted by Inventory must upload them to the v2
-  catalog and repoint the `downloadURL`. This is distinct from the swap case
-  above, where existing v2 hosted files are untouched because nothing links them
-  to the replaced objects.
-- **`config/data/inventory_publishers.csv`** (271 lines, ~350 organizations) is
-  *reference* data, not migration data. It is **not** a tenant registry in v2 —
-  agency/bureau silos are not a first-class concept
-  ([`architecture.md` §4](../architecture.md#there-is-no-agencybureau-tenant-entity)) —
-  so its only candidate purpose is seeding reusable DCAT `Organization` objects.
-  That purpose is not yet designed; see the open question in
-  [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md#open-question-what-becomes-of-the-publishers-reference-data).
+- **User accounts.** Accounts are created just-in-time on first Login.gov
+  authentication ([ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md)).
+- **Version history.** v2's audit trail begins at import.
+- **Draft datasets.** Anything not in the exported file is not imported. Agencies with
+  unpublished drafts in v1 must re-enter them.
+- **Uploaded data files.** The file carries `accessURL` and `downloadURL` strings, not
+  bytes. An agency whose v1 files were hosted by Inventory must upload them to its v2
+  catalog and repoint the `downloadURL`. Existing v2 hosted files are untouched by a
+  swap, because nothing links them to the replaced objects
+  ([ADR 0012](0012-catalog-scoped-hosted-files.md)).
+- **`config/data/inventory_publishers.csv`** is not carried into v2
+  ([ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md#no-publisher-registry-or-seed-data)).
 
 ### Positive Consequences
 
-- No CKAN database reader, no dual-write, no reconciliation tooling to build,
-  test, and then throw away.
-- The onboarding path and the migration path are the **same** code path, so it is
-  exercised continuously by new agencies rather than once at cutover.
-- Import produces `draft` state, forcing human review before anything is
-  published — a correctness gate a database migration would bypass.
-- Agencies get a genuine opportunity to clean up metadata rather than porting
-  accumulated problems forward.
-- Upstream `convert_dcat_1_1_to_3_0.py`'s existing machine-readable
-  `RESULTS:{...}` / `COUNTS:{...}` output makes migration progress measurable per
-  organization — **though it is now observed by whoever runs the converter
-  out-of-band, not emitted by v2.**
-- **v2 carries no 1.1 code, schemas, or second validation path**, so the
-  application's input surface is one metadata version rather than two (CM-7).
+- No CKAN database reader, dual-write, or reconciliation tooling to build and discard.
+- Onboarding and migration are the same code path, exercised continuously.
+- Import produces `draft`, forcing human review before anything is published.
+- Invalid data is visible and fixable in the editor, not lost at the door.
+- Agencies get a chance to clean up metadata, and abandoned organizations are not
+  perpetuated.
+- v2 carries no 1.1 code, schemas, or second validation path (CM-7).
 
 ### Negative Consequences
 
-- **Version history does not survive.** v1's edit history is not carried into
-  v2. If historical attribution has a retention obligation, the v1
-  database must be preserved separately as an archive — this ADR does not create
-  that archive, and someone must decide whether one is required (see below).
-- **No agency can onboard from its published file as-is.** Every published
-  `data.json` is 1.1, and v2 imports 3.0 only. Producing the 3.0 file is an
-  agency-side prerequisite with no owner assigned by this record — the single
-  largest cost of the no-conversion amendment.
-- **Onboarding now depends on work v2 neither owns nor schedules.** A conversion
-  defect, or an agency without the capacity to run a CLI, blocks onboarding with no
-  lever available to the Inventory team.
-- **Work is pushed onto agency staff**, across ~350 organizations. Each needs
-  review of the converted draft and authoring of genuinely new 3.0 fields — **and,
-  now, the conversion itself.** This is coordination effort, not engineering
-  effort, but it grew.
-- **Stale published files produce stale imports.** An agency whose
-  `data.json` has not been regenerated recently will import outdated metadata.
-- **Anything in v1 but not in the published export is silently absent.** The
-  import cannot report what it never saw. Per-organization dataset counts should
-  be compared between v1 and the imported result as a reconciliation check.
-- **Conversion is imperfect by nature, and v2 can no longer see how.** 1.1 has no
-  `DataService`, structured `Location`, or `Concept` vocabularies, so imported
-  catalogs will be valid 3.0 but will not exploit all of 3.0's new capabilities
-  without human authoring. `DatasetSeries` is partially recovered from 1.1
-  `isPartOf` by upstream's converter; nested series are not supported and raise a
-  conversion error. **Because conversion happens outside v2, none of this appears
-  in an Inventory-side report** — v2 sees only the result.
-- **v1 decommissioning is now gated twice**, on completed re-import *and* on no
-  agency still needing its `dcat-v3.json` converter. Two gates that must be tracked
-  separately.
+- **Version history does not survive** in v2. It is kept only in the v1 snapshot.
+- **Onboarding depends on work v2 neither owns nor schedules.** An agency that cannot
+  produce a 3.0 file has no path, and v2 cannot unblock it. Producing it is the
+  agency's job.
+- **Work is pushed onto agency staff**, who must review the draft and author new 3.0
+  fields. This is coordination, not engineering, effort.
+- **Anything in v1 but not in the exported file is silently absent**, and the import
+  cannot report what it never saw. The importing user compares counts.
+- **Conversion is imperfect, and v2 cannot see how.** It sees only the 3.0 result.
+- **Two users in one agency can each import their own copy.** v2 has no tenant to
+  prevent it; agencies coordinate among themselves.
+- **Invalid objects are stored.** They are rendered with output escaping like any
+  other untrusted data.
 
 ### Compliance Consequences
 
-- **SI-10 (Input Validation)** — imports validate against **DCAT-US 3.0 only**.
-  The dual-side (1.1 in, 3.0 out) validation this record originally specified is
-  gone with the conversion step, so there is one validation boundary rather than
-  two. The `jsonschema` version must still be **pinned explicitly**: v1 leaves it
-  unpinned, so `ckanext-datajson`'s `~=2.4.0` constraint wins in production and
-  validation silently degrades to Draft 4, reporting fewer errors than the data
-  contains. A validation control that fails open is worse than one that fails
-  closed. **3.0-on-ingest validation now carries more weight than before**, because
-  it is the only check standing between an out-of-boundary conversion and the
-  catalog. Import remains an untrusted-input boundary: imported catalogs come from
-  public URLs and must be treated as untrusted data, with URL fetching going
-  through the egress proxy and subject to the live-catalog URL scanning the wiki
-  already requires.
-- **SI-12 (Information Management and Retention)** — **the open question.** v2's
-  audit trail begins at import, so v1's history exists only in the v1 database.
-  Whether that constitutes a record requiring retention under NARA schedules is
-  a question for the records officer, not an engineering judgment. If retention
-  is required, the v1 database must be archived before decommissioning, and that
-  should be tracked as its own item.
-- **CP-9 (System Backup)** — the v1 database must not be decommissioned until
-  every agency has completed and verified re-import. A per-organization
-  completion checklist gates v1 shutdown. **A second gate now applies:** v1's
-  `/organization/{id}/dcat-v3.json` endpoint is one of only two conversion routes,
-  so decommissioning also removes a capability agencies may still need. The
-  checklist must record, per organization, both that re-import completed and that
-  the organization no longer depends on v1 for conversion.
-- **CM-3 (Configuration Change Control)** — each import should record the
-  `_external/dcat-us` submodule commit used, so an import is reproducible against
-  the schema version that validated it (consistent with ADR 0005). That commit now
-  identifies the **3.0 schemas and the error summarizer** v2 executes — no longer
-  the conversion code, which runs outside v2 at an unrecorded version. **This is a
-  provenance gap the amendment introduces:** an imported catalog is reproducible
-  against v2's validator but not against whatever converted it. If conversion
-  provenance matters, the importing user should be asked to record the converter
-  version alongside the source URL. Pinning the submodule remains required rather
-  than tracking `branch = main` (see [ADR 0010](0010-depend-on-upstream-dcat-us-code.md)).
-- **CM-4 (Impact Analysis)** — the dataset-count reconciliation per organization
-  is the impact analysis for this transition and should be recorded.
-- **CM-7 (Least Functionality)** — *newly relevant, and the one control the
-  amendment strengthens.* v2 does not load the 1.1 schemas, does not run the
-  transforms, and has no conversion endpoint. One fewer input format and one fewer
-  code path inside the boundary.
-- **Risk treatment is `accept`**, not `mitigate`: the accepted risk is loss of
-  v1 edit history in v2, accepted because the metadata itself is public and
-  canonical elsewhere, and because v1's database can be archived independently
-  if a retention obligation is identified. **The amendment adds a second accepted
-  risk:** that agencies can and will produce valid 3.0 files out-of-band. If that
-  proves false in practice, the no-conversion decision needs revisiting.
+- **SI-10 (Input Validation)** — import is an untrusted-input boundary. The file is
+  parsed defensively, with size limits, and fetched through the egress proxy when a URL
+  is given. Every object is validated against **3.0 only** by the Data.gov validator API
+  ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). Validation gates `live`, not
+  ingest: no invalid object reaches an export. If the API is unavailable, objects stay
+  unvalidated and cannot go `live`.
+- **SI-12 (Retention)** — v1's history exists only in the snapshot, retained 7 years.
+  The retention period should be confirmed with the records officer.
+- **CP-9 (System Backup)** — the final snapshot (database backup plus DCAT-US 3.0
+  archive) is the backup for decommissioning.
+- **AU-2, AU-3, AU-10** — a swap is a single audit event recording the source, the
+  validator and schema versions, the outgoing and incoming object counts, and
+  the approving actor.
+- **CM-3 (Configuration Change Control)** — each import records the validator and schema
+  versions that validated it ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). Conversion
+  happens outside v2 at an unrecorded version, so an imported catalog is reproducible
+  against v2's validator but not against whatever converted it. If that matters, the
+  importing user can record the converter version with the source.
+- **CM-4 (Impact Analysis)** — the import summary reports counts, merges, and invalid
+  objects. Reconciliation against v1 is the user's review, with no Data.gov-side check.
+- **CM-7 (Least Functionality)** — v2 loads no 1.1 schemas, runs no transforms, and
+  has no conversion endpoint.
+- **Risk treatment is `accept`.** Accepted: loss of v1 edit history in v2 (the metadata
+  is public and the snapshot is kept), and that agencies can produce valid 3.0 files
+  out-of-band. If the latter proves false, revisit the no-conversion decision.
+
+## Blockers before acceptance
+
+None.
+
+## Action items
+
+Work to schedule, not blockers. Track each as an issue.
+
+- **Take the final v1 snapshot** (database backup and DCAT-US 3.0 archive) before
+  shutdown, and record its location and owner.
+- **Confirm the archive's storage.** Verify that v1's S3 bucket is private, since v1
+  served files publicly and the database backup is not public data (it holds user
+  emails, edit history, and drafts). Keep the backup in a separate private location.
+  Confirm the bucket's service instance and space outlive v1's decommissioning.
+- **Confirm the 7-year retention** with the records officer, with the same
+  conversation as [ADR 0012](0012-catalog-scoped-hosted-files.md)'s.
+- **Plan the notice period** and confirm or move the 2027-09-30 target once a
+  development timeline exists.
 
 ## Links
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — import/export from a current DCAT-US 3.0 catalog
 - [DCAT-US 3.0 migration guide](https://resources.data.gov/resources/dcat-us-3-migration/) and [M-25-05 crosswalk](https://resources.data.gov/resources/dcat-us-3-crosswalk/)
-- [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — the conversion implementation agencies run **out-of-band**; **not** part of v2 ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11))
+- [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — run **out-of-band**; **not** part of v2 ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11))
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — why user accounts need no migration
-- [ADR 0012](0012-catalog-scoped-hosted-files.md) — makes hosted files catalog-scoped and independent of metadata, which is why a swap cannot affect them
-- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on upstream 3.0 validation code, and why v1's fork is not the source
+- [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the object model import decomposes into
+- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on upstream 3.0 validation code
+- [ADR 0012](0012-catalog-scoped-hosted-files.md) — makes hosted files independent of metadata, which is why a swap cannot affect them
 - `ckanext/datagov_inventory/dcat/dcat_converter.py` — v1's stale fork of the upstream converter; **not** the source for v2
-- `ckanext/datagov_inventory/plugin.py:345-407` — v1 `generate_dcat_v3` export, now one of two supported routes to a 3.0 file
-- `config/data/inventory_publishers.csv` — reference data; role in v2 undecided (see ADR 0005)
+- `ckanext/datagov_inventory/plugin.py:345-407` — v1 `generate_dcat_v3` export, one supported route to a 3.0 file
 - NIST SP 800-53 Rev 5.2 — CM-3, CM-4, CM-7, SI-10, SI-12, CP-9, SA-8
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.
