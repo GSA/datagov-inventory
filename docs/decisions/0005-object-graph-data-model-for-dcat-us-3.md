@@ -274,20 +274,25 @@ not an emergent property.
   data by definition and contains no PII beyond publicly published contact
   points.
 
-### Open question: what becomes of the publishers reference data?
+### No publisher registry or seed data
 
-[config/data/inventory_publishers.csv](https://github.com/GSA/inventory-app/blob/main/config/data/inventory_publishers.csv) (~270 rows encoding a department → bureau
-hierarchy) was v1's organization registry. With no tenant entity in v2 it is no
-longer structural data, and its only remaining candidate purpose is **seed data
-for reusable DCAT `Organization` objects** so that agency staff select a canonical
-publisher instead of typing one.
+v1's `inventory_publishers.csv` (~270 rows encoding a department to bureau
+hierarchy) was an organization registry that had to be maintained by hand. **It is
+not carried into v2, and there is no `flask import-publishers` task.** With no
+tenant entity, it would only ever have been seed data, and DCAT-US 3.0 lets
+agencies define their own structure.
 
-That is a convenience feature and it is not designed. Open sub-questions: whether
-the department → bureau hierarchy is represented at all (DCAT-US 3.0 has no
-required parent/child relation between `Organization` objects); whether seeded
-objects are global or copied per catalog; and whether the existing
-`update_publishers.yml` workflow still has anything to update. **Decide before
-building the publisher picker, not after.**
+A publisher is an ordinary reusable DCAT `Organization` object that an agency
+creates in its own catalog, or receives through import. The graph model supplies
+the consistency the CSV was meant to: an agency selects one `Organization` and
+references it from every dataset, and import converges repeated publishers onto
+shared objects ([ADR 0008](0008-onboard-via-data-json-reimport.md)). Inventory
+does not represent a department to bureau hierarchy; an agency expresses whatever
+structure DCAT-US 3.0 allows through its own objects.
+
+The cost is that nothing enforces one canonical spelling of an agency's name across
+catalogs. That is a naming-consistency concern, not a structural one, and it can be
+addressed later with a validation warning or a report if it proves to matter.
 
 ## Links
 

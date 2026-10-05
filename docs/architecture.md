@@ -58,7 +58,7 @@ flowchart TB
             subgraph internal["*.apps.internal — no public route"]
                 WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX · React editor<br/>Authlib · Flask-Login · Talisman"]
                 SCAN["<b>inventory-scanner</b><br/>clamav-rest (terraform-cloudgov module)<br/>POST /scan · apps.internal only<br/>~3G · sweeper on instance 0"]
-                TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · audit unreferenced-files<br/>import-publishers"]
+                TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · audit unreferenced-files"]
             end
 
             PG[("<b>inventory-db</b> · Postgres<br/>objects · versions · permissions<br/>sessions · FTS · hosted files")]
@@ -307,16 +307,12 @@ product's shape, not a schema tidy-up:
   cross, sharing a catalog with a user or another catalog in a different agency is
   the same operation as sharing within one.
 
-Two loose ends follow from this, and both are real:
+Two consequences follow from this:
 
-1. **`config/data/inventory_publishers.csv`** (~270 rows;
-   `organization,publisher,publisher_1…publisher_5`, encoding a
-   department → bureau hierarchy, with e.g. `usda-gov` appearing on several rows
-   for different sub-bureaus) is **no longer a tenant registry**. Its remaining
-   value is as **seed data for reusable DCAT `Organization` objects**, so agency
-   staff select a canonical publisher rather than typing one. That is a
-   convenience feature, not a structural one, and it is not yet designed — see
-   the ADR 0005 blocker.
+1. **`config/data/inventory_publishers.csv` is not carried into v2.** It was a
+   hand-maintained registry of the department → bureau hierarchy. Publishers are
+   ordinary reusable `Organization` objects that agencies create or import
+   ([ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md#no-publisher-registry-or-seed-data)).
 2. **The first-`admin` bootstrap question in
    [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md) can no
    longer be answered with "an agency-scoped role,"** because no agency scope
@@ -659,7 +655,6 @@ migrations, and then plan for future migrations."*
 | `flask audit orphans` | monthly | Report of catalogs with no `admin` — one query over `catalog_permission`. Report only; action is the Data.gov team's decision |
 | `flask audit unreferenced-files` | monthly | Hosted files referenced by no `Distribution` and still publicly served, reported as-is (age and orphan date are ignored) with recommended cleanup for Data.gov staff to act on. Nothing is withdrawn or purged automatically ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)) |
 | `flask db upgrade` | per deploy | Once, before rollout |
-| `flask import-publishers` | on CSV change | Seeds reusable DCAT `Organization` objects from `inventory_publishers.csv`. **Purpose not yet designed** — see the ADR 0005 blocker; with no tenant entity this is convenience seed data, not a registry |
 | freshclam | per scanner schedule | Signature updates; **alert on signature age**, not only on scan failure |
 
 ### Egress allowlist

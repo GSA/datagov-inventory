@@ -229,12 +229,11 @@ returns as a requirement. Confirm the assumption before this record is accepted.
   above, where existing v2 hosted files are untouched because nothing links them
   to the replaced objects.
 - **`config/data/inventory_publishers.csv`** (271 lines, ~350 organizations) is
-  *reference* data, not migration data. It is **not** a tenant registry in v2 —
-  agency/bureau silos are not a first-class concept
-  ([`architecture.md` §4](../architecture.md#there-is-no-agencybureau-tenant-entity)) —
-  so its only candidate purpose is seeding reusable DCAT `Organization` objects.
-  That purpose is not yet designed; see the open question in
-  [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md#open-question-what-becomes-of-the-publishers-reference-data).
+  *reference* data, not migration data, and is **not carried into v2**. Agency/bureau
+  silos are not a first-class concept
+  ([`architecture.md` §4](../architecture.md#there-is-no-agencybureau-tenant-entity)),
+  and publishers arrive as ordinary `Organization` objects through import
+  ([ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md#no-publisher-registry-or-seed-data)).
 
 ### Positive Consequences
 
@@ -347,6 +346,6 @@ returns as a requirement. Confirm the assumption before this record is accepted.
 - [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on upstream 3.0 validation code, and why v1's fork is not the source
 - `ckanext/datagov_inventory/dcat/dcat_converter.py` — v1's stale fork of the upstream converter; **not** the source for v2
 - `ckanext/datagov_inventory/plugin.py:345-407` — v1 `generate_dcat_v3` export, now one of two supported routes to a 3.0 file
-- `config/data/inventory_publishers.csv` — reference data; role in v2 undecided (see ADR 0005)
+- `config/data/inventory_publishers.csv` — v1 reference data; not carried into v2 (see ADR 0005)
 - NIST SP 800-53 Rev 5.2 — CM-3, CM-4, CM-7, SI-10, SI-12, CP-9, SA-8
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.
