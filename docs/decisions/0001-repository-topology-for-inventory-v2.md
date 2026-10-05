@@ -32,9 +32,9 @@ decision: it determines where those decisions are recorded and reviewed.
 ## Decision Drivers
 
 - **v1 and v2 must run concurrently.** [ADR 0008](0008-onboard-via-data-json-reimport.md)
-  establishes that there is no migration path — agencies re-import their
-  published `data.json` — so v1 stays in production until every agency has
-  completed and verified re-import. Both codebases must be independently
+  establishes that there is no migration path — agencies import a DCAT-US 3.0 export
+  on their own timeline — so v1 stays in production until it is retired by date
+  after a notice period. Both codebases must be independently
   deployable and independently patchable for months.
 - **Platform precedent is unambiguous.** `catalog.data.gov` and
   `harvest.data.gov` each left CKAN in 2025 into *new* repositories
@@ -126,8 +126,8 @@ pattern.
   scope during the transition; v1 remains in scope until decommissioned.
 - **ATO implications** — v2 is a new system component requiring its own entry in
   the system inventory. v1 and v2 will both be in the boundary during the
-  transition, and v1's removal from the boundary is gated on completion of agency
-  re-import ([ADR 0008](0008-onboard-via-data-json-reimport.md)).
+  transition, and v1's removal from the boundary follows its retirement and final
+  snapshot ([ADR 0008](0008-onboard-via-data-json-reimport.md)).
 
 ## Links
 

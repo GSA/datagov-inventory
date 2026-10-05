@@ -511,11 +511,11 @@ outside this system (CM-3).
 
 ```mermaid
 flowchart LR
-    A["upload or fetch v3.0 JSON file"] --> B["validate 3.0"]
-    B --> C["decompose to objects<br/>in-run dedupe by content hash"]
+    A["upload or fetch v3.0 JSON file"] --> B["parse (reject only if unparseable)"]
+    B --> C["decompose to objects<br/>merge completely identical objects<br/>validate each object, flag invalid"]
     C -->|"create new catalog"| D["new Catalog object created by user,<br/>new 'catalog' metadata_object in draft state"]
     D --> F["share catalog with other users"]
-    F --> H["human review → live → export"]
+    F --> H["human review → live (valid objects only) → export"]
     C -->|"re-import existing catalog"| E["new 'catalog' metadata_object"]
     E --> G["human review → swap old Catalog to point to new metadata_object  → export"]
 ```
@@ -527,11 +527,13 @@ Agency onboarding to Inventory 2.0 is simply the
 managed manually by a data manager from the agency. This comes with a "natural" housecleaning step - agencies that once 
 needed an Inventory 1.0 account but have since switched to some other metadata tool will naturally be dropped from Inventory 2.0.
 
-**The agency must supply a 3.0 file.** v2 does not convert 1.1
-([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)), so onboarding has a prerequisite that
-Inventory cannot satisfy on the agency's behalf: either export 3.0 from v1 while it
-is still running, or run upstream's converter out-of-band. Until that file exists,
-there is no onboarding path for that agency.
+**The agency supplies a 3.0 file and does the move itself.** v2 does not convert
+1.1 ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)): the agency exports
+3.0 from v1 while it is still running, or runs upstream's converter out-of-band.
+Data.gov staff do not migrate data. Organizations move on their own timeline, with a
+target of retiring v1 before 2027-09-30, preceded by a notice period. A final v1
+snapshot (database backup and a DCAT-US 3.0 archive) is taken before shutdown. Invalid
+objects are imported and flagged, and cannot go `live`.
 
 ## 6. Deployment
 
@@ -698,8 +700,8 @@ decision, with no consumer analysis; v1 keeps serving it until decommissioned.
 Per [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md), v2 is
 built in this **new repository**, following the pattern of
 `datagov-catalog` and `datagov-harvester`. v1 remains in `GSA/inventory-app` and
-stays in production until every agency has completed re-import
-([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)) — the two
+stays in production while organizations move over, until it is retired by date after
+a notice period ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)) — the two
 codebases run and are patched concurrently for months.
 
 ```mermaid
