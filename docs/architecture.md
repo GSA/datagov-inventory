@@ -26,7 +26,7 @@ Four v1 pain points set the scope:
 
 | Pain point | v2 response |
 |---|---|
-| UI rewrite required for Section 508 compliance | Server-rendered USWDS with accessibility gates in CI ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)) |
+| UI rewrite required for Section 508 compliance | USWDS throughout, server-rendered except the editor, with accessibility gates in CI ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)) |
 | Forked CKAN code will never merge upstream | No CKAN; one first-party application |
 | Custom React form built for DCAT-US 1.1 needs a full rewrite for 3.0 | Form generated from the JSON Schema, so schema releases are a submodule bump |
 | CKAN's flat model cannot express nested, reusable DCAT-US 3.0 classes | Object graph with reuse as edges ([ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md)) |
@@ -56,7 +56,7 @@ flowchart TB
             PROXY["<b>inventory-proxy</b> · nginx<br/>public route<br/>default-deny path allowlist (incl. /f/*)<br/>HSTS · cookie flags · body cap<br/>rate limit on /f/*"]
 
             subgraph internal["*.apps.internal — no public route"]
-                WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX + islands<br/>Authlib · Flask-Login · Talisman"]
+                WEB["<b>inventory</b><br/>Python 3.12 · Flask + APIFlask · gunicorn<br/>Jinja2 + USWDS 3 + HTMX · React editor<br/>Authlib · Flask-Login · Talisman"]
                 SCAN["<b>inventory-scanner</b><br/>clamav-rest (terraform-cloudgov module)<br/>POST /scan · apps.internal only<br/>~3G · sweeper on instance 0"]
                 TASK["<b>cf run-task</b> — ephemeral<br/>db upgrade · audit urls<br/>audit orphans · audit unreferenced-files<br/>import-publishers"]
             end
@@ -134,7 +134,7 @@ deployed environment.
 | Runtime | Python 3.12 | v1 is pinned to 3.10 by CKAN. Matches catalog and harvester.                                                                                                                                                                                                                                                                               |
 | Framework | Flask + APIFlask | APIFlask yields OpenAPI for the import/export/validate API. Same as catalog.                                                                                                                                                                                                                                                               |
 | Dependencies | Poetry | Replaces the `requirements.in.txt` → `bin/requirements.sh` → `requirements.txt` freeze cycle and the `jsonschema` post-install upgrade hack at `Dockerfile:28-29`.                                                                                                                                                                         |
-| UI | Jinja2 + USWDS 3 + HTMX, with scoped JS islands | [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md). Islands: reference picker, `Location` geometry entry, catalog preview.                                                                                                                                                                                           |
+| UI | Jinja2 + USWDS 3 + HTMX for all pages except the catalog editor, which is a local-first React app (proposed) | [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md). The editor is a single route with a spike gating acceptance.                                                                                                                                                                                           |
 | Form generation | Schema-driven renderer over `_external/dcat-us` | Field descriptions come from the schema, per the feature list. Schema releases become a submodule bump.                                                                                                                                                                                                                                    |
 | ORM | SQLAlchemy 2.0 + Alembic + psycopg 3 | v1 is on SQLAlchemy 1.4.                                                                                                                                                                                                                                                                                                                   |
 | Database | Postgres (`medium-psql-redundant` prod, `small-psql` dev) | One instance. v1 has two plus Redis.                                                                                                                                                                                                                                                                                                       |
@@ -159,7 +159,7 @@ deployed environment.
 
 - **OpenSearch** — wrong scale for Inventory; adds a service to operate.
 - **Redis** — nothing left needs it once the DataStore and RQ are gone.
-- **A client-side router / SPA** — see [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md), including the conditions that would reverse that decision.
+- **A site-wide SPA** — only the catalog editor is a client application; see [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md), including the conditions that would reverse that decision.
 - **Client-side validation as authoritative** — a second validator would drift from the upstream Python one. Any client-side check is advisory only.
 - **DCAT-US 1.1 → 3.0 conversion** — see [ADR 0008](decisions/0008-onboard-via-data-json-reimport.md). The upstream converter exists and works; v2 simply does not host it.
 
@@ -837,9 +837,9 @@ changes relative to v1:
   immutable file versions, which make retroactive re-scan a query and make the
   integrity record non-mutable ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).
 - **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC)
-  AC-12 900-second idle timeout, with browser-storage draft autosave so the
-  timeout costs no work — a client-side mitigation, so it does not survive
-  clearing site data or changing machines;
+  AC-12 900-second idle timeout, with the editor working from a local copy in the
+  browser so the timeout costs no work — a client-side mitigation, so it does not
+  survive clearing site data or changing machines;
   SC-7 boundary protection via the two-app topology.
 - **Changed and requiring SSP updates:** AC-2 (accounts created automatically,
   with zero-privilege as the compensating control — an assessor must see both
