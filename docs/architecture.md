@@ -91,7 +91,7 @@ flowchart TB
     WEB -->|"presign files/"| S3F
     WEB --- SEC
     WEB -->|"POST /scan"| SCAN
-    SCAN -->|"read + delete quarantine/"| S3Q
+    SCAN -->|"read quarantine/ · delete (clean) or move to infected/"| S3Q
     SCAN -->|"copy → files/"| S3F
     SCAN --> PG
     TASK --> PG
@@ -446,7 +446,7 @@ sequenceDiagram
         SC->>SQ: delete quarantine/ object
         SC->>DB: scan_state=clean, scanned_at, signature_version<br/><b>and</b> hosted_file.current_version_id = version_id<br/>(one transaction)
     else infected
-        SC->>SQ: delete object (a real deletion — instance is unversioned)
+        SC->>SQ: move quarantine/ object → infected/{hosted_file_id}/{version_id}<br/>(retained for inspection, never deleted)
         SC->>DB: scan_state=infected, threat_name<br/>current_version_id <b>unchanged</b>
         SC->>W: notify org admin + Data.gov team (SI-3 / IR-6)
     end
@@ -575,7 +575,7 @@ modules pinned by tag, replacing v1's `create-cloudgov-services.sh`.
 | Managed by Terraform | Module |
 |---|---|
 | `inventory-db` (Postgres, `prevent_destroy` in prod) | `database` |
-| `inventory-s3-quarantine` (unversioned, short lifecycle expiry) | `s3` |
+| `inventory-s3-quarantine` (lifecycle expiry on `quarantine/` only; `infected/` retained) | `s3` |
 | `inventory-s3-files` (serving content; versioning optional) | `s3` |
 | `inventory-scanner` (ClamAV, ~3 GB, `apps.internal` only) | `clamav` |
 | Egress proxy + allowlist (into the existing egress space) | `egress_proxy` |

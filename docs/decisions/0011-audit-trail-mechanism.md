@@ -188,7 +188,7 @@ ADR 0005's model, and are captured automatically:
 |---|---|
 | Account created (ADR 0004) | `INSERT user_account` |
 | Permission granted / revoked / changed (ADR 0004) | `INSERT`/`UPDATE`/`DELETE catalog_permission` |
-| Upload accepted, scan result per version, deletion on detection (ADR 0006, ADR 0012) | `INSERT`/`UPDATE hosted_file_version` |
+| Upload accepted, scan result per version, preservation on detection (ADR 0006, ADR 0012) | `INSERT`/`UPDATE hosted_file_version` |
 | Hosted file created, current-version advance, withdrawal, reinstatement (ADR 0012) | `INSERT`/`UPDATE hosted_file` |
 | Public download (ADR 0012) | `UPDATE hosted_file` — the counter and first/last-seen timestamps |
 | Export run started and completed | `INSERT`/`UPDATE export_run` |

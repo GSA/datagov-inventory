@@ -90,7 +90,9 @@ scanner: stream object → clamd INSTREAM
              delete the quarantine object, scan_state='clean',
              record scanned_at + signature_version,
              and advance hosted_file.current_version_id in the same transaction
-  infected → delete object, scan_state='infected', record threat_name,
+  infected → RETAIN the object: move it within inventory-s3-quarantine from
+             quarantine/{uuid} to infected/{hosted_file_id}/{version_id}
+             (never deleted), scan_state='infected', record threat_name,
              notify org admin + Data.gov team (SI-3 audit + IR-6 event);
              current_version_id unchanged
 
@@ -112,6 +114,28 @@ Three properties are load-bearing:
   already uses, so it is a familiar pattern on-call.
 - **Signature version is recorded per version**, so a retroactive re-scan after a
   signature update is a query rather than a guess (SI-3(2)).
+
+### Infected files are preserved, not deleted
+
+Government policy requires that files flagged by the scanner be **saved for
+inspection**, so a detection never deletes the object. The scanner moves it out
+of the `quarantine/` prefix, which the sweeper and any lifecycle expiry operate
+on, to `infected/{hosted_file_id}/{version_id}` in the same
+`inventory-s3-quarantine` instance, and records the detection on the version row.
+
+- **Never served.** `infected/` is never presigned and the instance has no
+  public-read policy. No application route reads it; the web app has no code
+  path to it.
+- **Restricted access.** Only the scanner writes there. Retrieval for
+  inspection is an incident-response action by the Data.gov team using bucket
+  credentials, and is recorded in the incident record.
+- **Expiry must not touch it.** Any lifecycle expiry configured on the
+  quarantine instance (see [ADR 0012](0012-catalog-scoped-hosted-files.md)) must
+  be scoped to the `quarantine/` prefix only.
+- **Disposition is a deliberate human action.** An infected object is removed
+  only when the Data.gov security team closes the incident and policy allows it.
+  Retention periods and disposal are set in the incident-response runbook, not
+  by the application, and no scheduled job deletes `infected/` objects.
 
 ### The 500 MB cap
 
@@ -231,7 +255,8 @@ rather than configured by hand.
   ADR 0012 adds the other half of the boundary story — an unauthenticated public
   download flow and a second S3 service instance.
 - **AU-2, AU-3** — audit events required: upload accepted, scan started, scan
-  result (with signature version), promotion to clean, deletion on detection. All
+  result (with signature version), promotion to clean, preservation on detection
+  (the move to `infected/`). All
   are row mutations on `hosted_file` / `hosted_file_version`, so
   [ADR 0011](0011-audit-trail-mechanism.md)'s triggers capture them with
   `actor_kind = 'system'`.
@@ -240,7 +265,8 @@ rather than configured by hand.
   the runbook, and the uploading user's identity is known via Login.gov auth.
   Per AGENTS.md §9.2, detections are **not** filed as public issues.
 - **Evidence for the ATO package** — a test demonstrating that a known-malicious
-  test file (EICAR) is detected, deleted, and never presigned. This should be an
+  test file (EICAR) is detected, preserved under `infected/`, and never presigned.
+  This should be an
   automated test, not a one-time manual demonstration.
 
 ## Blockers before acceptance

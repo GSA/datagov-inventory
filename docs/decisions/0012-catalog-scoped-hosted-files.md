@@ -113,9 +113,6 @@ hosted_file_version                     -- immutable once written
   created_at         timestamptz
 ```
 
-S3 prefixes are `quarantine/`, `files/`, and `exports/`. A scanned version is
-identified by its row, not by where it sits, so `clean/` is gone.
-
 ### The single invariant
 
 > `current_version_id` advances **only** when a version reaches
@@ -202,13 +199,13 @@ a breaking change for outside consumers (CM-3).
 
 | Instance | Contents | Properties |
 |---|---|---|
-| `inventory-s3-quarantine` | `quarantine/` | Unversioned, short lifecycle expiry, never presigned, never public |
-| `inventory-s3-files` | `files/`, `exports/` | Private, serving content; versioning optional |
+| `inventory-s3-quarantine` | `quarantine/`, `infected/` | Short lifecycle expiry on `quarantine/` only (`infected/` is retained for inspection), never presigned, never public |
+| `inventory-s3-files` | `files/` | Private, serving content; versioning optional |
 
 Untrusted inbound bytes and vetted content are different trust boundaries. Retention
 can differ, a policy mistake on the serving instance cannot expose unscanned
-uploads, and deleting an infected object stays a real deletion (in a versioned
-bucket a plain `DELETE` writes a marker and keeps the bytes).
+uploads, and an infected object is preserved for inspection under `infected/`
+rather than deleted ([ADR 0006](0006-quarantine-then-scan-antivirus.md)).
 
 S3-native versioning on `inventory-s3-files` is not required: R1 and R3 come from
 the stable key plus the row pointer, not from S3. Versioning would only retain
@@ -270,9 +267,7 @@ tell hosted from agency-hosted. Consequences:
 - **It is a more file-hosting-shaped product** than files-attached-to-distributions,
   which sits against ADR 0007's narrowing of Inventory to metadata authoring (CM-7).
 - **Storage grows without bound** for files in use, and for 7 years for superseded
-  and withdrawn ones. Nothing is purged automatically. `exports/` lifecycle
-  ([`architecture.md` §5.2](../architecture.md#52-export-with-error-reporting))
-  and ADR 0011's `activity` retention are decided separately.
+  and withdrawn ones.
 - **Withdrawn is not erased.** `withdrawn_at` stops public serving; the object
   remains in S3 and reachable through the owner route. A user-facing **delete** is
   future work and must not conflict with retention: it should be a soft delete
@@ -320,9 +315,7 @@ These were open blockers and are now decided.
    available to the public. Confirmed by the product owner, 2026-10-05.
 2. **Retention.** Files made available through a `Distribution` are stored
    **indefinitely**. Superseded versions and withdrawn files are retained for
-   **7 years** by default. Nothing is purged automatically. This covers hosted
-   files only; `exports/` lifecycle and ADR 0011's `activity` retention remain
-   decided in their own records.
+   **7 years** by default.
 3. **Unreferenced files are reported, not acted on.** A monthly Data.gov report
    lists files referenced by no `Distribution`, as-is: it ignores how long a file
    has been in the system or when it was orphaned, and it recommends cleanup for

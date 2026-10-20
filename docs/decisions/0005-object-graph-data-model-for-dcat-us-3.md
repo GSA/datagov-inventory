@@ -193,8 +193,9 @@ not an emergent property.
 
 - Every DCAT-US 3.0 class is representable, including ones with no CKAN analogue
   (`Catalog`, `DatasetSeries`, `DataService`, `CatalogRecord`, `ConceptScheme`).
-- Adding or changing a class is a submodule bump plus form-model regeneration —
-  no DDL migration, because class-specific fields live in `metadata_properties`.
+- Non-breaking schema changes require only a submodule bump plus form-model regeneration because:
+  - Class-specific fields live in metadata_properties so class property changes never require DDL migrations and non-breaking changes don't require data migrations
+  - metadata_object.dcat_class and object_reference.property are text fields, not enums, so newly added classes don't require migrations
 - Catalog-to-catalog sharing is native: `catalog_permission` accepts either a
   user or a catalog as principal. Since that feature is MVP scope, the model
   carries it from the first release rather than requiring a later schema change.

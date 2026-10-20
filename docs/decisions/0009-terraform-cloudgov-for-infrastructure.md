@@ -83,7 +83,7 @@ module "database" {
 
 module "s3_quarantine" {
   source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.5.0"
-  name   = "inventory-s3-quarantine"             # unversioned; short lifecycle expiry
+  name   = "inventory-s3-quarantine"             # lifecycle expiry on quarantine/ only, never infected/
   ...
 }
 
@@ -160,9 +160,13 @@ cannot expose unscanned uploads.
 
 Two properties this record must carry:
 
-- **The quarantine instance must be unversioned**, because ADR 0006's deletion of
-  an infected object has to be a real deletion — in a versioned bucket an
-  unqualified `DELETE` writes a delete marker and retains the bytes.
+- **The quarantine instance no longer needs to be unversioned.** An earlier draft
+  required it so that ADR 0006's deletion of an infected object would be a real
+  deletion. Infected objects are now **preserved for inspection** under
+  `infected/` and are never deleted by the application
+  ([ADR 0006](0006-quarantine-then-scan-antivirus.md)), so versioning, if a tenant
+  can enable it, is acceptable. Any lifecycle expiry must be scoped to `quarantine/`
+  and must not cover `infected/`.
 - **S3-native versioning on the serving instance is optional**, not required by
   ADR 0012's design. It buys retention of superseded bytes; it does not deliver
   the stable-URL or replacement-safety properties, which come from the database

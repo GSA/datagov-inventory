@@ -174,12 +174,38 @@ exception nowhere else:
 ### Granting access to a colleague
 
 Accounts exist only after a first login and are keyed on the Login.gov subject.
-So the colleague **logs in once first**, and the admin then finds them by **exact
-email match**. There is no browsable or searchable user list, which would expose
-every user's email address, and lookups are rate limited to prevent enumeration.
+So the colleague **logs in once first**, and the admin then **selects them from a
+list of users who have logged in** (and therefore have an account), identified
+by email address. Only users with an account appear, so the list is bounded by
+people who have already authenticated with a PIV/CAC.
 Pending invitations by email are not built: they add state, and a Login.gov
 account can hold several email addresses, so matching at first login can fail.
-The stored email is for display and lookup only; the binding is always the
+
+**The integration makes every effort to store a `.gov` address.** A Login.gov
+account can hold several email addresses, and the one shared by default may be
+personal or non-government. At login the application requests the `all_emails`
+scope in addition to `email` and stores the first `.gov` address it receives. If
+no `.gov` address is present it stores the address Login.gov shared, since
+[no email-domain allowlist](#no-email-domain-allowlist-at-launch) applies and
+contractors are legitimate. The address is refreshed at each login, because
+email is mutable.
+
+**Users can see the address stored for their own account** (for example on their
+account page), so they know exactly which email to give a colleague and which
+entry to look for in the list. If it is not the address they want, they add a
+`.gov` address to their Login.gov account and log in again.
+
+Two consequences of a selectable list:
+
+- **Every authenticated user can see the email addresses of every user who has
+  logged in.** This is accepted because the addresses are predominantly
+  government work addresses and exposure is limited to authenticated PIV/CAC
+  holders. It must be stated in the privacy documentation, and the list shows
+  email only, with no other profile data. The list is not available to
+  unauthenticated requests.
+- The list is paginated and filterable by typing part of an address.
+
+The stored email is for display and selection only; the binding is always the
 subject.
 
 ### Positive Consequences
