@@ -145,7 +145,7 @@ deployed environment.
 | Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks.                                                                                                                             |
 | Audit trail | PostgreSQL-Audit (pinned), plpgsql triggers → `activity` + `transaction` | [ADR 0011](decisions/0011-audit-trail-mechanism.md). Trigger-level capture reaches the edge, `state`, and permission changes `metadata_properties` versioning cannot see. v1 relies on CKAN revisions. Actor arrives via the ORM, so a session-bypassing write is recorded but unattributed — a test must assert no null `transaction_id`. |
 | Validation | Data.gov DCAT-US 3.0 validator API (HTTP) | Schema validation plus warnings, shared with the harvester and the public validator; Inventory runs no validator ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md)). Publishing fails closed if it is unavailable. |
-| Schemas | `_external/dcat-us` git submodule, pinned to a reviewed commit, + Dependabot | Schema definitions only, to generate forms and help text; no upstream code is executed. The pin must match the validator API's schema version ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md)). |
+| Schemas | `_external/dcat-us` git submodule (first-party, in-boundary), pinned to a verified commit, + Dependabot | Schema definitions only, to generate forms and help text; none of its code is executed. The pin must match the validator API's schema version ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md)). |
 | File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | Private throughout, across **two** brokered instances (`inventory-s3-quarantine`, `inventory-s3-files`). Immutable per-version objects under `files/`, served via a stable catalog-scoped app route that redirects to a short-lived presigned URL ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).                                                                                                                                                                                                                                                                                                                                                                      |
 | Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
 | Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check.                                                                                                                                                                                     |
@@ -714,7 +714,7 @@ flowchart TB
         SCANAPP["scanner/ — clamd wrapper app"]
         PROXYD["proxy/ — nginx config"]
         DOCS["docs/ — architecture.md + decisions/"]
-        SUB["_external/dcat-us — git submodule<br/>3.0 schema definitions only<br/>pinned to a reviewed commit"]
+        SUB["_external/dcat-us — git submodule<br/>3.0 schema definitions only<br/>pinned to a verified commit"]
         APP --> LIB
         LIB --> SUB
     end
@@ -725,7 +725,7 @@ flowchart TB
 
     subgraph plat["Platform"]
         HARV["GSA/datagov-harvester<br/><i>own error humanizer + dcat_warnings</i><br/><i>also vendors _external/dcat-us</i>"]
-        UPSTREAM["GSA/dcat-us · jsonschema/<br/>schema definitions<br/>· transforms + converter (out-of-band CLI)<br/><b>the source of truth for schemas</b>"]
+        UPSTREAM["GSA/dcat-us · jsonschema/<br/><b>in-boundary, first-party (Data.gov/GSA-owned)</b><br/>schema definitions<br/>· transforms + converter (out-of-band CLI)<br/><b>the source of truth for schemas</b>"]
         VALAPI["Data.gov DCAT-US validator API<br/>schema validation + warnings"]
     end
 
@@ -738,16 +738,18 @@ flowchart TB
 ### Validate through the API; read only the schema definitions
 
 Per [ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md), v2 does not run a
-validator and does not execute any `GSA/dcat-us` code. Validation, with warnings, is
+validator and does not execute any `GSA/dcat-us` code. `GSA/dcat-us` is owned and
+maintained by the Data.gov and GSA team and is a **first-party, in-boundary
+component**, not an external dependency. Validation, with warnings, is
 the Data.gov DCAT-US validator API, shared with the harvester and the public
 validator. From
 [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema), v2 reads only the
 **3.0 schema definitions** (`Catalog.json` and its definitions) through the
-`_external/dcat-us` submodule, pinned to a reviewed commit, to generate forms and their
+`_external/dcat-us` submodule, pinned to a verified commit, to generate forms and their
 help text. The pinned schema must match the schema the API validates against.
 
 Present in the submodule but **not used** by v2: `transforms.py`, the conversion
-script, the 1.1 definitions, and upstream's tests. v2 does not convert
+script, the 1.1 definitions, and `GSA/dcat-us`'s tests. v2 does not convert
 ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md)).
 
 What v2 builds, because nothing upstream provides it:

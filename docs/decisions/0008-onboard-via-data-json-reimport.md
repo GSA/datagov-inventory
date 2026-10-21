@@ -264,7 +264,7 @@ Work to schedule, not blockers. Track each as an issue.
 - [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — run **out-of-band**; **not** part of v2 ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11))
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — why user accounts need no migration
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the object model import decomposes into
-- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on upstream 3.0 validation code
+- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on the first-party, in-boundary `GSA/dcat-us` repo and the validator API
 - [ADR 0012](0012-catalog-scoped-hosted-files.md) — makes hosted files independent of metadata, which is why a swap cannot affect them
 - `ckanext/datagov_inventory/dcat/dcat_converter.py` — v1's stale fork of the upstream converter; **not** the source for v2
 - `ckanext/datagov_inventory/plugin.py:345-407` — v1 `generate_dcat_v3` export, one supported route to a 3.0 file

@@ -29,7 +29,8 @@ records, to preserve the audit trail.
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
 leave the boundary), ADR 0009 (egress allowlist and container-network policies
 become managed boundary controls), ADR 0010 (an outbound flow of draft metadata to
-the Data.gov validator API, which stores nothing), and ADR 0012 (an unauthenticated public data
+the Data.gov validator API, which stores nothing, and `GSA/dcat-us` recorded as an
+in-boundary, first-party component), and ADR 0012 (an unauthenticated public data
 flow serving file content, plus a second S3 service
 instance). All five require SSP component-inventory and data-flow diagram updates
 and should be reviewed by the ISSO.
