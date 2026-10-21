@@ -67,22 +67,18 @@ saying "deferred" would understate the user impact and defer the conversation
 with affected consumers. If demand is demonstrated later, this ADR should be
 superseded rather than quietly reinterpreted.
 
-### This is a user-visible regression and must be socialized
+### Removal is not a deferral, and consumers are not analyzed
 
-Uploaded files remain downloadable. **What goes away is the ability to query
-their rows over HTTP.** Anyone currently calling
-`/api/action/datastore_search` against `inventory.data.gov` will break.
+Uploaded files remain downloadable. **What goes away is the ability to query their
+rows over HTTP.** Anyone calling `/api/action/datastore_search` against
+`inventory.data.gov` will lose that ability.
 
-**Required before this is announced as a simplification:** query production
-access logs and New Relic for traffic to `/api/action/datastore_search`,
-`/api/action/datastore_search_sql`, and `/datastore/*`, and identify any live
-consumers. The wiki's mention of GSA-hosted datasets "available by download or
-the datastore API" suggests at least one internal consumer may exist. Treating
-this as a pure win without that check would be a self-inflicted outage for
-someone else.
-
-This verification is a prerequisite for moving this record to `accepted`, not a
-follow-up task.
+The product owner decided on 2026-10-05 that the DataStore is not a feature Inventory
+will support, so **no analysis of production traffic is done** and no decision
+about continuing it is needed. The accepted risk is that unknown consumers break.
+v1 keeps serving its DataStore until v1 is decommissioned
+([ADR 0008](0008-onboard-via-data-json-reimport.md)), so nothing breaks at v2
+launch; a notice about the removal belongs in the v1 decommissioning communications.
 
 ### Positive Consequences
 
@@ -104,7 +100,7 @@ follow-up task.
 
 ### Negative Consequences
 
-- **A capability is removed.** Unknown consumers may break (above).
+- **A capability is removed.** Unknown consumers may break when v1 is decommissioned (accepted risk, above).
 - Agencies wanting a queryable API for a tabular file must host it themselves or
   use another service; Inventory can only describe it as a `Distribution` with
   an `accessURL`.
@@ -123,9 +119,10 @@ follow-up task.
   user-supplied-SQL surface is not rebuilt.
 - **AC-3 (Access Enforcement)** — one fewer access path requiring authorization
   logic; removes the separate read-only database principal.
-- **CM-4 (Impact Analysis)** — the consumer-traffic analysis above *is* the
-  required impact analysis for removing a public API. It must be performed and
-  its results recorded here before acceptance.
+- **CM-4 (Impact Analysis)** — the security impact of removing the API is a net
+  reduction in attack surface (see below). No consumer-traffic analysis is
+  performed, by decision; the SSP should record that the removal is an accepted
+  functional change, not an analyzed one.
 - **SC-7 / boundary** — `ato_relevance: yes-boundary` because a brokered data
   store and a public API endpoint leave the authorization boundary. The SSP
   component inventory and data-flow diagrams require update.

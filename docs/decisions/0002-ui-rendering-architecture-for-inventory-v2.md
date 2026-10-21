@@ -1,286 +1,215 @@
 ---
-title: "Use server-rendered Jinja + USWDS with JavaScript islands for the Inventory v2 metadata editor"
+title: "Use server-rendered Flask pages with a local-first React editor for Inventory v2"
 status: "proposed"
 date: "2026-09-21"
 decision_makers: ["Data.gov engineering team"]
 category: "Input Validation and Output Handling"
-nist_controls: ["SI-10", "SI-15", "SC-18", "AU-2", "AU-3", "AC-12", "SA-8", "SA-15"]
+nist_controls: ["SI-10", "SI-15", "SC-18", "AU-2", "AU-3", "AC-12", "SA-8", "SA-15", "SR-3"]
 impact_level: "moderate"
 ato_relevance: "yes-internal"
 risk_treatment: "mitigate"
 ---
 
-# Use server-rendered Jinja + USWDS with JavaScript islands for the Inventory v2 metadata editor
+# Use server-rendered Flask pages with a local-first React editor for Inventory v2
 
-> **Status note:** This record is `proposed`, not `accepted`. The decision is
-> downstream of an unresolved *product* question (see
-> [Unresolved question: which editing model?](#unresolved-question-which-editing-model)).
-> The outcome below records the engineering recommendation and the explicit
-> conditions that would change it. Do not mark this `accepted` until the
-> editing model is confirmed.
+> **Status note:** This record is `proposed`. The product questions are now
+> answered (see [Decided requirements](#decided-requirements)), which **reverses
+> this record's earlier recommendation** of server-rendered Jinja and HTMX for the
+> editor. The direction below is a proposal that must be proven by a
+> [spike](#blockers-before-acceptance) before it is accepted.
 
 ## Context and Problem Statement
 
-Inventory v2 replaces the current CKAN 2.11.5 implementation with a custom
-application whose central feature is DCAT-US 3.0 catalog authoring "by class and
-re-use" — a metadata model of nested, independently reusable objects
-(`Dataset`, `DatasetSeries`, `DataService`, `Distribution`, `Kind`,
-`Organization`, `Concept`, `Location`). We must decide how the authoring UI is
-rendered: server-rendered HTML with progressive enhancement, or a client-side
-single-page application.
+Inventory v2 replaces the CKAN 2.11.5 implementation with a custom application
+whose central feature is DCAT-US 3.0 catalog authoring "by class and re-use": a
+model of nested, independently reusable objects (`Dataset`, `DatasetSeries`,
+`DataService`, `Distribution`, `Kind`, `Organization`, `Concept`, `Location`). We
+must decide how the authoring UI is built and where catalog state lives.
 
-This decision is being recorded because an earlier framing of it was wrong and
-should not be relied on. The v1 pain-point list cites both "UI revamp/rewrite
-required to be 508 compliant" and "custom React app data entry form... will need
-complete re-write for 3.0," which invites the inference that React caused the
-accessibility problem. It did not. [U.S. Web Design System](https://designsystem.digital.gov/)
-(USWDS) is CSS plus vanilla JS and has a mature React binding
-([`@trussworks/react-uswds`](https://github.com/trussworks/react-uswds)) used
-widely across federal projects. **USWDS adoption and rendering architecture are
-independent choices.** The v1 form's need for a rewrite was caused by
-hard-coding DCAT-US 1.1 field structure into components, not by its framework;
-a schema-coupled server-rendered form would need the same rewrite.
+An earlier framing of this decision was wrong. The v1 pain-point list cites both
+"UI revamp/rewrite required to be 508 compliant" and "custom React app data entry
+form... will need complete re-write for 3.0", which invites the inference that
+React caused the accessibility problem. It did not. [USWDS](https://designsystem.digital.gov/)
+is CSS plus vanilla JS with a mature React binding
+([`@trussworks/react-uswds`](https://github.com/trussworks/react-uswds)); USWDS
+adoption and rendering architecture are independent choices. The v1 form needed a
+rewrite because it hard-coded DCAT-US 1.1 field structure into components.
+
+### Decided requirements
+
+Answered by the product owner, 2026-10-05:
+
+- **Unified editor.** One catalog workspace. Sub-objects are selectable, and every
+  field that takes a class offers *select existing* or *create new*, where create
+  opens a dialog containing the form for that class.
+- **Local-first.** The catalog is small enough to hold in the browser, and is
+  synced back to the database.
+- **Scale and concurrency.** In v1, one catalog has over 3,000 datasets (its export
+  currently fails, so it may be unused), two have over 1,000, and most of the ~150
+  have fewer than 50. Each catalog is edited mostly by one user or a very small
+  group, so concurrent edits to the same object are rare.
+- **Anonymous browser-only editing** is scheduled for 2.1, with no backend storage.
 
 ## Decision Drivers
 
-- **Single source of truth for validation (SI-10).** The authoritative DCAT-US
-  validator is Python, and it is upstream:
-  [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema)'s 3.0
-  schemas plus the error summarizer in `convert_dcat_1_1_to_3_0.py:38-190`, using
-  `jsonschema` Draft 2020-12 with `referencing`, already vendored here via
-  the `_external/dcat-us` submodule ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)).
-  Any second validator implementation in JavaScript creates two artifacts that
-  will drift, and drift in a validator is a correctness failure that reaches
-  agency publishers as bad exports. The platform already demonstrates the hazard:
-  four copies of the *error-reporting* layer exist across upstream, v1, and the
-  harvester
-  ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md#not-in-scope-consolidating-the-error-reporters)).
-- **Single source of truth for schema interpretation.** The wiki requires field
-  descriptions to be sourced *from the schema definition* so that DCAT-US 3.0
-  point releases are absorbed by bumping the `_external/dcat-us` submodule. This
-  means a schema → form-model renderer exists; the question is whether it exists
-  once or twice.
-- **Section 508 / WCAG 2.1 AA conformance** is the top-stated v1 pain point and
-  a statutory obligation, not a quality goal.
-- **Session timeout interaction (AC-12).** v1 enforces a 900-second idle
-  timeout (`config/ckan.ini:33-35`). Long metadata forms and short idle
-  timeouts interact badly; the mitigation differs by architecture.
-- **Output sanitization (SI-15, SC-18).** Rendering untrusted metadata
-  (agency-supplied strings, URLs) requires contextual escaping wherever it is
-  rendered. Rendering in one place is easier to review than two.
-- **Platform consistency (SA-8, SA-15).** `catalog.data.gov`
-  ([GSA/datagov-catalog](https://github.com/GSA/datagov-catalog)) is Flask +
-  Jinja + USWDS + HTMX with `pa11y-ci` and `axe-playwright-python` in CI;
-  `harvest.data.gov` ([GSA/datagov-harvester](https://github.com/GSA/datagov-harvester))
-  is Flask server-rendered. A third pattern means a third build chain, a third
-  accessibility-test setup, and a third on-call skill set.
-- **Anonymous browser-memory editing.** The wiki specifies public catalogs
-  "stored in browser memory" with no backend — inherently a client-side
-  capability. The wiki feature table marks it **Long Term: Yes / MVP: No**;
-  the team has since scheduled it as **2.1** — i.e. the increment immediately
-  following MVP. See [Reversal condition triggered](#reversal-condition-triggered).
-- **Interaction richness required by the editing model.** Reference pickers,
-  `Location` geometry/bbox entry, and a "show what this will look like in
-  catalog" preview are genuinely interactive. How interactive the *core* editing
-  loop must be is the unresolved question below.
+- **One validator (SI-10).** Validation, with warnings, is the shared Data.gov
+  validator API ([ADR 0010](0010-depend-on-upstream-dcat-us-code.md)). A second
+  implementation in the browser would drift, and drift in a validator reaches
+  agencies as bad exports.
+- **One schema interpreter.** Field descriptions come from the schema, so a
+  DCAT-US point release is a submodule bump plus a change in one place.
+- **Section 508 / WCAG 2.1 AA** is the top-stated v1 pain point and a statutory
+  obligation.
+- **The editing model is highly interactive**: a catalog tree, a detail pane,
+  select-or-create at every reference, and a live preview.
+- **Local-first and 2.1 anonymous editing** need the client to hold and render
+  catalog state without a server round trip per interaction.
+- **Session timeout (AC-12)** and **locally held draft metadata** on shared
+  government machines interact.
+- **Output sanitization (SI-15, SC-18)** and **supply chain (SR-3)**: any client
+  application adds a JavaScript dependency tree to review.
+- **Platform consistency (SA-8, SA-15).** `catalog.data.gov` is Flask + Jinja +
+  USWDS + HTMX with `pa11y-ci` and `axe-playwright-python` in CI; the team's
+  skills and on-call practice are Python and Flask.
 
 ## Considered Options
 
-1. **Server-rendered Jinja + USWDS + HTMX, with scoped JavaScript islands.**
-   Flask renders pages and form partials. HTMX handles partial swaps; drafts
-   autosave to browser storage. Discrete mounted components ("islands") handle
-   the few genuinely interactive widgets. One Python schema-renderer, one Python
-   validator.
+1. **Server-rendered Jinja + USWDS + HTMX throughout**, with small JavaScript
+   islands (this record's earlier choice). HTMX is hypermedia: the server is the
+   source of truth and the client holds no model. That fits dialog-based CRUD but
+   not the requirements above. It cannot render from a local store without bespoke
+   JavaScript that is a client state layer in all but name; editing one shared
+   `Kind` must update the tree, detail pane, and preview together, which couples
+   the server to the page layout; and unsaved multi-object state, dirty tracking,
+   and undo end up in client code anyway.
+2. **Full single-page application** (React + `@trussworks/react-uswds`) for every
+   page. Rejected: it carries the SPA's build chain and accessibility burden to
+   pages that do not need it (login, catalog lists, export, file management).
+3. **Hybrid: server-rendered Flask pages, with a local-first React editor mounted
+   on one route.** The editor is the only SPA. Everything else stays Jinja + USWDS
+   + HTMX.
+4. **Stateless HTMX round trip** for anonymous editing, where the browser holds
+   the catalog and the server renders and stores nothing. Rejected: anonymous
+   draft metadata would transit the server, contradicting the promise of
+   browser-only storage and requiring log and APM exclusion and an ATO boundary
+   review. HTMX adds little there because the state is client JavaScript anyway.
 
-2. **Full single-page application (React + `@trussworks/react-uswds`)**
-   against a stateless JSON API. Client owns routing and editing state. The
-   Python validator remains authoritative and is called over HTTP; optionally a
-   client-side `ajv` pre-check provides instant feedback.
-
-3. **Stateless HTMX round-trip.** Server-rendered with *no* server-side
-   persistence of in-progress state: the browser holds the catalog in IndexedDB
-   and POSTs the relevant subtree on each interaction; the server renders HTML
-   back and stores nothing. This is the shape that would let one codebase serve
-   both authenticated and anonymous users.
+The backend language is a separate question. **It stays Python**: the graph library is
+Python and the team runs Flask services. A TypeScript full stack would allow shared client and
+server logic, at the cost of reimplementing the upstream integration and
+abandoning the team's operating model.
 
 ## Decision Outcome
 
-Chosen option: **Option 1 — server-rendered Jinja + USWDS + HTMX with scoped
-JavaScript islands**, conditional on the editing model being the *decomposed*
-one (see below), because it keeps schema interpretation and validation in a
-single Python implementation, starts from accessible native HTML, and matches
-the two sibling Data.gov applications.
+Proposed option: **Option 3, the hybrid**, because the unified, local-first editor
+needs a client application, while the rest of Inventory does not, and keeping the
+SPA to one route confines its build chain and accessibility audit to one screen.
 
-Three commitments make this choice reversible at low cost, and they are part of
-the decision rather than implementation detail:
+Commitments, which are part of the decision and not implementation detail:
 
-- **API-first.** All DCAT logic lives in a pure-Python library with no web
-  framework dependency (validate, decompose/assemble object graph,
-  schema→form-model), exposed through a stateless APIFlask surface:
-  `POST /api/validate`, `POST /api/export`,
-  `GET /api/schema/{class}/form`. There is **no** `POST /api/convert`: v2 does not
-  convert DCAT-US 1.1 ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11)).
-- **`GET /api/schema/{class}/form` returns the form model as JSON**, not only
-  rendered HTML. The Jinja renderer consumes it server-side today; a future SPA
-  or the anonymous client consumes the identical endpoint. This is the single
-  piece of extra discipline that preserves optionality.
-- **Islands are mounted components, not a router.** An island owns a widget; it
-  never owns the page. Initial scope: the class-reference picker (search and
-  attach an existing reusable object), `Location` geometry/bbox entry, and the
-  catalog preview. `@trussworks/react-uswds` is acceptable inside an island.
-
-### Unresolved question: which editing model?
-
-"Entry by class and re-use" admits two materially different products, and the
-rendering decision follows from it:
-
-- **(A) Decomposed.** You edit one `Dataset` on its own page, then *attach* an
-  existing `Kind` or `Organization` from a picker. Each screen is small and
-  shallow. Option 1 fits well and an SPA buys little.
-- **(B) Unified editor.** One workspace: live catalog tree, detail pane, inline
-  nested editing, instant preview. Option 2 is the right tool and
-  server-rendering fights the interaction model.
-
-The engineering lean toward (A) is not merely a preference for Option 1: reuse
-is only a coherent requirement if objects have independent identity and their
-own edit surface, which is what (A) describes. But this is a product and user-
-research call, and it has not been made.
+- **Scope boundary.** The React application owns the catalog editing route only.
+  Login, the catalog list, export, hosted-file management (including
+  upload-status polling, per [ADR 0012](0012-catalog-scoped-hosted-files.md)), and
+  administration are Jinja + USWDS + HTMX. The editor is mounted in a Flask page.
+- **API-first.** All DCAT logic lives in a Python library with no web-framework
+  dependency (validate, decompose and assemble the object graph, schema to
+  form-model). It is exposed through a stateless APIFlask API:
+  `POST /api/validate`, `POST /api/export`, `GET /api/schema/{class}/form`
+  returning the form model as **JSON**, plus object CRUD and sync endpoints for the
+  editor. There is no `POST /api/convert`
+  ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11)).
+- **Validation is the shared Data.gov validator API**, called by the server, which is authoritative. Client checks are advisory only.
+- **Local store with sync.** The editor works against a copy in browser storage and
+  syncs to the database. The proposed default is **per-object version numbers with
+  optimistic concurrency**: a stale write is rejected and the user is asked to
+  reload. Conflicts are rare for these usage patterns, so a merge UI is not
+  proposed.
+- **Large catalogs.** The tree is virtualized or lazily loaded. A 3,000-dataset
+  catalog is on the order of tens of MB (an estimate to measure), which browser
+  storage handles; the cost is rendering, not storage.
+- **Dialogs are single-level.** *Create new* from inside a dialog replaces the
+  dialog's content, with a breadcrumb or back control, rather than stacking modals.
+  Nested modals are a known focus-management failure under WCAG, and the USWDS
+  modal is not designed for them.
+- **Anonymous editing in 2.1** is the same editor with sync disabled. How it
+  validates without storing data is decided at 2.1. The likely path is calling the
+  Data.gov validator API from the browser, which needs its cross-origin policy to
+  allow it; otherwise the request goes through the Inventory server, so the draft
+  data transits it and needs a boundary review.
 
 ### Conditions that reverse this decision
 
-Adopt **Option 2** if any of the following becomes true:
+Fall back to server-persisted editing (Option 1) if the spike shows that:
 
-- The confirmed editing model is **(B) unified editor**.
-- Anonymous browser-memory editing is pulled into the MVP or the immediately
-  following increment, rather than remaining "long term."
-- Team staffing is materially React-strong and Jinja-weak, which would invert
-  the platform-consistency driver.
+- a 3,000-dataset catalog cannot be loaded and edited responsively in the browser, or
+- the editor's tree and dialog cannot meet WCAG 2.1 AA with a reasonable effort.
 
-### Reversal condition triggered
-
-**The second reversal condition above has been met.** The team has scheduled
-anonymous browser-memory editing as **2.1** — the increment immediately following
-MVP — rather than as indefinite "long term" work. That is precisely the trigger
-this record named.
-
-This does not automatically select Option 2, but it changes the weighing in three
-ways and this record must not be accepted without addressing them:
-
-1. **The deferred cost is now dated.** The "acknowledged debt" in Negative
-   Consequences below is no longer an open-ended maybe; it lands one increment
-   after MVP. Building the MVP in a way that makes that increment cheap is worth
-   more than it appeared when the feature was undated.
-2. **Option 3 (stateless HTMX round-trip) moves from an also-ran to a serious
-   contender**, because it is the option that serves both the authenticated and
-   anonymous cases from one codebase. Its cost — anonymous draft metadata
-   transiting the server while the wiki promises browser-only storage, with the
-   attendant logging/APM exclusion obligation and ATO boundary review — must now
-   be priced rather than noted.
-3. **The `GET /api/schema/{class}/form` commitment stops being cheap insurance
-   and becomes load-bearing.** It is the seam the 2.1 client will be built
-   against. It should be designed and tested as a real contract in MVP, not
-   added as an afterthought.
-
-Two paths remain defensible, and choosing between them is a scheduling judgement
-as much as a technical one:
-
-- **Stay with Option 1 for MVP**, treat the API-first commitments as firm
-  requirements rather than hedges, and build the 2.1 anonymous client as a
-  separate small client against the same stateless API. Accepts some duplication
-  of form-rendering logic in exchange for an accessible, conventional MVP.
-- **Adopt Option 2 now**, accepting a higher MVP accessibility burden in exchange
-  for one editing implementation serving both audiences.
-
-This should be decided together with the editing-model question, since (B) plus
-2.1 anonymous editing points clearly at Option 2, whereas (A) plus 2.1 does not.
+Local-first would then be dropped as a requirement.
 
 ### Positive Consequences
 
-- One validator and one schema interpreter. DCAT-US 3.0 point releases are
-  absorbed by a submodule bump plus a Python change, in one place.
-- Forms begin as native HTML — real `<label>` association, native focus order,
-  native validation, functional without JS — so accessibility work is *reducing
-  regressions* rather than *reconstructing semantics*.
-- The accessibility surface requiring bespoke audit shrinks to three islands
-  instead of the whole application.
-- Draft autosave to **browser storage** means long-form work survives the AC-12
-  idle timeout without writing in-progress edits to the database.
-- Tooling, CI accessibility gates, and operational runbooks are shared with
-  `datagov-catalog`.
-- No client-side build chain, bundler, or JS dependency tree on the critical
-  path for the MVP.
+- The editor fits its interaction model, and local-first and 2.1 anonymous editing
+  come from the same code.
+- One shared validator, and one schema interpreter in Python.
+- Accessibility work is confined to one SPA screen; every other page begins as
+  native HTML.
+- Tooling, CI, and operations for non-editor pages are shared with `datagov-catalog`.
+- Work survives the AC-12 idle timeout because the working copy is local.
 
 ### Negative Consequences
 
-- **Every meaningful validation is a network round-trip.** Mitigated, not
-  eliminated, by the fact that authoritative validation is a round-trip in
-  Option 2 as well — but Option 2 can offer an instant approximate check and
-  Option 1 cannot.
-- **Option 1 does not directly serve the anonymous browser-memory feature.** An
-  earlier characterization of this as "the same forms with an IndexedDB storage
-  adapter" was hand-waving and is withdrawn. When that feature is scheduled it
-  requires either the Option 3 round-trip (with the data-flow consequence noted
-  below) or a separate client. This is a real, acknowledged debt — **and it is
-  now dated at 2.1**, not open-ended; see
-  [Reversal condition triggered](#reversal-condition-triggered).
-- **In-progress edits are not auditable.** Autosaved drafts live in browser
-  storage. The AU-2/AU-3 audit trail covers saved versions only, which is the same
-  position v1 is in.
-- **Browser-storage drafts are per-browser and losable.** Clearing site data,
-  switching machines, or private-browsing loses unsaved work, and the server
-  cannot recover it. Draft recovery must be offered explicitly on return to a
-  form rather than applied silently, since a stale local draft can otherwise
-  overwrite a newer saved version.
-- **USWDS JS components must be re-initialized after HTMX swaps.** A known,
-  solved problem, but a recurring source of subtle breakage that needs an
-  explicit pattern and a test.
-- **HTMX is not accessible by default.** A partial swap that does not move
-  focus or announce via `aria-live` fails the same WCAG criteria an SPA would.
-  Option 1 buys a better *starting point*, not an outcome; focus and
-  announcement handling must be an explicit, tested requirement.
-- Two rendering idioms coexist (Jinja partials and island components). Boundary
-  discipline is required to keep islands from growing into a de facto SPA.
+- **A second front-end stack** for the team: Node build, TypeScript or JavaScript,
+  and npm dependency review.
+- **The API grows** from validate and export to full object CRUD and sync, with CSRF
+  protection for the JSON API.
+- **Where the graph logic runs is unresolved.** The client either stores nested
+  DCAT JSON and syncs it, or stores graph objects and needs decompose and assemble
+  in JavaScript as well. The spike must choose; the second risks duplicating the
+  library.
+- **Locally held draft metadata** persists in the browser on shared machines, is
+  per-browser, and is lost if site data is cleared. Draft recovery must be explicit
+  on return, so a stale local copy cannot overwrite a newer saved version.
+- **In-progress local edits are not auditable.** The audit trail covers saved
+  versions only.
+- **Platform consistency is reduced** for the editor route.
 
 ### Compliance Consequences
 
-- **SI-10 (Input Validation)** — *addressed.* A single authoritative
-  server-side validator; no client-side validator is trusted for correctness.
-  Client-side checks, if ever added, are advisory only.
-- **SI-15 / SC-18 (Output Filtering / Mobile Code)** — *addressed.* Jinja
-  autoescaping covers the primary render path; the reduced JS surface narrows
-  where DOM-injection review is needed. Island code remains in scope for review.
-- **AU-2 / AU-3 (Audit Events / Content)** — *unchanged from v1.* Autosaved drafts
-  sit in browser storage and are **not** in the audit trail, so in-progress work
-  is invisible until saved. This record claims no audit improvement from the
-  editor.
-- **AC-12 (Session Termination)** — *mitigated, client-side.* Browser-storage
-  autosave decouples "work preserved" from "session alive," so the 900-second
-  idle timeout is retained without data loss as the justification for relaxing
-  it. The mitigation depends on the user's own browser rather than on the server,
-  so it is weaker than server-side persistence: it does not survive clearing site
-  data or moving to another machine.
-- **Section 508 / WCAG 2.1 AA** — verification is required regardless of
-  option. `pa11y-ci` plus `axe` in CI as blocking gates, matching
-  `datagov-catalog`, with manual keyboard and screen-reader testing on each
-  island. This decision does not by itself establish conformance.
-- **Boundary implication of Option 3 (for future reference).** Under Option 3,
-  anonymous users' draft metadata transits the server while the wiki promises
-  browser-only storage. That must be provably excluded from application logs,
-  New Relic traces, and any persistence — a data-flow claim requiring
-  verification and an ATO boundary review. Option 1 as scoped for the MVP does
-  not create this exposure.
-- **ATO documentation.** `ato_relevance: yes-internal` for the MVP scope.
-  Revisit to `yes-boundary` if Option 3 is adopted for anonymous editing.
+- **SI-10** — one shared validator, called by the server, which is authoritative; client checks advisory.
+- **SI-15 / SC-18** — React escapes by default, and `dangerouslySetInnerHTML` is
+  banned; a Content-Security-Policy applies; all JavaScript is first-party or
+  reviewed and pinned.
+- **SR-3** — committed lockfile, dependency audit in CI, reviewed upgrades.
+- **AU-2 / AU-3** — saved versions are audited through
+  [ADR 0011](0011-audit-trail-mechanism.md); local in-progress edits are not.
+- **AC-12** — the 900-second idle timeout is retained. The policy for the local
+  copy on logout and on idle timeout must be set; the proposal is to purge it on
+  explicit logout and keep it across idle timeout.
+- **Section 508 / WCAG 2.1 AA** — `pa11y-ci` and `axe` as blocking CI gates on every
+  page including the editor, plus manual keyboard and screen-reader testing of
+  the editor. This decision does not by itself establish conformance.
+- **ATO.** `yes-internal` for the MVP. Revisit if anonymous 2.1 editing sends data
+  through the server.
+
+## Blockers before acceptance
+
+1. **Run the editor spike and record its outcome.** Time-boxed, covering:
+   (a) load and edit a catalog of 3,000+ datasets in the browser responsively;
+   (b) a local-store plus sync prototype that chooses the local data format and
+   confirms where decompose and assemble run; (c) a USWDS React tree plus
+   single-level dialog meeting WCAG 2.1 AA under `axe` and manual screen-reader
+   testing.
+2. **Confirm the team can build and maintain a React/TypeScript editor**, or name
+   who will. The team's experience is Python and Flask, and this choice adds a
+   front-end stack.
 
 ## Links
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — v2 feature list and user/data management model
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) and [GSA/dcat-us](https://github.com/GSA/dcat-us) — schema and `_external/dcat-us` submodule source
-- [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) — sibling Flask + Jinja + USWDS + HTMX application; precedent for this option
-- [GSA/datagov-harvester](https://github.com/GSA/datagov-harvester) — sibling Flask application; owns the shared harvest DB
+- [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — validation is the shared Data.gov validator API
+- [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) — sibling Flask + Jinja + USWDS + HTMX application
 - [USWDS](https://designsystem.digital.gov/) and [`@trussworks/react-uswds`](https://github.com/trussworks/react-uswds) — design system and its React binding
-- [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the upstream Python validator and error summarizer that make a second JavaScript validator unnecessary; already vendored as `_external/dcat-us`
-- NIST SP 800-53 Rev 5.2 — SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15
+- NIST SP 800-53 Rev 5.2 — SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15, SR-3
 - Section 508 / WCAG 2.1 AA — [Section 508 standards](https://www.section508.gov/)
-- Related pending ADRs: Login.gov OIDC over SAML; object-graph data model; quarantine-then-scan antivirus
-- **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing. Line numbers are pinned to that commit.
+- **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing.
