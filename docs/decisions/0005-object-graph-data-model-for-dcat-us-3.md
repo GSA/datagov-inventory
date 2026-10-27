@@ -1,8 +1,8 @@
 ---
 title: "Store DCAT-US 3.0 metadata as a versioned object graph in Postgres"
-status: "proposed"
+status: "accepted"
 date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Data Handling"
 nist_controls: ["AU-2", "AU-3", "AU-10", "AC-3", "SI-10", "SI-12", "CM-3", "SC-28"]
 impact_level: "moderate"
