@@ -7,10 +7,7 @@ description: "Target architecture for the non-CKAN rewrite of inventory.data.gov
 
 > This document describes a *target* architecture, not a
 > built system. Every significant choice here is backed by a decision record in
-> [`docs/decisions/`](decisions/README.md), and **ten of those eleven records are
-> `proposed`, not `accepted`** — each carrying explicit blockers that could change
-> the design. Only [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md)
-> (repository topology) is `accepted`. See [Open blockers](#9-open-blockers).
+> [`docs/decisions/`](decisions/README.md).
 >
 
 ## 1. Why v2 exists
@@ -765,8 +762,6 @@ What v2 builds, because nothing upstream provides it:
 
 ## 9. Open blockers
 
-Every decision record except
-[ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md) is `proposed`.
 No record should be accepted — and no build should start on the affected area —
 until its blockers clear.
 
