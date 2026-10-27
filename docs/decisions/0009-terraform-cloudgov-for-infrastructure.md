@@ -1,8 +1,8 @@
 ---
 title: "Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules"
-status: "proposed"
+status: "accepted"
 date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Deployment and Infrastructure"
 nist_controls: ["CM-2", "CM-3", "CM-6", "CM-8", "CM-9", "SC-7", "SC-12", "SC-28", "AC-3", "AC-5", "SA-8", "SR-3"]
 impact_level: "moderate"
