@@ -1,8 +1,8 @@
 ---
 title: "Scan uploaded data files with a quarantine-then-scan antivirus service and cap hosted files at 500 MB"
-status: "proposed"
+status: "accepted"
 date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Data Handling"
 nist_controls: ["SI-3", "SI-3(1)", "SI-3(2)", "SI-7", "SI-10", "SC-7", "AC-3", "AU-2", "AU-3", "IR-4", "IR-6"]
 impact_level: "moderate"
