@@ -1,8 +1,8 @@
 ---
 title: "Provision user accounts just-in-time on first Login.gov authentication, with authorization held in per-catalog permissions"
-status: "proposed"
+status: "accepted"
 date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Authentication and Identity"
 nist_controls: ["AC-2", "AC-2(3)", "AC-3", "AC-6", "AC-5", "AU-2", "AU-3", "AU-10", "IA-8", "PS-4"]
 impact_level: "moderate"
