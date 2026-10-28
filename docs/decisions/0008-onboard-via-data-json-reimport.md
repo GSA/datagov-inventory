@@ -1,8 +1,8 @@
 ---
 title: "Onboard agencies by importing published DCAT-US 3.0 data.json rather than migrating from CKAN"
-status: "proposed"
+status: "accepted"
 date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Deployment and Infrastructure"
 nist_controls: ["CM-3", "SI-10", "SI-12", "CP-9", "CM-4", "CM-7", "SA-8"]
 impact_level: "moderate"
