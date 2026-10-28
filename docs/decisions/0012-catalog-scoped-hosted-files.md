@@ -1,8 +1,8 @@
 ---
 title: "Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata"
-status: "proposed"
+status: "accepted"
 date: "2026-10-01"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Data Handling"
 nist_controls: ["AC-3", "AU-2", "AU-3", "SI-3", "SI-3(2)", "SI-7", "SI-10", "SI-12", "SC-7", "CM-3", "CM-7", "SA-8"]
 impact_level: "moderate"

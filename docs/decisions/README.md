@@ -21,9 +21,9 @@ records, to preserve the audit trail.
 | [0009](0009-terraform-cloudgov-for-infrastructure.md) | Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules | proposed | 2026-09-21 | **yes-boundary** | CM-2, CM-3, CM-6, CM-8, CM-9, SC-7, SC-12, SC-28, AC-3, AC-5, SA-8, SR-3 |
 | [0010](0010-depend-on-upstream-dcat-us-code.md) | Validate DCAT-US 3.0 through the Data.gov validator API and consume only the schema definitions from the pinned GSA/dcat-us submodule | proposed | 2026-09-24 | **yes-boundary** | SR-3, SR-4, SC-7, CM-2, CM-3, CM-8, SI-10, SA-8 |
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
-| [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | proposed | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
+| [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | accepted | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
 
-**By status:** 10 proposed, 1 accepted, 0 deprecated, 0 superseded.
+**By status:** 9 proposed, 2 accepted, 0 deprecated, 0 superseded.
 
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
