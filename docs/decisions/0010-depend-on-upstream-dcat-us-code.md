@@ -1,8 +1,8 @@
 ---
 title: "Validate DCAT-US 3.0 through the Data.gov validator API and consume only the schema definitions from the pinned GSA/dcat-us submodule"
-status: "proposed"
+status: "accepted"
 date: "2026-09-24"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Dependency and Component Boundary"
 nist_controls: ["SR-3", "SR-4", "SC-7", "CM-2", "CM-3", "CM-8", "SI-10", "SA-8"]
 impact_level: "moderate"
