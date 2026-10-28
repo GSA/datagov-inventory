@@ -1,8 +1,8 @@
 ---
 title: "Retire the tabular DataStore API in Inventory v2"
-status: "proposed"
+status: "accepted"
 date: "2026-09-21"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Deployment and Infrastructure"
 nist_controls: ["CM-7", "SA-8", "AC-3", "SI-10", "CM-4"]
 impact_level: "moderate"
