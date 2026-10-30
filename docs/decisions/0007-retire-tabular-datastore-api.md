@@ -12,6 +12,12 @@ risk_treatment: "avoid"
 
 # Retire the tabular DataStore API in Inventory v2
 
+> **Phase applicability, 2026-10-30:** This decision applies across all three
+> phases in [ADR 0013](0013-deliver-inventory-in-three-phases.md). Neither the
+> browser editor, collaborative metadata backend, nor dataset-hosting phase
+> provides tabular row-query functionality. Phase 3 files are downloadable, not
+> DataStore-queryable.
+
 ## Context and Problem Statement
 
 Inventory v1 runs CKAN's DataStore alongside `ckanext-xloader`: uploaded CSV and

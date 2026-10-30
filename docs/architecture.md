@@ -7,11 +7,26 @@ description: "Target architecture for the non-CKAN rewrite of inventory.data.gov
 
 > This document describes a *target* architecture, not a
 > built system. Every significant choice here is backed by a decision record in
-> [`docs/decisions/`](decisions/README.md), and **ten of those eleven records are
-> `proposed`, not `accepted`** — each carrying explicit blockers that could change
+> [`docs/decisions/`](decisions/README.md), and **eleven of the twelve active
+> records are `proposed`, not `accepted`** — each carrying explicit blockers that could change
 > the design. Only [ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md)
 > (repository topology) is `accepted`. See [Open blockers](#9-open-blockers).
 >
+
+Per [ADR 0013](decisions/0013-deliver-inventory-in-three-phases.md), this target
+is delivered in three phases:
+
+| Phase | Scope |
+|---|---|
+| **1: browser metadata editor** | Anonymous creation or ingestion, editing, IndexedDB persistence, validation, and export of DCAT-US 3.0 metadata; no Inventory backend |
+| **2: collaborative metadata service** | Login.gov authentication, authoritative Postgres persistence, catalog permissions, optimistic concurrency, joint editing, onboarding, and audit history |
+| **3: dataset hosting** | File upload, quarantine, malware scanning, immutable versions, and public downloads |
+
+The detailed server design below is the phase 2 target unless marked phase 3.
+The backend runtime remains a phase 2 decision: the reviewed Python/Flask design
+is retained here as the current proposal, while TypeScript/Node may be chosen if
+shared domain code and operational evidence justify it. Phase 1 is specified by
+[ADR 0014](decisions/0014-browser-only-metadata-editor.md).
 
 ## 1. Why v2 exists
 
@@ -26,7 +41,7 @@ Four v1 pain points set the scope:
 
 | Pain point | v2 response |
 |---|---|
-| UI rewrite required for Section 508 compliance | USWDS throughout, server-rendered except the editor, with accessibility gates in CI ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)) |
+| UI rewrite required for Section 508 compliance | Phase 1 is a React/USWDS browser application with accessibility gates in CI. In later phases the editor remains React, while non-editor pages may be server-rendered ([ADR 0014](decisions/0014-browser-only-metadata-editor.md)). |
 | Forked CKAN code will never merge upstream | No CKAN; one first-party application |
 | Custom React form built for DCAT-US 1.1 needs a full rewrite for 3.0 | Form generated from the JSON Schema, so schema releases are a submodule bump |
 | CKAN's flat model cannot express nested, reusable DCAT-US 3.0 classes | Object graph with reuse as edges ([ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md)) |
@@ -36,17 +51,44 @@ Four v1 pain points set the scope:
 `catalog.data.gov` ([GSA/datagov-catalog](https://github.com/GSA/datagov-catalog))
 and `harvest.data.gov` ([GSA/datagov-harvester](https://github.com/GSA/datagov-harvester))
 both left CKAN in 2025 for **Python 3.12 / Flask / Postgres / cloud.gov / nginx
-proxy / New Relic**. Inventory v2 is deliberately the third instance of that
-pattern. Where this document departs from those two apps, it says so and why.
+proxy / New Relic**. The current phase 2 proposal follows that pattern; phase 1
+deliberately starts with a static browser application, and the phase 2 runtime is
+not yet final. Where this document departs from those two apps, it says so and why.
 
 ## 2. Container view
+
+### Phase 1: browser-only alpha
+
+```mermaid
+flowchart LR
+    U["Anonymous data manager"] --> APP["Static Inventory editor<br/>React · TypeScript · USWDS"]
+    APP --> IDB[("IndexedDB<br/>catalogs · metadata objects<br/>references · catalog links")]
+    SCHEMA["GSA/dcat-us<br/>pinned 3.0 schemas"] -.->|"build time"| APP
+    APP -->|"explicit, non-credentialed HTTPS validation"| VAL["Data.gov validator API<br/>errors + warnings"]
+    APP -->|"local Blob download"| OUT["data.json<br/>success/error report"]
+```
+
+There is no Inventory application backend, account, server session, Postgres
+database, audit trail, scanner, or hosted-file service in phase 1. IndexedDB is
+durable working storage scoped to one browser origin, not a backup. On return the
+user explicitly chooses whether to restore or discard a saved working copy. A
+working copy is the current mutable version of one catalog; phase 1 does not keep
+parallel saved versions of the same catalog.
+
+### Phase 2 and phase 3 target
+
+The following reviewed diagram is retained as the target server architecture.
+Postgres, identity, authorization, and audit arrive in phase 2. The scanner, two
+S3 services, hosted-file routes, and related tasks arrive in phase 3. Its
+Python/Flask labels describe the current backend proposal, not a finalized runtime
+decision.
 
 ```mermaid
 flowchart TB
     subgraph clients["Clients"]
         GOV["Agency data manager<br/>PIV/CAC"]
-        PUB["Anonymous public user<br/>(MVP: hosted file download)"]
-        HARV["harvest.data.gov<br/>(2.1 - not MVP: dcatus3.0 source)"]
+        PUB["Anonymous public user<br/>(phase 3: hosted file download)"]
+        HARV["harvest.data.gov<br/>(later integration: dcatus3.0 source)"]
     end
 
     IDP["<b>Login.gov</b><br/>OIDC · IAL1 · AAL3 + HSPD-12<br/> private_key_jwt"]
@@ -123,50 +165,88 @@ outside the application: default-deny path allowlisting
 (`proxy/nginx.conf:44,48`), HSTS stamping with upstream-HSTS stripping (`:36,59`),
 and cookie hardening (`:62`). Collapsing to one app would lose all three.
 
-v2 keeps the topology **and** additionally implements header policy in
-Flask-Talisman, so the policy is unit-testable rather than only observable in a
+From phase 2 onward, v2 keeps the topology **and** additionally implements header
+policy in the selected backend framework (Flask-Talisman in the current Python
+proposal), so the policy is unit-testable rather than only observable in a
 deployed environment.
 
 ## 3. Technology choices
 
 | Layer | Technology | Rationale / departure from v1                                                                                                                                                                                                                                                                                                              |
 |---|---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Runtime | Python 3.12 | v1 is pinned to 3.10 by CKAN. Matches catalog and harvester.                                                                                                                                                                                                                                                                               |
-| Framework | Flask + APIFlask | APIFlask yields OpenAPI for the import/export/validate API. Same as catalog.                                                                                                                                                                                                                                                               |
-| Dependencies | Poetry | Replaces the `requirements.in.txt` → `bin/requirements.sh` → `requirements.txt` freeze cycle and the `jsonschema` post-install upgrade hack at `Dockerfile:28-29`.                                                                                                                                                                         |
-| UI | Jinja2 + USWDS 3 + HTMX for all pages except the catalog editor, which is a local-first React app (proposed) | [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md). The editor is a single route with a spike gating acceptance.                                                                                                                                                                                           |
+| Phase 1 runtime | Browser JavaScript / TypeScript | Static React/USWDS application; no Inventory application backend ([ADR 0014](decisions/0014-browser-only-metadata-editor.md)). |
+| Phase 1 persistence | IndexedDB, separate graph records | Stores catalogs, metadata objects, object references, and catalog links. Complete snapshots are a bounded phase 1 strategy, not a phase 2 requirement. |
+| Phase 2 runtime | To be decided: TypeScript/Node or Python 3.12 | Python matches catalog and harvester; TypeScript may share domain semantics with the browser. The choice is deferred until phase 2. |
+| Phase 2 framework (current proposal) | Flask + APIFlask | APIFlask yields OpenAPI for the import/export/validate API. Same as catalog. Revisited if Node is selected. |
+| Phase 2 dependencies (current proposal) | Poetry | Replaces the `requirements.in.txt` → `bin/requirements.sh` → `requirements.txt` freeze cycle and the `jsonschema` post-install upgrade hack at `Dockerfile:28-29`. Revisited if Node is selected. |
+| UI | React + USWDS for the complete phase 1 app and for the metadata editor thereafter; later non-editor pages may use Jinja2 + USWDS 3 + HTMX or another server-rendered approach | [ADR 0014](decisions/0014-browser-only-metadata-editor.md). Phase 1 does not force a site-wide SPA in phases 2 or 3. |
 | Form generation | Schema-driven renderer over `_external/dcat-us` | Field descriptions come from the schema, per the feature list. Schema releases become a submodule bump.                                                                                                                                                                                                                                    |
-| ORM | SQLAlchemy 2.0 + Alembic + psycopg 3 | v1 is on SQLAlchemy 1.4.                                                                                                                                                                                                                                                                                                                   |
+| ORM (current phase 2 proposal) | SQLAlchemy 2.0 + Alembic + psycopg 3 | v1 is on SQLAlchemy 1.4. Revisited if Node is selected.                                                                                                                                                                                                                                                                                                                   |
 | Database | Postgres (`medium-psql-redundant` prod, `small-psql` dev) | One instance. v1 has two plus Redis.                                                                                                                                                                                                                                                                                                       |
 | Search | Postgres FTS (`tsvector` + GIN) | **Deliberately not OpenSearch.** Catalog needs it at 515k datasets; Inventory holds thousands per org.                                                                                                                                                                                                                                     |
-| Cache / queue | none | Redis and RQ removed. Nothing in the MVP needs sub-minute async.                                                                                                                                                                                                                                                                           |
+| Cache / queue | none initially | Redis and RQ removed. Large phase 2 imports or exports may use tracked asynchronous jobs if measured catalog sizes require them.                                                                                                                                                                                                                                                                           |
 | Auth | Login.gov OIDC via Authlib | Removes `pysaml2`, `xmlsec1`, and the `apt-buildpack`.                                                                                                                                                                                                                                                                                     |
 | Session | Flask-Login + server-side sessions in Postgres, 900 s idle | Real revocation on logout. v1 also stores sessions in Postgres (`.profile:106`) but via Beaker.                                                                                                                                                                                                                                            |
 | Authorization | App-native per-catalog RBAC | [ADR 0004](decisions/0004-jit-user-provisioning-and-catalog-rbac.md). Replaces 15 chained CKAN auth functions, 2 rewritten ones, a regex path carve-out (`plugin.py:80-81`), and 2 `before_app_request` hooks.                                                                                                                             |
 | Audit trail | PostgreSQL-Audit (pinned), plpgsql triggers → `activity` + `transaction` | [ADR 0011](decisions/0011-audit-trail-mechanism.md). Trigger-level capture reaches the edge, `state`, and permission changes `metadata_properties` versioning cannot see. v1 relies on CKAN revisions. Actor arrives via the ORM, so a session-bypassing write is recorded but unattributed — a test must assert no null `transaction_id`. |
 | Validation | Data.gov DCAT-US 3.0 validator API (HTTP) | Schema validation plus warnings, shared with the harvester and the public validator; Inventory runs no validator ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md)). Publishing fails closed if it is unavailable. |
 | Schemas | `_external/dcat-us` git submodule (first-party, in-boundary), pinned to a verified commit, + Dependabot | Schema definitions only, to generate forms and help text; none of its code is executed. The pin must match the validator API's schema version ([ADR 0010](decisions/0010-depend-on-upstream-dcat-us-code.md)). |
-| File storage | cloud.gov S3 + boto3, SHA-256, presigned downloads | Private throughout, across **two** brokered instances (`inventory-s3-quarantine`, `inventory-s3-files`). Immutable per-version objects under `files/`, served via a stable catalog-scoped app route that redirects to a short-lived presigned URL ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).                                                                                                                                                                                                                                                                                                                                                                      |
-| Malware scanning | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
+| File storage (phase 3) | cloud.gov S3 + boto3, SHA-256, presigned downloads | Private throughout, across **two** brokered instances (`inventory-s3-quarantine`, `inventory-s3-files`). Immutable per-version objects under `files/`, served via a stable catalog-scoped app route that redirects to a short-lived presigned URL ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).                                                                                                                                                                                                                                                                                                                                                                      |
+| Malware scanning (phase 3) | ClamAV in a dedicated app, quarantine-then-scan | [ADR 0006](decisions/0006-quarantine-then-scan-antivirus.md). v1 has **no** scanning.                                                                                                                                                                                                                                                      |
 | Background work | Flask CLI commands invoked by `cf run-task`, scheduled by GitHub Actions | Mirrors catalog's `flask sitemap generate`. Fixes v1's RQ worker co-located with gunicorn (`config/server_start.sh:9`), invisible to the health check.                                                                                                                                                                                     |
 | Proxy | nginx via cloud.gov nginx-buildpack | Retained; see above.                                                                                                                                                                                                                                                                                                                       |
 | Headers | Flask-Talisman + nginx | Testable in unit tests, enforced at the edge.                                                                                                                                                                                                                                                                                              |
 | Observability | New Relic (gov-collector) for APM + structured JSON logs with request and actor IDs, drained to the shared Logstack shipper via `logstack-space-drain` | v1 logs are plain text with no correlation IDs, and nginx access logs omit client IP, timestamp, and latency (`proxy/nginx.conf:8-9`). Same drain service `datagov-catalog` binds.                                                                                                                                                         |
-| Tests | pytest, Playwright, pa11y-ci + axe, ruff/black/isort | Replaces Cypress 13; shares tooling with catalog.                                                                                                                                                                                                                                                                                          |
+| Tests | TypeScript unit tests + Playwright + axe in phase 1; backend tests plus Playwright and accessibility tests in phase 2 | Phase 2 backend tooling follows the selected runtime.                                                                                                                                                                                                                                                                                          |
 | CI/CD | GitHub Actions → `gsa/data.gov/.github/workflows/deploy-template.yml@main` | Same reusable templates.                                                                                                                                                                                                                                                                                                                   |
 
 ### Deliberate non-adoptions
 
 - **OpenSearch** — wrong scale for Inventory; adds a service to operate.
 - **Redis** — nothing left needs it once the DataStore and RQ are gone.
-- **A site-wide SPA** — only the catalog editor is a client application; see [ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md), including the conditions that would reverse that decision.
+- **A site-wide SPA as a phase 2 commitment** — phase 1 is a browser-only React
+  application, but only the catalog editor is committed to React thereafter.
+  Authentication, administration, audit, and file-management pages may be
+  server-rendered; see [ADR 0014](decisions/0014-browser-only-metadata-editor.md).
 - **An in-process validator** — validation is the shared Data.gov validator API, so a second implementation would drift from it. Any client-side check is advisory only.
 - **DCAT-US 1.1 → 3.0 conversion** — see [ADR 0008](decisions/0008-onboard-via-data-json-reimport.md). The upstream converter exists and works; v2 simply does not host it.
+
+### V2 does not convert DCAT-US 1.1
+
+Every phase accepts DCAT-US 3.0 only. Conversion remains an out-of-band agency
+action under ADR 0008.
 
 ## 4. Data model
 
 The direct answer to the CKAN mismatch. Full reasoning and rejected alternatives
 in [ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md).
+
+The graph is the shared logical model across phases. Phase 1 stores separate
+records in IndexedDB; phase 2 makes the Postgres model below authoritative:
+
+| Phase 1 object store | Logical/server counterpart |
+|---|---|
+| `catalogs` | `catalog` |
+| `metadataObjects`, indexed by `catalogId` | `metadata_object` |
+| `objectReferences`, indexed by parent, child, and `[parentObjectId, property, ordinal]` | `object_reference` |
+| `catalogLinks`, indexed by parent, child, and `[parentCatalogId, ordinal]` | `catalog_link` |
+
+Browser-generated UUIDs, graph relationships, and ordering are compatible with
+phase 2. IndexedDB has no foreign keys or recursive queries, so the TypeScript
+domain library checks roots, scopes, references, cycles, and depth, and loads a
+consistent snapshot into memory for phase 1 export. Phase 2 may instead use
+paginated queries, granular commands, and server-side whole-catalog jobs for
+catalogs beyond the published browser limit.
+
+Phase 1 preserves distinct input object instances, even when their scalar
+properties are identical, so a load/export round trip does not merge data the
+user did not choose to share. ADR 0008's convergence of identical objects begins
+with authoritative phase 2 onboarding. Phase 1 also preserves the graph shape
+without exposing `draft`/`live`, publish, or unpublish workflow; the `state` model
+described below starts in phase 2.
+
+The remainder of this section describes the phase 2 Postgres model and the phase
+3 hosted-file additions.
 
 ```mermaid
 erDiagram
@@ -248,7 +328,7 @@ Three properties carry the requirements:
    the graph and assembles nested JSON; import is the inverse. `ordinal`
    preserves JSON array order, without which the round-trip property below is
    false for any object with two or more children.
-2. **`state` is per object.** "Drafts are not exported" becomes
+2. **From phase 2, `state` is per object.** "Drafts are not exported" becomes
    `WHERE state = 'live'` on the export walk. This replaces v1's documented
    three-way confusion between CKAN `private`, DCAT `accessLevel`, and Inventory
    publishing status ([GSA/data.gov#2095](https://github.com/GSA/data.gov/issues/2095)).
@@ -264,11 +344,13 @@ property-based round-trip tests (`assemble ∘ decompose ≡ identity`), cycle
 detection with a depth bound on the walk, an acyclicity check on `catalog_link`
 writes, and schema validation of every export before delivery.
 
-**Second risk:** reusable objects are addressable independently of the catalog a
+**Second risk from phase 2:** reusable objects are addressable independently of the catalog a
 user reached them through, so **every object route needs an explicit
 direct-object-reference authorization check**. Object IDs are not authorization.
 
 ### Hosted files are catalog-scoped, with a lifecycle independent of metadata
+
+This subsection applies in phase 3.
 
 `hosted_file` and `hosted_file_version` are deliberately **not** part of the
 object graph. A `hosted_file` belongs to a `catalog`, references no
@@ -277,11 +359,18 @@ object graph. A `hosted_file` belongs to a `catalog`, references no
 
 ### Auditability
 
+This subsection applies from phase 2. Phase 1 local revisions and export reports
+are not compliance audit records; attributable history begins when an
+authenticated user first saves or imports a catalog to the backend.
+
 To meet our auditability requirements (*"we will maintain historical object tracking
 along with user edit information. All changes will be available for
 auditability."*), we will use a third-party audit library, as discussed in ([ADR 0011](decisions/0011-audit-trail-mechanism.md)).
 
 ### There is no agency/bureau tenant entity
+
+This subsection describes phase 2 authorization. Phase 1 has no tenant or
+authorization model because all state is local to the browser user.
 
 v1 inherits CKAN's organization: an agency/bureau silo that owns datasets, holds
 user membership, and is the unit of isolation. The wiki's first feature bullet
@@ -333,6 +422,13 @@ means the DCAT class.
 
 ### Catalog-to-catalog sharing
 
+### Catalog-to-catalog sharing is phase 2 scope
+
+The earlier reviews called catalog-to-catalog sharing MVP scope. Under ADR 0013,
+that means phase 2, when shared authoritative catalogs and authorization exist.
+Phase 1 can represent catalog links structurally but has no browser-side security
+boundary.
+
 A couple of requirements on catalog-to-catalog sharing:
 
 1. **Acyclicity enforcement on `catalog_link` writes.** Catalog A embedding B
@@ -355,7 +451,61 @@ manual repair).
 
 ## 5. Key flows
 
+### Phase 1 create, ingest, and edit
+
+```mermaid
+sequenceDiagram
+    actor U as Anonymous data manager
+    participant UI as Browser editor
+    participant D as TypeScript DCAT domain library
+    participant I as IndexedDB
+
+    U->>UI: Create blank catalog or choose DCAT-US 3.0 JSON
+    UI->>D: Parse with byte, object, and depth limits
+    D->>D: Decompose to distinct objects and ordered references
+    D->>I: Save separate records in one transaction
+    U->>UI: Edit, reuse, copy, or remove objects
+    UI->>D: Apply graph operation
+    D->>I: Commit affected records atomically
+```
+
+On a later visit, the editor offers the saved working copy and requires an
+explicit restore-or-discard choice. It never silently restores catalog data. The
+responsiveness check measures catalogs through at least 3,000 datasets and sets a
+published phase 1 size limit; handling all 3,000 is not an architecture-acceptance
+condition.
+
+### Phase 1 export with success and error reporting
+
+```mermaid
+sequenceDiagram
+    actor U as Anonymous data manager
+    participant UI as Browser editor
+    participant I as IndexedDB
+    participant D as TypeScript DCAT domain library
+    participant V as Data.gov validator API
+
+    U->>UI: Export
+    UI->>I: Load consistent graph snapshot
+    I-->>D: Catalog, objects, references, links
+    D->>D: Walk from root<br/>preserve order<br/>detect missing references, cycles, and depth
+    D-->>UI: Assembled DCAT-US 3.0 or graph errors
+    UI->>V: Validate assembled catalog
+    V-->>UI: Errors, warnings, validator and schema versions
+    alt valid
+        UI-->>U: Download data.json and success report
+    else invalid or unavailable
+        UI-->>U: Error report and explicitly labeled invalid-file option
+    end
+```
+
+The API call is explicit, non-credentialed, and disclosed to the user. Editing
+and local saving continue if the API is unavailable, but the app does not report
+a successful validated export.
+
 ### 5.1 Authentication and first-login provisioning
+
+This flow begins in phase 2.
 
 ```mermaid
 sequenceDiagram
@@ -391,6 +541,10 @@ receives it).
 
 ### 5.2 Export with error reporting
 
+This is the authoritative phase 2 export flow. Unlike bounded phase 1 browser
+export, it may use paginated reads or a tracked asynchronous server job for very
+large catalogs.
+
 ```mermaid
 sequenceDiagram
     actor U as Data manager
@@ -422,6 +576,8 @@ URL, the URL validation live catalogs already require.
 
 ### 5.3 Upload with quarantine-then-scan
 
+This flow begins in phase 3.
+
 ```mermaid
 sequenceDiagram
     actor U as Data manager
@@ -437,7 +593,7 @@ sequenceDiagram
     W->>DB: INSERT hosted_file (first upload only)<br/>INSERT hosted_file_version (scan_state=pending, sha256,<br/>size_bytes, content_type, original_filename)
     W->>SC: POST /scan {s3_key, version_id} — fire-and-forget, 2 s timeout
     W-->>U: 202 — scanning, stable URL still serves the previous version
-    Note over U,W: HTMX polls GET /file/{version_id}/status
+    Note over U,W: client polls GET /file/{version_id}/status
 
     SC->>SQ: stream object
     SC->>SC: clamd INSTREAM
@@ -467,6 +623,8 @@ scanner restarts, and crashed scans all self-heal. It reuses the
 `CF_INSTANCE_INDEX == 0` guard that harvester's `LoadManager` already uses.
 
 ### 5.3.1 Hosted file download at a stable URL
+
+This public flow begins in phase 3.
 
 ```mermaid
 sequenceDiagram
@@ -508,6 +666,9 @@ outside this system (CM-3).
 
 ### 5.4 Import DCAT-US 3.0 catalog
 
+This is the authoritative phase 2 import flow. Phase 1 local ingestion preserves
+distinct input instances and does not introduce `draft`/`live` workflow.
+
 ```mermaid
 flowchart LR
     A["upload or fetch v3.0 JSON file"] --> B["parse (reject only if unparseable)"]
@@ -523,7 +684,7 @@ flowchart LR
 
 Agency onboarding to Inventory 2.0 is simply the
 [Import DCAT-US 3.0 catalog](#54-import-dcat-us-30-catalog) workflow, which must be
-managed manually by a data manager from the agency. This comes with a "natural" housecleaning step - agencies that once 
+managed manually by a data manager from the agency. This comes with a "natural" housecleaning step - agencies that once
 needed an Inventory 1.0 account but have since switched to some other metadata tool will naturally be dropped from Inventory 2.0.
 
 **The agency supplies a 3.0 file and does the move itself.** v2 does not convert
@@ -536,6 +697,21 @@ objects are imported and flagged, and cannot go `live`.
 
 ## 6. Deployment
 
+### Phase 1 static deployment
+
+Phase 1 deploys versioned static assets over HTTPS. It needs a restrictive
+Content Security Policy that permits the explicit validator API connection,
+dependency and secret scanning, accessible error handling, and a validator CORS
+policy allowing the deployed origin. It provisions none of the Postgres, Login.gov,
+scanner, S3, audit, or shared-log components below.
+
+### Phase 2 and phase 3 cloud.gov deployment
+
+The remainder of this section preserves the reviewed cloud.gov target. Phase 2
+introduces the backend, proxy, Postgres, Login.gov, validator egress, migrations,
+and logging. Phase 3 adds the two S3 services, scanner, signature egress, and
+file-related scheduled tasks.
+
 Per-environment sizing follows v1 (`vars.*.yml`), minus the removed services.
 
 | | development                                | staging                                      | prod                      |
@@ -545,11 +721,14 @@ Per-environment sizing follows v1 (`vars.*.yml`), minus the removed services.
 | Postgres plan | `small-psql`                               | `medium-psql-redundant`                      | `medium-psql-redundant`   |
 | New Relic monitoring | off                                        | on                                           | on                        |
 
-**Services bound:** `inventory-db`, `inventory-s3-quarantine`,
-`inventory-s3-files`, `inventory-secrets`, `logstack-space-drain`. Removed
+**Services bound by phase 3:** `inventory-db`, `inventory-s3-quarantine`,
+`inventory-s3-files`, `inventory-secrets`, `logstack-space-drain`. Phase 2 does
+not yet bind the two file-hosting S3 services. Removed
 relative to v1: `inventory-datastore`, `inventory-redis`, `sysadmin-users`.
 
 ### Logging uses shared infrastructure this repository does not own
+
+This begins in phase 2.
 
 `logstack-space-drain` is bound to **both** `inventory` and `inventory-proxy`,
 matching `datagov-catalog`'s manifest. Everything downstream of that binding is
@@ -567,17 +746,17 @@ so this is an internal data flow rather than an external interconnection.
 
 ### Infrastructure is provisioned with Terraform
 
-Per [ADR 0009](decisions/0009-terraform-cloudgov-for-infrastructure.md), v2
+Per [ADR 0009](decisions/0009-terraform-cloudgov-for-infrastructure.md), phase 2 and phase 3
 provisions cloud.gov infrastructure with
 [`GSA-TTS/terraform-cloudgov`](https://github.com/GSA-TTS/terraform-cloudgov)
 modules pinned by tag, replacing v1's `create-cloudgov-services.sh`.
 
 | Managed by Terraform | Module |
 |---|---|
-| `inventory-db` (Postgres, `prevent_destroy` in prod) | `database` |
-| `inventory-s3-quarantine` (lifecycle expiry on `quarantine/` only; `infected/` retained) | `s3` |
-| `inventory-s3-files` (serving content; versioning optional) | `s3` |
-| `inventory-scanner` (ClamAV, ~3 GB, `apps.internal` only) | `clamav` |
+| `inventory-db` (phase 2; Postgres, `prevent_destroy` in prod) | `database` |
+| `inventory-s3-quarantine` (phase 3; lifecycle expiry on `quarantine/` only; `infected/` retained) | `s3` |
+| `inventory-s3-files` (phase 3; serving content; versioning optional) | `s3` |
+| `inventory-scanner` (phase 3; ClamAV, ~3 GB, `apps.internal` only) | `clamav` |
 | Egress proxy + allowlist (into the existing egress space) | `egress_proxy` |
 | Container-network policies | provider resources |
 
@@ -595,7 +774,7 @@ because service-key attributes are stored in Terraform state in plaintext. And
 GitHub action, as in `datagov-catalog`; the modules' `application` deployment
 module is deliberately unused.
 
-This is the one place v2 diverges from `datagov-catalog` and
+This is the one place the phase 2/3 proposal diverges from `datagov-catalog` and
 `datagov-harvester`, neither of which uses Terraform. The justification is that
 v2's infrastructure — a scanner app, an egress proxy with an allowlist, and
 network policies across three apps — is materially larger than theirs, and in v1
@@ -652,18 +831,18 @@ migrations, and then plan for future migrations."*
 
 | Task | Cadence | Purpose |
 |---|---|---|
-| `flask audit urls` | daily | Scan `live` catalog URLs for malicious content (feature-list requirement) |
-| `flask audit orphans` | monthly | Report of catalogs with no `admin` — one query over `catalog_permission`. Report only; action is the Data.gov team's decision |
-| `flask audit unreferenced-files` | monthly | Hosted files referenced by no `Distribution` and still publicly served, reported as-is (age and orphan date are ignored) with recommended cleanup for Data.gov staff to act on. Nothing is withdrawn or purged automatically ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)) |
-| `flask db upgrade` | per deploy | Once, before rollout |
-| freshclam | per scanner schedule | Signature updates; **alert on signature age**, not only on scan failure |
+| backend URL audit command (phase 2) | daily | Scan `live` catalog URLs for malicious content (feature-list requirement) |
+| backend orphan audit command (phase 2) | monthly | Report of catalogs with no `admin` — one query over `catalog_permission`. Report only; action is the Data.gov team's decision |
+| backend unreferenced-file audit command (phase 3) | monthly | Hosted files referenced by no `Distribution` and still publicly served, reported as-is (age and orphan date are ignored) with recommended cleanup for Data.gov staff to act on. Nothing is withdrawn or purged automatically ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)) |
+| database migration command (phase 2) | per deploy | Once, before rollout |
+| freshclam (phase 3) | per scanner schedule | Signature updates; **alert on signature age**, not only on scan failure |
 
 ### Egress allowlist
 
-Four outbound destinations, all through the cloud.gov egress proxy:
-`secure.login.gov` (OIDC discovery and JWKS), `database.clamav.net` (signatures),
-the Data.gov DCAT-US validator API (validation), and agency URLs (`data.json` import
-and URL auditing). All four are denied by default; the validator API's host is added
+Four outbound destinations in the final phase, all through the cloud.gov egress proxy:
+`secure.login.gov` (phase 2 OIDC discovery and JWKS), `database.clamav.net` (phase
+3 signatures), the Data.gov DCAT-US validator API (phase 2 backend validation),
+and agency URLs (phase 2 `data.json` import and URL auditing). All four are denied by default; the validator API's host is added
 to the allowlist once it exists.
 OIDC discovery and JWKS documents must be cached with a bounded TTL so a
 transient Login.gov outage does not deny all logins.
@@ -709,12 +888,18 @@ codebases run and are patched concurrently for months.
 flowchart TB
     subgraph new["GSA/datagov-inventory (new)"]
         direction TB
-        APP["app/ — Flask application<br/>views · forms · auth · models"]
-        LIB["dcat/ — pure Python, Inventory-owned<br/>decompose/assemble · schema→form model<br/>export-run orchestration<br/><i>no Flask, no models, no DB; no validator</i>"]
+        EDITOR["editor/ — phase 1 React + TypeScript<br/>USWDS · application services"]
+        TSLIB["editor/src/dcat/ — pure TypeScript<br/>decompose/assemble · graph operations<br/><i>no React, DOM, or IndexedDB</i>"]
+        STORE["editor/src/storage/ — CatalogRepository<br/>IndexedDB implementation"]
+        APP["app/ — phase 2 backend proposal<br/>runtime to be decided<br/>Python/Flask views · auth · models shown here"]
+        LIB["dcat/ — proposed server domain layer<br/>authoritative graph/export orchestration<br/><i>runtime follows phase 2 decision</i>"]
         SCANAPP["scanner/ — clamd wrapper app"]
         PROXYD["proxy/ — nginx config"]
         DOCS["docs/ — architecture.md + decisions/"]
         SUB["_external/dcat-us — git submodule<br/>3.0 schema definitions only<br/>pinned to a verified commit"]
+        EDITOR --> TSLIB
+        EDITOR --> STORE
+        TSLIB --> SUB
         APP --> LIB
         LIB --> SUB
     end
@@ -730,7 +915,8 @@ flowchart TB
     end
 
     SUB -.->|"read schemas, don't fork"| UPSTREAM
-    LIB -.->|"HTTPS validate"| VALAPI
+    EDITOR -.->|"phase 1 HTTPS validate"| VALAPI
+    LIB -.->|"phase 2 HTTPS validate"| VALAPI
     CKAN -.->|"re-sync or retire<br/>(v1 remediation)"| UPSTREAM
     HARV -.->|"adopts the same validator API"| VALAPI
 ```
@@ -757,7 +943,7 @@ What v2 builds, because nothing upstream provides it:
 - **Graph decompose / assemble** — 3.0 nested JSON ⟷ the object graph in
   [§4](#4-data-model). This is the technical core of v2 and is Inventory-specific.
 - **Schema → form-model generation** — driving the editor from the schema
-  ([ADR 0002](decisions/0002-ui-rendering-architecture-for-inventory-v2.md)).
+  ([ADR 0014](decisions/0014-browser-only-metadata-editor.md)).
 - **Export-run orchestration** — `export_run` records, ZIP assembly, presigned
   delivery ([§5.2](#52-export-with-error-reporting)).
 - **A client for the validator API**, with a fail-closed policy for publishing and a
@@ -765,8 +951,8 @@ What v2 builds, because nothing upstream provides it:
 
 ## 9. Open blockers
 
-Every decision record except
-[ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md) is `proposed`.
+Every active decision record except
+[ADR 0001](decisions/0001-repository-topology-for-inventory-v2.md) is currently `proposed`.
 No record should be accepted — and no build should start on the affected area —
 until its blockers clear.
 
@@ -789,6 +975,9 @@ changes relative to v1:
   further strengthened by per-version `signature_version` and `sha256` on
   immutable file versions, which make retroactive re-scan a query and make the
   integrity record non-mutable ([ADR 0012](decisions/0012-catalog-scoped-hosted-files.md)).
+- **Phase 1:** SI-10 input limits and graph checks, SI-15/SC-18 safe browser
+  rendering and CSP, SR-3 dependency controls, and accessibility gates apply. It
+  does not claim AC-2/AC-3 user controls or AU-2 attributable auditing.
 - **Preserved:** IA-2 AAL3 + HSPD-12 (PIV/CAC)
   AC-12 900-second idle timeout, with the editor working from a local copy in the
   browser so the timeout costs no work — a client-side mitigation, so it does not
@@ -797,9 +986,10 @@ changes relative to v1:
 - **Changed and requiring SSP updates:** AC-2 (accounts created automatically,
   with zero-privilege as the compensating control — an assessor must see both
   statements together), and the data-flow and component inventory for the three
-  `yes-boundary` decisions (ADR 0006 adds a scanner and an outbound flow;
+  boundary-affecting decisions as their phases arrive (ADR 0006 adds a phase 3
+  scanner and an outbound flow;
   ADR 0007 removes a brokered data store and a public API; ADR 0012 adds an
-  unauthenticated public data flow serving file content at MVP, and splits object
+  unauthenticated public data flow serving file content in phase 3, and splits object
   storage into two brokered service instances). Also AU-9 / AC-6: logs
   carrying actor IDs are drained to a **shared** archive in the `management`
   space, readable by principals who hold no access to Inventory
@@ -827,7 +1017,7 @@ changes relative to v1:
 ## 11. References
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — the v2 feature list
-- [Decision records index](decisions/README.md) — ADRs 0001–0012 (no 0003; numbers are never reused)
+- [Decision records index](decisions/README.md) — ADRs 0001–0014 (no 0003; numbers are never reused)
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) · [1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) · [GSA/dcat-us](https://github.com/GSA/dcat-us)
 - [`GSA/dcat-us` `jsonschema/`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the 3.0 schema definitions v2 reads, described in [§8](#validate-through-the-api-read-only-the-schema-definitions); also home to `transforms.py` and `convert_dcat_1_1_to_3_0.py`, which v2 does **not** use ([ADR 0008](decisions/0008-onboard-via-data-json-reimport.md))
 - [GSA/datagov-catalog](https://github.com/GSA/datagov-catalog) · [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov) — the pattern being followed
