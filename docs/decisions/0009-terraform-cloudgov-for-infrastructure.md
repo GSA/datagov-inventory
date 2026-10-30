@@ -12,6 +12,14 @@ risk_treatment: "mitigate"
 
 # Provision cloud.gov infrastructure with GSA-TTS/terraform-cloudgov modules
 
+> **Phase applicability, 2026-10-30:** Phase 1 is a static browser application and
+> does not provision the services in this record. Under
+> [ADR 0013](0013-deliver-inventory-in-three-phases.md), phase 2 provisions the
+> backend application, Postgres, identity-related egress, network policy, and
+> observability. Phase 3 adds the quarantine and serving S3 services, ClamAV
+> scanner, scanner network policy, and signature-update egress. The Terraform
+> module, state, secret-handling, and deployment decisions remain unchanged.
+
 ## Context and Problem Statement
 
 Inventory v1 provisions its cloud.gov services with `create-cloudgov-services.sh`
@@ -294,7 +302,7 @@ These were open blockers and are now decided.
    management goes well here, a **future epic** will bring Data.gov's space-level
    resources under Terraform — the application and egress spaces, space roles,
    deployer accounts, and log shipping. That epic is out of scope for this record
-   and for v2's MVP.
+   and for the phase 2 backend.
 4. **Logging scope.** v2 adopts the existing shared arrangement: it binds
    `logstack-space-drain` (as `datagov-catalog` does, on both the app and the
    proxy) and does **not** deploy the module's `logshipper`, which would stand up

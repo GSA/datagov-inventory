@@ -12,6 +12,13 @@ risk_treatment: "mitigate"
 
 # Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata
 
+> **Phase applicability, 2026-10-30:** This decision applies to phase 3 dataset
+> hosting under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phases 1
+> and 2 edit and persist metadata, including external `accessURL` and `downloadURL`
+> values, but do not host dataset bytes. Promotion of a phase 1 catalog to phase 2
+> transfers metadata only; it never silently uploads browser-local files. The
+> hosted-file model and lifecycle below remain unchanged.
+
 ## Context and Problem Statement
 
 [ADR 0006](0006-quarantine-then-scan-antivirus.md) specifies how an uploaded file
@@ -276,8 +283,8 @@ tell hosted from agency-hosted. Consequences:
   files are kept indefinitely and a deleted one would break a published link.
 - **Download volume is outside v2's control** (see
   [How a download is served](#how-a-download-is-served)).
-- **Public download at MVP moves ADR 0006's malware-distribution risk to launch
-  day.** That record's "bounded by authentication" framing no longer holds.
+- **Public download in phase 3 moves ADR 0006's malware-distribution risk to the
+  phase 3 launch.** That record's "bounded by authentication" framing no longer holds.
 - **The bookmark is an opaque UUID.** A human-meaningful path would need a mutable
   name with uniqueness rules; out of scope.
 

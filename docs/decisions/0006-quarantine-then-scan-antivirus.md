@@ -12,6 +12,14 @@ risk_treatment: "mitigate"
 
 # Scan uploaded data files with a quarantine-then-scan antivirus service and cap hosted files at 500 MB
 
+> **Phase applicability, 2026-10-30:** This decision applies to phase 3 dataset
+> hosting under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1
+> edits metadata and phase 2 adds collaborative server persistence; neither phase
+> accepts or serves uploaded dataset bytes. Their `Distribution` objects may still
+> refer to agency-hosted URLs. Authentication and uploader attribution are already
+> present when phase 3 begins. The scanning and incident-handling decisions below
+> are otherwise unchanged.
+
 ## Context and Problem Statement
 
 Inventory hosts agency data files and serves them for public download. Inventory
@@ -83,7 +91,7 @@ upload → size/MIME/extension allowlist (every version, not only the first)
        → INSERT hosted_file_version(scan_state='pending', sha256, size_bytes,
                                     content_type, original_filename)
        → POST /scan to inventory-scanner (fire-and-forget, 2 s timeout)
-       → 202 to user; HTMX polls GET /file/{version_id}/status
+       → 202 to user; client polls GET /file/{version_id}/status
 
 scanner: stream object → clamd INSTREAM
   clean    → copy to inventory-s3-files files/{hosted_file_id}/{version_id},
@@ -188,8 +196,8 @@ rather than configured by hand.
 ### Positive Consequences
 
 - Closes a genuine gap: v2 will not redistribute known malware, and under
-  [ADR 0012](0012-catalog-scoped-hosted-files.md) that is a **launch** requirement,
-  since public download is MVP scope.
+  [ADR 0012](0012-catalog-scoped-hosted-files.md) that is a **phase 3 launch**
+  requirement, since public download begins in phase 3.
 - Scanning scales independently of web traffic; a scanner crash or restart
   cannot take down uploads or the site, and stalled work is recovered.
 - No broker: no Redis, no RQ, no queue to operate or monitor.
@@ -294,7 +302,7 @@ accepted. Track each as an issue.
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the object graph, which hosted files deliberately sit outside
 - [ADR 0007](0007-retire-tabular-datastore-api.md) — retires the DataStore; uploaded files remain downloadable
 - [ADR 0009](0009-terraform-cloudgov-for-infrastructure.md) — provisions the scanner app via the `clamav` module; source of the 3 GB and `max_file_size` findings
-- [ADR 0012](0012-catalog-scoped-hosted-files.md) — moves scan state to a per-version row, splits the bucket into two service instances, retires the `clean/` prefix, and makes public download MVP scope
+- [ADR 0012](0012-catalog-scoped-hosted-files.md) — moves scan state to a per-version row, splits the bucket into two service instances, retires the `clean/` prefix, and defines phase 3 public download
 - `proxy/nginx.conf:31` — current 1500 MB body limit
 - `.profile:117-122`, `config/ckan.ini:215-221` — current S3 upload configuration with no scanning
 - NIST SP 800-53 Rev 5.2 — SI-3, SI-7, SI-10, SC-7, AC-3, AU-2, AU-3, IR-4, IR-6

@@ -1,6 +1,7 @@
 ---
 title: "Use server-rendered Flask pages with a local-first React editor for Inventory v2"
-status: "proposed"
+status: "superseded"
+superseded_by: "ADR 0014"
 date: "2026-09-21"
 decision_makers: ["Data.gov engineering team"]
 category: "Input Validation and Output Handling"
@@ -12,7 +13,12 @@ risk_treatment: "mitigate"
 
 # Use server-rendered Flask pages with a local-first React editor for Inventory v2
 
-> **Status note:** This record is `proposed`. The product questions are now
+> **Superseded 2026-10-30 by [ADR 0014](0014-browser-only-metadata-editor.md).**
+> Inventory will deliver the anonymous browser-only editor as phase 1 rather than
+> mounting one editor route in a server-rendered Flask application. This record is
+> retained as the history of the hybrid proposal.
+>
+> **Historical status note:** While this record was proposed, the product questions were
 > answered (see [Decided requirements](#decided-requirements)), which **reverses
 > this record's earlier recommendation** of server-rendered Jinja and HTMX for the
 > editor. The direction below is a proposal that must be proven by a

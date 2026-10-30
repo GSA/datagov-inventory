@@ -12,6 +12,18 @@ risk_treatment: "mitigate"
 
 # Store DCAT-US 3.0 metadata as a versioned object graph in Postgres
 
+> **Phase applicability, 2026-10-30:** The object graph in this record is the
+> logical metadata representation for all phases under
+> [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1 stores equivalent
+> catalogs, metadata objects, object references, and catalog links as separate
+> IndexedDB records, as specified by
+> [ADR 0014](0014-browser-only-metadata-editor.md). Phase 2 makes the Postgres
+> representation below authoritative. IndexedDB has no foreign keys, joins, or
+> recursive queries, so the phase 1 domain library enforces graph invariants and
+> loads a consistent snapshot into memory before recursive assembly. The graph
+> shape, reuse semantics, ordering, state, and cycle/depth requirements remain
+> unchanged.
+
 ## Context and Problem Statement
 
 The stated reason for leaving CKAN is that *"the CKAN metadata model is not very
@@ -197,8 +209,9 @@ not an emergent property.
   - Class-specific fields live in metadata_properties so class property changes never require DDL migrations and non-breaking changes don't require data migrations
   - metadata_object.dcat_class and object_reference.property are text fields, not enums, so newly added classes don't require migrations
 - Catalog-to-catalog sharing is native: `catalog_permission` accepts either a
-  user or a catalog as principal. Since that feature is MVP scope, the model
-  carries it from the first release rather than requiring a later schema change.
+  user or a catalog as principal. Since that feature is phase 2 scope, the
+  authoritative server model carries it from its first release rather than
+  requiring a later schema change.
 - **No tenant entity.** v1's CKAN agency/bureau organization is not carried
   forward: agency silos are not a first-class concept in v2, so the isolation
   boundary is the catalog and nothing is inherited from an enclosing container.
@@ -212,7 +225,7 @@ not an emergent property.
 
 - **Export requires a recursive graph walk**, which is more code than
   `SELECT metadata_properties` and is the highest-risk correctness surface in the system.
-  Mitigations: assembly lives in the pure-Python library with property-based
+  Mitigations: assembly lives in the phase-appropriate pure domain library with property-based
   round-trip tests (assemble∘decompose ≡ identity), and every export is
   validated against `Catalog.json` before delivery.
   **The stated property covers one direction only.** `assemble ∘ decompose`
@@ -226,11 +239,11 @@ not an emergent property.
 - **Cycles are possible** — embedded catalogs and `object_reference` edges can
   both form loops. The walk needs cycle detection with a depth bound, and
   `catalog_link` needs an acyclicity check on write. A cycle discovered only at
-  export time is a denial-of-service against the export path. **This is MVP work,
-  not deferrable:** catalog-to-catalog sharing is MVP scope (see
-  [`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing-is-mvp-scope)),
-  so embedded catalogs — and therefore the cycle risk — exist from the first
-  release.
+  export time is a denial-of-service against the export path. **This is phase 2
+  work, not deferrable:** catalog-to-catalog sharing is phase 2 scope (see
+  [`architecture.md` §4](../architecture.md#catalog-to-catalog-sharing-is-phase-2-scope)),
+  so embedded shared catalogs — and therefore the authorization cycle risk —
+  exist from the first server release.
 - **`JSONB metadata_properties` is schemaless at the database layer**, so the database will
   not catch a malformed properties object; validation is entirely an application
   responsibility (SI-10). This is deliberate — it is what buys cheap schema
@@ -257,7 +270,7 @@ not an emergent property.
   every object route, since reusable objects are addressable independently of
   the catalog a user reached them through. This is the model's main new access
   risk and must be an explicit test case.
-  Because catalog-to-catalog sharing is MVP scope, authorization resolution must
+  Because catalog-to-catalog sharing is phase 2 scope, authorization resolution must
   handle a **catalog** principal and **transitive** grants through embedded
   catalogs from the first release — not only the direct user-to-catalog case.
   Transitive resolution is the harder half and needs its own test coverage.
@@ -301,7 +314,7 @@ addressed later with a validation warning or a report if it proves to matter.
 - [DCAT-US 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-3.0) and [DCAT-US 1.1 vs 3.0](https://github.com/GSA/data.gov/wiki/DCAT-US-1.1-vs-3.0) — structural differences driving this model
 - [DCAT-US 3.0 Catalog class](https://resources.data.gov/standards/catalog/dcat-us-3/catalog/#catalog) — embedded-catalog semantics
 - [GSA/data.gov#2095](https://github.com/GSA/data.gov/issues/2095) — the v1 visibility confusion this model replaces
-- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) — consumes the schema→form model
+- [ADR 0014](0014-browser-only-metadata-editor.md) — consumes the schema-to-form model
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — `catalog_permission` semantics
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — import path that produces the shared-object structure
 - [ADR 0012](0012-catalog-scoped-hosted-files.md) — hosted files as a catalog-scoped resource **outside** this object graph; shares this record's orphan-definition question
