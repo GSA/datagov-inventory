@@ -12,6 +12,13 @@ risk_treatment: "accept"
 
 # Onboard agencies by importing published DCAT-US 3.0 data.json rather than migrating from CKAN
 
+> **Phase applicability, 2026-10-30:** Authoritative agency onboarding, re-import,
+> permission preservation, audit events, and v1 retirement in this record apply
+> to phase 2 under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1
+> also ingests DCAT-US 3.0, but only into browser-local IndexedDB; that does not
+> establish a system-of-record catalog, owner, permission, or audit history. The
+> decision not to accept or convert DCAT-US 1.1 applies in every phase.
+
 ## Context and Problem Statement
 
 Inventory v1 holds agency metadata in CKAN's database as DCAT-US 1.1 datasets. v2

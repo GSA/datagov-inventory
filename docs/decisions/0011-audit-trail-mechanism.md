@@ -12,6 +12,14 @@ risk_treatment: "mitigate"
 
 # Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables
 
+> **Phase applicability, 2026-10-30:** This decision applies from phase 2 onward
+> under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1 has no
+> central database, authenticated actor, or compliance audit trail. Local revision
+> history and export reports are usability artifacts, not audit records. For a
+> catalog created in phase 1, attributable history begins when an authenticated
+> user imports or saves it to the phase 2 backend. All PostgreSQL-Audit decisions
+> and blockers below remain unchanged.
+
 ## Context and Problem Statement
 
 ### What we mean by auditability
