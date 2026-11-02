@@ -382,7 +382,7 @@ accepted. Track each as an issue.
 - [ADR 0009](0009-terraform-cloudgov-for-infrastructure.md) — provisions the two S3 instances
 - [ADR 0011](0011-audit-trail-mechanism.md) — captures every event here as a row mutation
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — feature list
-- [`docs/architecture.md`](../architecture.md) §4, §5.2, §5.3 — data model, presigned delivery, upload flow
+- [`docs/architecture.md`](../architecture.md) §4, §5.4, §5.5 — data model, presigned delivery, upload flow
 - NIST SP 800-53 Rev 5.2 — AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8
 - **Supersedes an earlier, never-committed draft** that tied a hosted file to a `Distribution`. Its driving requirements, R4 and R5, were withdrawn by the product owner.
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing.

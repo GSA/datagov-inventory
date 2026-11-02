@@ -122,8 +122,7 @@ Commitments, which are part of the decision and not implementation detail:
   form-model). It is exposed through a stateless APIFlask API:
   `POST /api/validate`, `POST /api/export`, `GET /api/schema/{class}/form`
   returning the form model as **JSON**, plus object CRUD and sync endpoints for the
-  editor. There is no `POST /api/convert`
-  ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11)).
+  editor. There is no `POST /api/convert`.
 - **Validation is the shared Data.gov validator API**, called by the server, which is authoritative. Client checks are advisory only.
 - **Local store with sync.** The editor works against a copy in browser storage and
   syncs to the database. The proposed default is **per-object version numbers with
