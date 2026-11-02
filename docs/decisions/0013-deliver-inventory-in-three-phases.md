@@ -1,8 +1,8 @@
 ---
 title: "Deliver Inventory as a browser editor, collaborative service, then dataset host"
-status: "accepted"
+status: "proposed"
 date: "2026-10-30"
-decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
+decision_makers: ["Data.gov engineering team"]
 category: "Deployment and Infrastructure"
 nist_controls: ["CM-2", "CM-3", "CM-4", "CM-7", "SA-5", "SA-8", "SA-15"]
 impact_level: "moderate"
