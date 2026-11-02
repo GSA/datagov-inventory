@@ -28,7 +28,9 @@ not constrain the phase 2 backend or rendering architecture?**
 
 - Phase 1 must not require accounts, server persistence, or an application API.
 - Catalog work must survive reloads and browser restarts.
-- Reusable DCAT objects need stable identity and ordered relationships.
+- Phase 1 must preserve ADR 0005's object identity, reuse, and relationship
+  ordering so imported catalogs can be edited and exported without losing their
+  graph structure.
 - The alpha must measure browser performance with catalogs containing at least
   3,000 datasets and publish the supported limit established by those results.
 - Section 508 and WCAG 2.1 AA apply to the complete application.
@@ -111,9 +113,15 @@ CatalogRepository interface
 IndexedDB implementation
 ```
 
-The domain library imports neither React nor IndexedDB. It operates on complete
-in-memory graph snapshots. The repository layer owns IndexedDB transactions and
-mapping records to and from that graph.
+The domain library imports neither React nor IndexedDB. It operates on
+storage-independent records supplied by the application layer. Individual edit
+operations may use only the affected objects and relationships. Phase 1
+whole-catalog operations, including export and full integrity checks, first load
+a consistent graph snapshot from IndexedDB into memory. This avoids recursive
+asynchronous storage reads, gives the operation one coherent view of the graph,
+and keeps assembly, cycle detection, ordering, and round-trip tests independent
+of browser storage. The repository layer owns IndexedDB transactions and maps
+stored records to the domain inputs each operation requires.
 
 `CatalogRepository` is the persistence seam between editor services and catalog
 storage. Its contract covers listing catalogs, loading a consistent graph
@@ -189,7 +197,8 @@ domain, production domain, another browser profile, or another device.
 - Application upgrades increment the IndexedDB schema version and migrate stored
   records in an upgrade transaction. Older open tabs must close or reload when
   notified of a version change. Failed or unknown migrations surface an error and
-  never silently delete the database.
+  never silently delete the database. A DCAT-US schema update must not cause
+  silent data loss or make a previously saved catalog unrecoverable.
 - The application monitors storage estimates, requests persistent storage where
   supported, and handles quota failures explicitly. Persistent-storage grants
   reduce eviction risk but do not prevent a user from clearing data.
