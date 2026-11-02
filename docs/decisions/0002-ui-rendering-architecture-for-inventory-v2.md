@@ -14,15 +14,14 @@ risk_treatment: "mitigate"
 # Use server-rendered Flask pages with a local-first React editor for Inventory v2
 
 > **Superseded 2026-10-30 by [ADR 0014](0014-browser-only-metadata-editor.md).**
-> Inventory will deliver the anonymous browser-only editor as phase 1 rather than
-> mounting one editor route in a server-rendered Flask application. This record is
-> retained as the history of the hybrid proposal.
->
-> **Historical status note:** While this record was proposed, the product questions were
-> answered (see [Decided requirements](#decided-requirements)), which **reverses
-> this record's earlier recommendation** of server-rendered Jinja and HTMX for the
-> editor. The direction below is a proposal that must be proven by a
-> [spike](#blockers-before-acceptance) before it is accepted.
+> When this record was written, the plan was to build the server-backed,
+> authenticated editor first and add the anonymous public editor later. The
+> delivery order has since been reversed: the anonymous browser-only editor comes
+> first, followed by authenticated backend persistence and collaboration. This
+> record focuses heavily on the server-backed editor architecture and says little
+> about what the anonymous public editor requires. ADR 0014 replaces it by
+> focusing on the implementation architecture for that first browser-only phase,
+> while intentionally deferring later server and rendering choices.
 
 ## Context and Problem Statement
 
