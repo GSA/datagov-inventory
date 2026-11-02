@@ -1,8 +1,8 @@
 ---
 title: "Deliver Inventory as a browser editor, collaborative service, then dataset host"
-status: "proposed"
+status: "accepted"
 date: "2026-10-30"
-decision_makers: ["Data.gov engineering team"]
+decision_makers: ["james.c.brown@gsa.gov", "shelley.nason@gsa.gov"]
 category: "Deployment and Infrastructure"
 nist_controls: ["CM-2", "CM-3", "CM-4", "CM-7", "SA-5", "SA-8", "SA-15"]
 impact_level: "moderate"
@@ -31,6 +31,10 @@ without making later phases a rewrite.
   concurrency handling, and auditability as one coherent increment.
 - Dataset hosting adds a separate public data flow, object storage, malware
   scanning, incident response, and retention concerns.
+- Whether Inventory 2.0 should provide dataset hosting remains unsettled, with
+  strong views on both sides. Deferring it to phase 3 leaves time for customer
+  research and further product discussion before deciding whether to build that
+  phase.
 - The metadata representation must remain stable across all three phases.
 - Each phase must be useful by itself and must not claim controls supplied only
   by a later phase.
@@ -73,7 +77,7 @@ files outside that graph, as ADR 0012 already requires.
 | 0004 | Phase 2 onward |
 | 0005 | All phases |
 | 0006 | Phase 3 |
-| 0007 | All phases |
+| 0007 | Phase 3 |
 | 0008 | Phase 2 onboarding and migration |
 | 0009 | Phase 2 backend infrastructure; phase 3 hosting infrastructure |
 | 0010 | All phases |
@@ -113,7 +117,7 @@ files outside that graph, as ADR 0012 already requires.
 
 ## Links
 
-- [ADR 0014](0014-browser-only-metadata-editor.md) - phase 1 architecture
+- [ADR 0014](0014-browser-only-metadata-editor.md) - phase 1 implementation architecture
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) - shared logical metadata model
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) - phase 2 identity and authorization
 - [ADR 0006](0006-quarantine-then-scan-antivirus.md) and [ADR 0012](0012-catalog-scoped-hosted-files.md) - phase 3 dataset hosting

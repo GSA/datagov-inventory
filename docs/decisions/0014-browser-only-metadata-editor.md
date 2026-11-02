@@ -1,5 +1,5 @@
 ---
-title: "Build phase 1 as an anonymous browser-only metadata editor"
+title: "Implement the phase 1 metadata editor with React, TypeScript, and IndexedDB"
 status: "proposed"
 date: "2026-10-30"
 decision_makers: ["Data.gov engineering team"]
@@ -10,15 +10,19 @@ ato_relevance: "yes-boundary"
 risk_treatment: "mitigate"
 ---
 
-# Build phase 1 as an anonymous browser-only metadata editor
+# Implement the phase 1 metadata editor with React, TypeScript, and IndexedDB
 
 ## Context and Problem Statement
 
-Inventory's first deliverable is now an anonymous tool for creating, ingesting,
-editing, validating, and exporting DCAT-US 3.0 catalogs. It must run without an
-application backend while preserving a clean path to the authenticated,
-collaborative phase 2 service. This supersedes ADR 0002's proposed hybrid of
-server-rendered Flask pages and one React editor route.
+[ADR 0013](0013-deliver-inventory-in-three-phases.md) establishes phase 1's
+product scope: an anonymous browser-only tool for creating, ingesting, editing,
+validating, and exporting DCAT-US 3.0 catalogs. This record decides **how to
+implement that phase**. It supersedes ADR 0002's proposed server-rendered
+Flask/Jinja/HTMX application with one embedded React editor route.
+
+The implementation question is: **which UI, browser persistence, and domain-code
+boundaries should phase 1 use so it works without an application backend and does
+not constrain the phase 2 backend or rendering architecture?**
 
 ## Decision Drivers
 
@@ -35,20 +39,62 @@ server-rendered Flask pages and one React editor route.
 
 ## Considered Options
 
-1. **A React/TypeScript browser application using IndexedDB**, with a pure DCAT
-   domain library and storage behind a repository interface.
-2. **One nested JSON document per catalog.** Simpler persistence, but small edits
-   clone and rewrite the complete catalog and object reuse has no independent
-   storage identity.
-3. **The Flask/React hybrid in ADR 0002.** Rejected for phase 1 because it adds a
-   backend while the product requirement is browser-only editing.
-4. **Session-memory-only editing.** Rejected because refresh or browser restart
-   would destroy work.
+The implementation decision combines three related choices rather than treating
+UI technology and storage format as interchangeable alternatives.
+
+### UI and runtime
+
+1. **Static React/TypeScript application:** React owns the complete phase 1 UI,
+   and all phase 1 application and domain code executes in the browser.
+2. **Framework-light static JavaScript application:** use browser APIs, custom
+   elements, or small libraries instead of React. This reduces framework weight
+   but gives up the existing React editor direction and its component ecosystem
+   without removing the need for complex client-side state and accessibility.
+3. **ADR 0002's Flask/React hybrid:** serve most pages from Flask and mount React
+   only for the editor. This remains a possible later-phase architecture, but it
+   cannot implement phase 1 because ADR 0013 specifies no application backend.
+
+### Browser persistence
+
+1. **Separate records in IndexedDB:** store catalogs, metadata objects, references,
+   and catalog links independently, with indexes and transactions.
+2. **One complete graph snapshot per catalog in IndexedDB:** simpler to load and
+   save, but each small edit rewrites a potentially large catalog, and independent
+   object lookup and reuse are less natural.
+3. **SQLite compiled to WebAssembly and persisted through browser file storage:**
+   provides SQL, indexes, and relational constraints closer to Postgres, but adds
+   a substantial runtime dependency, larger assets, worker/browser compatibility
+   concerns, and more migration complexity than the alpha currently requires.
+4. **Session memory or user-managed files only:** avoids an application database,
+   but refreshes or browser restarts lose unsaved work and routine autosave would
+   depend on repeated file-system permissions or downloads.
+
+### Code boundaries
+
+1. **Pure domain library plus repository interface:** keep DCAT operations free of
+   React and IndexedDB, and place storage transactions behind
+   `CatalogRepository`.
+2. **Direct React-to-IndexedDB access:** let components read and write object
+   stores and contain graph behavior. This has fewer layers initially, but couples
+   UI, persistence, and domain rules, making isolated tests and phase 2 adaptation
+   harder.
 
 ## Decision Outcome
 
-Chosen option: **Option 1**. Phase 1 is a static React/TypeScript application
-using USWDS components and IndexedDB. There is no Inventory application backend.
+Chosen combination: **static React/TypeScript, separate IndexedDB records, and a
+pure domain library behind a repository interface**. Implement phase 1 as static
+assets served by nginx:
+
+- React and TypeScript own the complete phase 1 user interface.
+- USWDS supplies the visual and interaction baseline.
+- IndexedDB persists ADR 0005's graph as separate records.
+- A `CatalogRepository` interface separates editor services from persistence.
+- A pure TypeScript domain library owns ingestion, graph edits, assembly, and
+  export reporting without importing React or IndexedDB.
+
+There is no Inventory application backend in phase 1. The capabilities included
+in that phase remain ADR 0013's decision; the sections below specify constraints
+and consequences of this implementation architecture.
 
 ### Application boundaries
 
@@ -293,8 +339,11 @@ rendering decision is intentionally deferred.
 
 ## Blockers before acceptance
 
-1. Verify the validator API contract, CORS policy, request-size limits, structured
-   paths, and version reporting from the deployed phase 1 origin.
+1. Demonstrate that the deployed phase 1 browser application can submit a catalog
+   directly to the Data.gov validator API without credentials and receive stable,
+   machine-readable errors, warnings, paths, and validator/schema versions for
+   catalogs up to the supported phase 1 size. Confirm CORS, payload limits,
+   timeout and rate-limit behavior, and unavailable-service handling.
 2. Confirm the team can maintain the React/TypeScript/IndexedDB application or
    identify who will.
 

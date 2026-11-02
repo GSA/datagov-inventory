@@ -23,7 +23,7 @@ records, to preserve the audit trail.
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
 | [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | proposed | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
 | [0013](0013-deliver-inventory-in-three-phases.md) | Deliver Inventory as a browser editor, collaborative service, then dataset host | proposed | 2026-10-30 | **yes-boundary** | CM-2, CM-3, CM-4, CM-7, SA-5, SA-8, SA-15 |
-| [0014](0014-browser-only-metadata-editor.md) | Build phase 1 as an anonymous browser-only metadata editor | proposed | 2026-10-30 | **yes-boundary** | SI-10, SI-15, SC-18, CM-2, CM-3, SA-8, SA-15, SR-3 |
+| [0014](0014-browser-only-metadata-editor.md) | Implement the phase 1 metadata editor with React, TypeScript, and IndexedDB | proposed | 2026-10-30 | **yes-boundary** | SI-10, SI-15, SC-18, CM-2, CM-3, SA-8, SA-15, SR-3 |
 
 **By status:** 11 proposed, 1 accepted, 0 deprecated, 1 superseded.
 
@@ -42,9 +42,9 @@ and should be reviewed by the ISSO.
 
 | Phase | Applicable decisions |
 |---|---|
-| **1: browser metadata editor** | 0001, 0005, 0007, 0010, 0013, 0014 |
+| **1: browser metadata editor** | 0001, 0005, 0010, 0013, 0014 |
 | **2: collaborative metadata service** | Phase 1 logical decisions plus 0004, 0008, 0009 backend scope, and 0011 |
-| **3: dataset hosting** | Prior phases plus 0006, 0009 hosting scope, and 0012 |
+| **3: dataset hosting** | Prior phases plus 0006, 0007, 0009 hosting scope, and 0012 |
 
 ADR 0002 is retained only as the superseded history of the original hybrid UI
 proposal.
@@ -62,7 +62,7 @@ decides what a hosted file is, and deliberately decouples it from the metadata
 those records describe.
 [0013](0013-deliver-inventory-in-three-phases.md) then establishes when those
 capabilities ship, and [0014](0014-browser-only-metadata-editor.md) replaces 0002
-with the immediate phase 1 architecture.
+with the immediate phase 1 implementation architecture.
 
 ## Controls referenced across all records
 
@@ -73,16 +73,16 @@ with the immediate phase 1 architecture.
 `SC-28`, `SI-3`, `SI-3(1)`, `SI-3(2)`, `SI-7`, `SI-10`, `SI-12`, `SI-15`, `SR-3`,
 `SR-4`, `SR-11`
 
-## Blockers before any record is accepted
+## Blockers
 
-Every active record mentioned in the following table is `proposed`. These are verification tasks that gate acceptance,
+Every record mentioned in the following table is `proposed`. These are verification tasks that gate acceptance,
 not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 
 | ADR | Blocker                                                                                                                                                                                                                                                                                                                                                                  | Type |
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
-| 0014 | Verify the validator API contract, CORS policy, payload limits, structured paths, and version reporting from the deployed phase 1 origin. | Integration |
-| 0014 | Confirm the team can build and maintain a React/TypeScript/IndexedDB editor, or name who will. | Organizational |
 | 0011 | Run a time-boxed spike proving the full PostgreSQL-Audit setup works on cloud.gov RDS: trigger and function creation by the application role, `activity` and `transaction` populating end to end, ORM-bypass behavior, `old_data`/`changed_data` shape, 2,000-object import cost, `INSERT, SELECT`-only grants, and no `SECURITY DEFINER`. | Design |
+| 0014 | Demonstrate that the deployed browser app can validate supported-size catalogs directly through the API without credentials, with CORS, structured results and versions, limits, timeouts, rate limits, and outages handled explicitly. | Integration |
+| 0014 | Confirm the team can build and maintain a React/TypeScript/IndexedDB editor, or name who will. | Organizational |
 
 ## Status lifecycle
 

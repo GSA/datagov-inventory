@@ -61,9 +61,18 @@ not yet final. Where this document departs from those two apps, it says so and w
 
 ```mermaid
 flowchart LR
-    U["Anonymous data manager"] --> APP["Static Inventory editor<br/>React · TypeScript · USWDS"]
-    APP --> IDB[("IndexedDB<br/>catalogs · metadata objects<br/>references · catalog links")]
-    SCHEMA["GSA/dcat-us<br/>pinned 3.0 schemas"] -.->|"build time"| APP
+    SCHEMA["GSA/dcat-us<br/>pinned 3.0 schemas"] -->|"build time"| BUILD["Inventory static build<br/>app + bundled schemas"]
+    subgraph CG["cloud.gov"]
+        NGINX["nginx static host<br/>versioned Inventory assets"]
+    end
+    subgraph BROWSER["User's browser"]
+        APP["Inventory editor<br/>React · TypeScript · USWDS"]
+        IDB[("IndexedDB<br/>catalogs · metadata objects<br/>references · catalog links")]
+        APP --> IDB
+    end
+    U["Anonymous data manager"] -->|"opens Inventory"| NGINX
+    BUILD -->|"deploy"| NGINX
+    NGINX -->|"loads app + bundled schemas"| APP
     APP -->|"explicit, non-credentialed HTTPS validation"| VAL["Data.gov validator API<br/>errors + warnings"]
     APP -->|"local Blob download"| OUT["data.json<br/>success/error report"]
 ```
@@ -86,9 +95,17 @@ decision.
 ```mermaid
 flowchart TB
     subgraph clients["Clients"]
-        GOV["Agency data manager<br/>PIV/CAC"]
-        PUB["Anonymous public user<br/>(phase 3: hosted file download)"]
+        ANON["Anonymous data manager"]
+        GOV["Authenticated data manager<br/>PIV/CAC"]
+        PUB["Anonymous downloader<br/>(phase 3 hosted files)"]
         HARV["harvest.data.gov<br/>(later integration: dcatus3.0 source)"]
+        subgraph browser["User's browser"]
+            EDITOR["Inventory editor<br/>React · TypeScript · USWDS"]
+            IDB[("IndexedDB<br/>local working copy")]
+            EDITOR --> IDB
+        end
+        ANON --> EDITOR
+        GOV --> EDITOR
     end
 
     IDP["<b>Login.gov</b><br/>OIDC · IAL1 · AAL3 + HSPD-12<br/> private_key_jwt"]
@@ -120,7 +137,8 @@ flowchart TB
 
     SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>3.0 schemas + validation code<br/>pinned commit — ADR 0010"]
 
-    GOV --> PROXY
+    EDITOR <-->|"static assets<br/>authenticated API when signed in"| PROXY
+    EDITOR -->|"anonymous or signed-in validation"| VAL["Data.gov validator API"]
     PUB -->|"GET /f/{hosted_file_id}<br/>302 → presigned URL"| PROXY
     PUB -.->|"GET presigned URL — bytes"| S3F
     HARV -->|"GET /catalog/{id}/dcat-v3.json"| PROXY
@@ -210,11 +228,6 @@ deployed environment.
   server-rendered; see [ADR 0014](decisions/0014-browser-only-metadata-editor.md).
 - **An in-process validator** — validation is the shared Data.gov validator API, so a second implementation would drift from it. Any client-side check is advisory only.
 - **DCAT-US 1.1 → 3.0 conversion** — see [ADR 0008](decisions/0008-onboard-via-data-json-reimport.md). The upstream converter exists and works; v2 simply does not host it.
-
-### V2 does not convert DCAT-US 1.1
-
-Every phase accepts DCAT-US 3.0 only. Conversion remains an out-of-band agency
-action under ADR 0008.
 
 ## 4. Data model
 
@@ -451,7 +464,7 @@ manual repair).
 
 ## 5. Key flows
 
-### Phase 1 create, ingest, and edit
+### 5.1 Phase 1 create, ingest, and edit
 
 ```mermaid
 sequenceDiagram
@@ -475,7 +488,7 @@ responsiveness check measures catalogs through at least 3,000 datasets and sets 
 published phase 1 size limit; handling all 3,000 is not an architecture-acceptance
 condition.
 
-### Phase 1 export with success and error reporting
+### 5.2 Phase 1 export with success and error reporting
 
 ```mermaid
 sequenceDiagram
@@ -503,7 +516,7 @@ The API call is explicit, non-credentialed, and disclosed to the user. Editing
 and local saving continue if the API is unavailable, but the app does not report
 a successful validated export.
 
-### 5.1 Authentication and first-login provisioning
+### 5.3 Authentication and first-login provisioning
 
 This flow begins in phase 2.
 
@@ -539,7 +552,7 @@ Account existence conveys **no** privilege; authorization is entirely
 including how the *first* `admin` grant on a new catalog happens (the creator
 receives it).
 
-### 5.2 Export with error reporting
+### 5.4 Phase 2 export with error reporting
 
 This is the authoritative phase 2 export flow. Unlike bounded phase 1 browser
 export, it may use paginated reads or a tracked asynchronous server job for very
@@ -574,7 +587,7 @@ agency's own server. The publication-time check is the counterpart: before a
 for an Inventory-hosted file, a non-null `current_version_id`; for an external
 URL, the URL validation live catalogs already require.
 
-### 5.3 Upload with quarantine-then-scan
+### 5.5 Upload with quarantine-then-scan
 
 This flow begins in phase 3.
 
@@ -622,7 +635,7 @@ changes content is an open ADR 0012 blocker.
 scanner restarts, and crashed scans all self-heal. It reuses the
 `CF_INSTANCE_INDEX == 0` guard that harvester's `LoadManager` already uses.
 
-### 5.3.1 Hosted file download at a stable URL
+### 5.6 Hosted file download at a stable URL
 
 This public flow begins in phase 3.
 
@@ -664,7 +677,7 @@ The route pattern is an **interface contract** — it appears in every bookmark 
 `data.json`, so changing its shape later is a breaking change for consumers
 outside this system (CM-3).
 
-### 5.4 Import DCAT-US 3.0 catalog
+### 5.7 Import DCAT-US 3.0 catalog
 
 This is the authoritative phase 2 import flow. Phase 1 local ingestion preserves
 distinct input instances and does not introduce `draft`/`live` workflow.
@@ -680,10 +693,10 @@ flowchart LR
     E --> G["human review → swap old Catalog to point to new metadata_object  → export"]
 ```
 
-### 5.5 Agency onboarding
+### 5.8 Agency onboarding
 
 Agency onboarding to Inventory 2.0 is simply the
-[Import DCAT-US 3.0 catalog](#54-import-dcat-us-30-catalog) workflow, which must be
+[Import DCAT-US 3.0 catalog](#57-import-dcat-us-30-catalog) workflow, which must be
 managed manually by a data manager from the agency. This comes with a "natural" housecleaning step - agencies that once
 needed an Inventory 1.0 account but have since switched to some other metadata tool will naturally be dropped from Inventory 2.0.
 
@@ -945,7 +958,7 @@ What v2 builds, because nothing upstream provides it:
 - **Schema → form-model generation** — driving the editor from the schema
   ([ADR 0014](decisions/0014-browser-only-metadata-editor.md)).
 - **Export-run orchestration** — `export_run` records, ZIP assembly, presigned
-  delivery ([§5.2](#52-export-with-error-reporting)).
+  delivery ([§5.4](#54-phase-2-export-with-error-reporting)).
 - **A client for the validator API**, with a fail-closed policy for publishing and a
   stub for tests.
 
