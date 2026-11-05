@@ -1,7 +1,7 @@
 ---
 title: "Implement the phase 1 metadata editor with React, TypeScript, and IndexedDB"
 status: "proposed"
-date: "2026-10-30"
+date: "2026-11-05"
 decision_makers: ["Data.gov engineering team"]
 category: "Input Validation and Output Handling"
 nist_controls: ["SI-10", "SI-15", "SC-18", "CM-2", "CM-3", "SA-8", "SA-15", "SR-3"]
@@ -56,6 +56,27 @@ UI technology and storage format as interchangeable alternatives.
    only for the editor. This remains a possible later-phase architecture, but it
    cannot implement phase 1 because ADR 0013 specifies no application backend.
 
+The following comparison evaluates the practical front-end alternatives for the
+schema-driven object-graph editor. USWDS can be used with any of them through its
+HTML, CSS, and JavaScript patterns; the distinction is the amount of integration
+code and ecosystem support required. The USWDS documentation also lists
+[framework implementations](https://designsystem.digital.gov/documentation/implementations/):
+two React integrations (`@trussworks/react-uswds` and Comet), one Vue integration
+(`vue-uswds`), and one Angular integration (`ngx-uswds`); it lists no Svelte
+integration. Each candidate implementation still requires review for current
+USWDS-version coverage, maintenance, dependencies, rendered markup, and
+accessibility behavior. No framework or component wrapper establishes Section
+508 or WCAG conformance without application-level testing.
+
+| Option | Fit for schema-driven forms and graph editing | USWDS integration | Editor and state ecosystem | Principal tradeoff | Assessment |
+|---|---|---|---|---|---|
+| **React + TypeScript** | Strong support for generated forms, custom field renderers, reusable-object workflows, and independently updating navigation, form, and preview panes | Official USWDS markup can be wrapped directly; the USWDS implementations directory lists two React options, `@trussworks/react-uswds` and Comet, each subject to the same coverage and maintenance review as other candidates | Broad support for JSON/code editors, virtualized trees, IndexedDB, testing, and accessible component primitives | Adds a substantial dependency and build ecosystem that must be pinned, scanned, and maintained | **Preferred.** Best-supported path for this interaction model and the existing team direction |
+| **Vue + TypeScript** | Capable reactive component model and viable schema-form libraries | Can use USWDS directly or the one Vue implementation listed in the USWDS directory, [`vue-uswds`](https://github.com/patrickcate/vue-uswds), after evaluating its coverage and maintenance | Good editor and state integrations, but fewer USWDS-specific and schema-form choices than React | Similar SPA complexity to React without a project-specific advantage that offsets changing direction | Viable, but not preferred unless team expertise strongly favors Vue |
+| **Angular + TypeScript** | Strong built-in conventions for forms, dependency injection, routing, and large application structure | The USWDS implementations directory lists one Angular integration, [`ngx-uswds`](https://github.com/GSA/ngx-uswds); adopting it could avoid building the complete component layer, subject to technical and accessibility review | Mature forms and editor integrations | More framework surface and ceremony than this single-purpose browser application requires | Technically capable, but disproportionate for phase 1 unless its conventions or an evaluated USWDS integration provide a material team advantage |
+| **Svelte + TypeScript** | Concise reactive model suitable for custom forms and panes | The USWDS implementations directory lists no Svelte integration; USWDS markup would need to be used directly | Code-editor integrations exist, but the schema-form and enterprise accessibility ecosystems are smaller | Lower framework overhead, offset by potentially more custom schema-renderer and USWDS work | Plausible for a custom implementation, but higher integration and maintenance risk |
+| **Framework-light TypeScript** | Maximum control over generated markup, but graph-wide updates, focus management, and reusable form controls must be implemented directly | Closest direct use of official USWDS markup and behavior | Browser APIs cover persistence; complex state, rendering, and editor integration remain project responsibilities | Saves framework code while shifting substantial interaction and accessibility infrastructure into first-party code | Not preferred for an editor of this complexity |
+| **Server-rendered HTML + HTMX** | Strong for conventional forms, but poorly aligned with browser-only graph state, cross-pane updates, local persistence, and offline-capable editing | Direct and well-established USWDS integration | Does not remove the need for a client-side state layer for this phase | Requires an application backend, contrary to phase 1, or bespoke browser state that erodes the simplicity benefit | Not eligible for phase 1; may remain useful for non-editor pages in later phases |
+
 ### Browser persistence
 
 1. **Separate records in IndexedDB:** store catalogs, metadata objects, references,
@@ -70,6 +91,13 @@ UI technology and storage format as interchangeable alternatives.
 4. **Session memory or user-managed files only:** avoids an application database,
    but refreshes or browser restarts lose unsaved work and routine autosave would
    depend on repeated file-system permissions or downloads.
+
+`localStorage` is not a suitable persistence alternative for the catalog graph.
+It is synchronous, stores only strings, has limited capacity, and provides no
+indexes or transactions across objects and references. Using it would encourage
+rewriting one serialized catalog after every edit and could block the main thread;
+IndexedDB instead provides asynchronous structured records, indexes, and atomic
+multi-store transactions.
 
 ### Code boundaries
 
