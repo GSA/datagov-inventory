@@ -7,6 +7,10 @@ Inventory 2.0 is a rewrite of the existing app, targeting the new DCAT 3.0 stand
 
 This repository belongs to the [Data.gov project](https://github.com/GSA/data.gov).
 
+## Prototype: editor alpha mockups
+
+Clickable USWDS mockups of the browser-only editor alpha (#15) are in [`prototype/editor-alpha/`](prototype/editor-alpha/README.md). To run them, use `prototype/editor-alpha/run.sh`. It needs only `python3`.
+
 ## License
 
 This project is in the worldwide [public domain](LICENSE.md). As stated in [CONTRIBUTING](CONTRIBUTING.md):

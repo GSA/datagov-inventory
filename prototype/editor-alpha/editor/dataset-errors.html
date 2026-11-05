@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Regional Bridge Condition Ratings (problems) | Data.gov Inventory editor (alpha) mockup</title>
+<link rel="stylesheet" href="../vendor/uswds/css/uswds.min.css">
+<link rel="stylesheet" href="../assets/app.css">
+<script src="../vendor/uswds/js/uswds-init.min.js"></script>
+</head>
+<body>
+<a class="usa-skipnav" href="#main-content">Skip to main content</a>
+<a class="usa-skipnav" href="#catalog-tree">Skip to catalog tree</a>
+<section class="usa-banner" aria-label="Official website of the United States government">
+  <div class="usa-accordion">
+    <header class="usa-banner__header">
+      <div class="usa-banner__inner">
+        <div class="grid-col-auto"><img aria-hidden="true" class="usa-banner__header-flag" src="../vendor/uswds/img/us_flag_small.png" alt=""></div>
+        <div class="grid-col-fill tablet:grid-col-auto" aria-hidden="true">
+          <p class="usa-banner__header-text">An official website of the United States government</p>
+          <p class="usa-banner__header-action">Here’s how you know</p>
+        </div>
+        <button type="button" class="usa-accordion__button usa-banner__button" aria-expanded="false" aria-controls="gov-banner"><span class="usa-banner__button-text">Here’s how you know</span></button>
+      </div>
+    </header>
+    <div class="usa-banner__content usa-accordion__content" id="gov-banner">
+      <div class="grid-row grid-gap-lg">
+        <div class="usa-banner__guidance tablet:grid-col-6">
+          <img class="usa-banner__icon usa-media-block__img" src="../vendor/uswds/img/icon-dot-gov.svg" role="img" alt="" aria-hidden="true">
+          <div class="usa-media-block__body"><p><strong>Official websites use .gov</strong><br>A <strong>.gov</strong> website belongs to an official government organization in the United States.</p></div>
+        </div>
+        <div class="usa-banner__guidance tablet:grid-col-6">
+          <img class="usa-banner__icon usa-media-block__img" src="../vendor/uswds/img/icon-https.svg" role="img" alt="" aria-hidden="true">
+          <div class="usa-media-block__body"><p><strong>Secure .gov websites use HTTPS</strong><br>A <strong>lock</strong> or <strong>https://</strong> means you’ve safely connected to the .gov website. Share sensitive information only on official, secure websites.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="usa-site-alert usa-site-alert--info usa-site-alert--slim" aria-label="Site alert">
+  <div class="usa-alert">
+    <div class="usa-alert__body">
+      <p class="usa-alert__text"><strong>Alpha.</strong> This is a test version of the Data.gov inventory editor. Your catalog stays in this browser. <a class="usa-link" href="../feedback.html">Give feedback</a></p>
+    </div>
+  </div>
+</section>
+<div class="usa-overlay"></div>
+<header class="usa-header usa-header--basic">
+  <div class="usa-nav-container">
+    <div class="usa-navbar">
+      <div class="usa-logo"><em class="usa-logo__text"><a href="../workspace.html" title="Data.gov Inventory editor home">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
+      <button type="button" class="usa-menu-btn">Menu</button>
+    </div>
+    <nav aria-label="Primary" class="usa-nav">
+      <button type="button" class="usa-nav__close"><img src="../vendor/uswds/img/usa-icons/close.svg" role="img" alt="Close"></button>
+      <ul class="usa-nav__primary usa-accordion">
+        <li class="usa-nav__primary-item"><a href="../workspace.html" class="usa-nav-link"><span>Overview</span></a></li><li class="usa-nav__primary-item"><a href="../editor/catalog.html" class="usa-nav-link usa-current" aria-current="page"><span>Editor</span></a></li><li class="usa-nav__primary-item"><a href="../check.html" class="usa-nav-link"><span>Check</span></a></li><li class="usa-nav__primary-item"><a href="../export.html" class="usa-nav-link"><span>Export</span></a></li><li class="usa-nav__primary-item"><a href="../help.html" class="usa-nav-link"><span>Help</span></a></li><li class="usa-nav__primary-item"><a href="../feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<div class="workspace-bar">
+  <div class="grid-container">
+    <span><span class="text-bold">Working copy:</span> Department of Example Affairs Data Catalog</span>
+    <span class="save-status save-status--saved" data-save-status role="status"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#check_circle"></use></svg><span data-save-text>Saved in this browser at 2:41 PM</span></span>
+    <a class="usa-link" href="../help.html#your-data">Where your data lives</a>
+  </div>
+</div>
+
+
+<div class="grid-container-widescreen">
+  <div class="editor-toolbar">
+    <h1>Edit catalog</h1>
+    <button type="button" class="usa-button usa-button--outline tree-disclosure" aria-expanded="false" aria-controls="catalog-tree" data-tree-disclosure>Show catalog contents (9 datasets)</button>
+    <ul class="usa-button-group">
+      <li class="usa-button-group__item"><a class="usa-button usa-button--outline" href="../check.html?state=running">Check catalog</a></li>
+      <li class="usa-button-group__item"><a class="usa-button usa-button--outline" href="../export.html">Export</a></li>
+      <li class="usa-button-group__item" data-state="removed-link deleted"><a class="usa-button usa-button--outline" href="?state=undone"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#undo"></use></svg> Undo last removal</a></li>
+    </ul>
+  </div>
+  <div data-state="storage-failed">
+  <div class="usa-alert usa-alert--error " role="alert">
+  <div class="usa-alert__body"><h4 class="usa-alert__heading">Your changes are not being saved.</h4><p class="usa-alert__text">This browser is not letting the editor save your work. It may be a private window, storage may be full, or site data may be blocked. Your work exists only in this tab until you download it.</p><p class="usa-alert__text"><a class="usa-button" href="#" data-fake-download="storage-dl-done">Download catalog (.json)</a></p><p class="usa-alert__text">The download writes objects used in more than one place out in full wherever they are used.</p><p class="usa-alert__text" id="storage-dl-done" tabindex="-1" hidden><strong>Mockup:</strong> no file is produced.</p></div>
+</div>
+  </div>
+</div>
+<div class="editor-layout grid-container-widescreen">
+  <nav class="editor-tree-pane" id="catalog-tree" aria-label="Catalog tree" tabindex="-1">
+    <h2 class="font-heading-md margin-top-0">Catalog contents</h2>
+    
+    <ul class="usa-button-group usa-button-group--segmented margin-bottom-1" data-view-switch aria-label="Tree view">
+      <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--small" aria-pressed="true" data-view="tree-structure">By catalog structure</button></li>
+      <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--small usa-button--outline" aria-pressed="false" data-view="tree-type">By type</button></li>
+    </ul>
+    <label class="usa-label margin-top-1" for="tree-filter">Filter by title or name</label>
+    <input class="usa-input" type="search" id="tree-filter" data-tree-filter aria-describedby="tree-filter-count">
+    <p class="usa-hint margin-y-05" id="tree-filter-count" role="status"></p>
+    <p id="tree-filter-empty" class="usa-hint" hidden>No objects match. <button type="button" class="usa-button usa-button--unstyled" onclick="var i=document.getElementById('tree-filter');i.value='';i.dispatchEvent(new Event('input'))">Clear filter</button></p>
+    <div class="margin-top-1"><ul role="tree" class="tree" id="tree-structure" aria-label="Catalog contents" data-custom-component="treeview"><li role="treeitem" aria-level="1" aria-setsize="2" aria-posinset="1" aria-expanded="true" aria-selected="false" aria-labelledby="tree-structure-n297-row" data-label="Department of Example Affairs Data Catalog"><div class="tree__row" id="tree-structure-n297-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="catalog.html?focus=tree" tabindex="-1" id="tree-structure-n297"><span>Department of Example Affairs Data Catalog</span></a> <span class="usa-tag bg-base-dark">Catalog</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="4" aria-posinset="1" aria-expanded="true" aria-labelledby="tree-structure-n298-row" data-label="Datasets (7)"><div class="tree__row" id="tree-structure-n298-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n298" class="tree__group-label">Datasets (7)</span></span></div><ul role="group"><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="1" aria-expanded="false" aria-selected="true" aria-labelledby="tree-structure-n299-row" data-label="Regional Bridge Condition Ratings"><div class="tree__row" id="tree-structure-n299-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset-errors.html?focus=tree" tabindex="-1" id="tree-structure-n299"><span data-live-title>Regional Bridge Condition Ratings</span></a> <span class="usa-tag bg-base-dark">Dataset</span> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 2 problems</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n300-row" data-label="Distributions (1)"><div class="tree__row" id="tree-structure-n300-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n300" class="tree__group-label">Distributions (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n301-row" data-label="Bridge ratings (CSV)"><div class="tree__row" id="tree-structure-n301-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?focus=tree" tabindex="-1" id="tree-structure-n301"><span>Bridge ratings (CSV)</span></a> <span class="usa-tag bg-base-dark">Distribution</span> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 1 problem</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n302-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n302-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n302" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n303-row" data-label="Bridge Program Office"><div class="tree__row" id="tree-structure-n303-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact-bridge.html?focus=tree" tabindex="-1" id="tree-structure-n303"><span>Bridge Program Office</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 1 problem</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n304-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n304-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n304" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n305-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n305-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n305"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="2" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n306-row" data-label="Community Garden Plot Registry"><div class="tree__row" id="tree-structure-n306-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d2&focus=tree" tabindex="-1" id="tree-structure-n306"><span>Community Garden Plot Registry</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n307-row" data-label="Distributions (2)"><div class="tree__row" id="tree-structure-n307-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n307" class="tree__group-label">Distributions (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n308-row" data-label="Garden plots (CSV)"><div class="tree__row" id="tree-structure-n308-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d2-0&focus=tree" tabindex="-1" id="tree-structure-n308"><span>Garden plots (CSV)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-structure-n309-row" data-label="Garden plots (GeoJSON)"><div class="tree__row" id="tree-structure-n309-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d2-1&focus=tree" tabindex="-1" id="tree-structure-n309"><span>Garden plots (GeoJSON)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n310-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n310-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n310" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n311-row" data-label="OSS Data Help Desk"><div class="tree__row" id="tree-structure-n311-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?focus=tree" tabindex="-1" id="tree-structure-n311"><span>OSS Data Help Desk</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 5 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n312-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n312-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n312" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n313-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n313-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n313"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="3" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n314-row" data-label="Public Library Visits by Branch"><div class="tree__row" id="tree-structure-n314-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d3&focus=tree" tabindex="-1" id="tree-structure-n314"><span>Public Library Visits by Branch</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n315-row" data-label="Distributions (2)"><div class="tree__row" id="tree-structure-n315-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n315" class="tree__group-label">Distributions (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n316-row" data-label="Library visits (XLSX)"><div class="tree__row" id="tree-structure-n316-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d3-0&focus=tree" tabindex="-1" id="tree-structure-n316"><span>Library visits (XLSX)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-structure-n317-row" data-label="Data dictionary (PDF)"><div class="tree__row" id="tree-structure-n317-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d3-1&focus=tree" tabindex="-1" id="tree-structure-n317"><span>Data dictionary (PDF)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n318-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n318-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n318" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n319-row" data-label="Library Statistics Team"><div class="tree__row" id="tree-structure-n319-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-lib&focus=tree" tabindex="-1" id="tree-structure-n319"><span>Library Statistics Team</span></a> <span class="usa-tag bg-base-dark">Contact</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n320-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n320-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n320" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n321-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n321-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n321"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="4" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n322-row" data-label="Fleet Vehicle Fuel Use, FY2025"><div class="tree__row" id="tree-structure-n322-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d4&focus=tree" tabindex="-1" id="tree-structure-n322"><span>Fleet Vehicle Fuel Use, FY2025</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n323-row" data-label="Distributions (1)"><div class="tree__row" id="tree-structure-n323-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n323" class="tree__group-label">Distributions (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n324-row" data-label="Fleet fuel use (CSV)"><div class="tree__row" id="tree-structure-n324-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d4-0&focus=tree" tabindex="-1" id="tree-structure-n324"><span>Fleet fuel use (CSV)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n325-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n325-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n325" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n326-row" data-label="OSS Data Help Desk"><div class="tree__row" id="tree-structure-n326-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?focus=tree" tabindex="-1" id="tree-structure-n326"><span>OSS Data Help Desk</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 5 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n327-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n327-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n327" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n328-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n328-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n328"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="5" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n329-row" data-label="Grants to Local Partners"><div class="tree__row" id="tree-structure-n329-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?focus=tree" tabindex="-1" id="tree-structure-n329"><span>Grants to Local Partners</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n330-row" data-label="Distributions (2)"><div class="tree__row" id="tree-structure-n330-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n330" class="tree__group-label">Distributions (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n331-row" data-label="Grants (CSV)"><div class="tree__row" id="tree-structure-n331-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d5-0&focus=tree" tabindex="-1" id="tree-structure-n331"><span>Grants (CSV)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-structure-n332-row" data-label="Grants (JSON)"><div class="tree__row" id="tree-structure-n332-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d5-1&focus=tree" tabindex="-1" id="tree-structure-n332"><span>Grants (JSON)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n333-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n333-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n333" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n334-row" data-label="OSS Data Help Desk"><div class="tree__row" id="tree-structure-n334-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?focus=tree" tabindex="-1" id="tree-structure-n334"><span>OSS Data Help Desk</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 5 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n335-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n335-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n335" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n336-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n336-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n336"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="6" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n337-row" data-label="Hourly Weather Station Readings"><div class="tree__row" id="tree-structure-n337-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d6&focus=tree" tabindex="-1" id="tree-structure-n337"><span>Hourly Weather Station Readings</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n338-row" data-label="Distributions (1)"><div class="tree__row" id="tree-structure-n338-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n338" class="tree__group-label">Distributions (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n339-row" data-label="Readings via API"><div class="tree__row" id="tree-structure-n339-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d6-0&focus=tree" tabindex="-1" id="tree-structure-n339"><span>Readings via API</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n340-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n340-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n340" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n341-row" data-label="Weather Network Operations"><div class="tree__row" id="tree-structure-n341-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-wx&focus=tree" tabindex="-1" id="tree-structure-n341"><span>Weather Network Operations</span></a> <span class="usa-tag bg-base-dark">Contact</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n342-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n342-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n342" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n343-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n343-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n343"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="3" aria-setsize="7" aria-posinset="7" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n344-row" data-label="Sample Business Registry Extract"><div class="tree__row" id="tree-structure-n344-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d7&focus=tree" tabindex="-1" id="tree-structure-n344"><span>Sample Business Registry Extract</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n345-row" data-label="Distributions (1)"><div class="tree__row" id="tree-structure-n345-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n345" class="tree__group-label">Distributions (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n346-row" data-label="Distribution: ZIP (untitled)"><div class="tree__row" id="tree-structure-n346-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d7-0&focus=tree" tabindex="-1" id="tree-structure-n346"><span>Distribution: ZIP (untitled)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n347-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n347-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n347" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n348-row" data-label="OSS Data Help Desk"><div class="tree__row" id="tree-structure-n348-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?focus=tree" tabindex="-1" id="tree-structure-n348"><span>OSS Data Help Desk</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 5 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n349-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n349-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n349" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n350-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n350-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n350"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li></ul></li><li role="treeitem" aria-level="2" aria-setsize="4" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n351-row" data-label="Dataset series (1)"><div class="tree__row" id="tree-structure-n351-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n351" class="tree__group-label">Dataset series (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="3" aria-setsize="1" aria-posinset="1" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n352-row" data-label="Sample Household Survey (annual series)"><div class="tree__row" id="tree-structure-n352-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="series.html?focus=tree" tabindex="-1" id="tree-structure-n352"><span>Sample Household Survey (annual series)</span></a> <span class="usa-tag bg-base-dark">Dataset series</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n353-row" data-label="Series members (2)"><div class="tree__row" id="tree-structure-n353-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n353" class="tree__group-label">Series members (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="1" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n354-row" data-label="Sample Household Survey, 2024"><div class="tree__row" id="tree-structure-n354-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d8&focus=tree" tabindex="-1" id="tree-structure-n354"><span>Sample Household Survey, 2024</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n355-row" data-label="Distributions (2)"><div class="tree__row" id="tree-structure-n355-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n355" class="tree__group-label">Distributions (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n356-row" data-label="Survey 2024 (CSV)"><div class="tree__row" id="tree-structure-n356-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d8-0&focus=tree" tabindex="-1" id="tree-structure-n356"><span>Survey 2024 (CSV)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li><li role="treeitem" aria-level="7" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-structure-n357-row" data-label="Survey 2024 (SAS)"><div class="tree__row" id="tree-structure-n357-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d8-1&focus=tree" tabindex="-1" id="tree-structure-n357"><span>Survey 2024 (SAS)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n358-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n358-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n358" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n359-row" data-label="Dr. Rosa Example"><div class="tree__row" id="tree-structure-n359-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-rosa&focus=tree" tabindex="-1" id="tree-structure-n359"><span>Dr. Rosa Example</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n360-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n360-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n360" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n361-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n361-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n361"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="2" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n362-row" data-label="Sample Household Survey, 2025"><div class="tree__row" id="tree-structure-n362-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d9&focus=tree" tabindex="-1" id="tree-structure-n362"><span>Sample Household Survey, 2025</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n363-row" data-label="Distributions (2)"><div class="tree__row" id="tree-structure-n363-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n363" class="tree__group-label">Distributions (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n364-row" data-label="Survey 2025 (CSV)"><div class="tree__row" id="tree-structure-n364-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d9-0&focus=tree" tabindex="-1" id="tree-structure-n364"><span>Survey 2025 (CSV)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li><li role="treeitem" aria-level="7" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-structure-n365-row" data-label="Survey 2025 (SAS)"><div class="tree__row" id="tree-structure-n365-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d9-1&focus=tree" tabindex="-1" id="tree-structure-n365"><span>Survey 2025 (SAS)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n366-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n366-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n366" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n367-row" data-label="Dr. Rosa Example"><div class="tree__row" id="tree-structure-n367-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-rosa&focus=tree" tabindex="-1" id="tree-structure-n367"><span>Dr. Rosa Example</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n368-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n368-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n368" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n369-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n369-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n369"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n370-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n370-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n370" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n371-row" data-label="Dr. Rosa Example"><div class="tree__row" id="tree-structure-n371-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-rosa&focus=tree" tabindex="-1" id="tree-structure-n371"><span>Dr. Rosa Example</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n372-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n372-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n372" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n373-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n373-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n373"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li></ul></li><li role="treeitem" aria-level="2" aria-setsize="4" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n374-row" data-label="Data services (1)"><div class="tree__row" id="tree-structure-n374-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n374" class="tree__group-label">Data services (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="3" aria-setsize="1" aria-posinset="1" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n375-row" data-label="Example Affairs Open Data API"><div class="tree__row" id="tree-structure-n375-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataservice.html?focus=tree" tabindex="-1" id="tree-structure-n375"><span>Example Affairs Open Data API</span></a> <span class="usa-tag bg-base-dark">Data service</span></span></div><ul role="group"><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n376-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n376-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n376" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n377-row" data-label="OSS Data Help Desk"><div class="tree__row" id="tree-structure-n377-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?focus=tree" tabindex="-1" id="tree-structure-n377"><span>OSS Data Help Desk</span></a> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__meta">used in 5 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n378-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n378-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n378" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n379-row" data-label="Department of Example Affairs"><div class="tree__row" id="tree-structure-n379-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?id=org-dea&focus=tree" tabindex="-1" id="tree-structure-n379"><span>Department of Example Affairs</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li><li role="treeitem" aria-level="4" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n380-row" data-label="Serves dataset (2)"><div class="tree__row" id="tree-structure-n380-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n380" class="tree__group-label">Serves dataset (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="1" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n381-row" data-label="Public Library Visits by Branch"><div class="tree__row" id="tree-structure-n381-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d3&focus=tree" tabindex="-1" id="tree-structure-n381"><span>Public Library Visits by Branch</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n382-row" data-label="Distributions (2)"><div class="tree__row" id="tree-structure-n382-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n382" class="tree__group-label">Distributions (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n383-row" data-label="Library visits (XLSX)"><div class="tree__row" id="tree-structure-n383-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d3-0&focus=tree" tabindex="-1" id="tree-structure-n383"><span>Library visits (XLSX)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li><li role="treeitem" aria-level="7" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-structure-n384-row" data-label="Data dictionary (PDF)"><div class="tree__row" id="tree-structure-n384-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d3-1&focus=tree" tabindex="-1" id="tree-structure-n384"><span>Data dictionary (PDF)</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n385-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n385-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n385" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n386-row" data-label="Library Statistics Team"><div class="tree__row" id="tree-structure-n386-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-lib&focus=tree" tabindex="-1" id="tree-structure-n386"><span>Library Statistics Team</span></a> <span class="usa-tag bg-base-dark">Contact</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n387-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n387-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n387" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n388-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n388-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n388"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="5" aria-setsize="2" aria-posinset="2" aria-expanded="false" aria-selected="false" aria-labelledby="tree-structure-n389-row" data-label="Hourly Weather Station Readings"><div class="tree__row" id="tree-structure-n389-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><a href="dataset.html?id=d6&focus=tree" tabindex="-1" id="tree-structure-n389"><span>Hourly Weather Station Readings</span></a> <span class="usa-tag bg-base-dark">Dataset</span></span></div><ul role="group"><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="1" aria-expanded="false" aria-labelledby="tree-structure-n390-row" data-label="Distributions (1)"><div class="tree__row" id="tree-structure-n390-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n390" class="tree__group-label">Distributions (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n391-row" data-label="Readings via API"><div class="tree__row" id="tree-structure-n391-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d6-0&focus=tree" tabindex="-1" id="tree-structure-n391"><span>Readings via API</span></a> <span class="usa-tag bg-base-dark">Distribution</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n392-row" data-label="Contact point"><div class="tree__row" id="tree-structure-n392-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n392" class="tree__group-label">Contact point</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n393-row" data-label="Weather Network Operations"><div class="tree__row" id="tree-structure-n393-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-wx&focus=tree" tabindex="-1" id="tree-structure-n393"><span>Weather Network Operations</span></a> <span class="usa-tag bg-base-dark">Contact</span></span></div></li></ul></li><li role="treeitem" aria-level="6" aria-setsize="3" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-structure-n394-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n394-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n394" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="7" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n395-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-structure-n395-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-structure-n395"><span>Office of Sample Statistics</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 10 places</span></span></div></li></ul></li></ul></li></ul></li></ul></li></ul></li><li role="treeitem" aria-level="2" aria-setsize="4" aria-posinset="4" aria-expanded="false" aria-labelledby="tree-structure-n396-row" data-label="Publisher"><div class="tree__row" id="tree-structure-n396-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n396" class="tree__group-label">Publisher</span></span></div><ul role="group"><li role="treeitem" aria-level="3" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n397-row" data-label="Department of Example Affairs"><div class="tree__row" id="tree-structure-n397-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?id=org-dea&focus=tree" tabindex="-1" id="tree-structure-n397"><span>Department of Example Affairs</span></a> <span class="usa-tag bg-base-dark">Organization</span> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="2" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-structure-n398-row" data-label="Not linked anywhere (1)"><div class="tree__row" id="tree-structure-n398-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-structure-n398" class="tree__group-label">Not linked anywhere (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-structure-n399-row" data-label="Example County"><div class="tree__row" id="tree-structure-n399-row"><span class="tree__spacer"></span><span class="tree__content"><a href="object.html?focus=tree" tabindex="-1" id="tree-structure-n399"><span>Example County</span></a> <span class="usa-tag bg-base-dark">Location</span> <span class="tree__meta">used in 0 places</span></span></div></li></ul></li></ul><ul role="tree" class="tree" id="tree-type" aria-label="Catalog contents" data-custom-component="treeview" hidden><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="1" aria-expanded="true" aria-labelledby="tree-type-n400-row" data-label="Datasets (9)"><div class="tree__row" id="tree-type-n400-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n400" class="tree__group-label">Datasets (9)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="1" aria-selected="true" aria-labelledby="tree-type-n401-row" data-label="Regional Bridge Condition Ratings"><div class="tree__row" id="tree-type-n401-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset-errors.html?focus=tree" tabindex="-1" id="tree-type-n401"><span data-live-title>Regional Bridge Condition Ratings</span></a> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 2 problems</span></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="2" aria-selected="false" aria-labelledby="tree-type-n402-row" data-label="Community Garden Plot Registry"><div class="tree__row" id="tree-type-n402-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d2&focus=tree" tabindex="-1" id="tree-type-n402"><span>Community Garden Plot Registry</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="3" aria-selected="false" aria-labelledby="tree-type-n403-row" data-label="Public Library Visits by Branch"><div class="tree__row" id="tree-type-n403-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d3&focus=tree" tabindex="-1" id="tree-type-n403"><span>Public Library Visits by Branch</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="4" aria-selected="false" aria-labelledby="tree-type-n404-row" data-label="Fleet Vehicle Fuel Use, FY2025"><div class="tree__row" id="tree-type-n404-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d4&focus=tree" tabindex="-1" id="tree-type-n404"><span>Fleet Vehicle Fuel Use, FY2025</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="5" aria-selected="false" aria-labelledby="tree-type-n405-row" data-label="Grants to Local Partners"><div class="tree__row" id="tree-type-n405-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?focus=tree" tabindex="-1" id="tree-type-n405"><span>Grants to Local Partners</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="6" aria-selected="false" aria-labelledby="tree-type-n406-row" data-label="Hourly Weather Station Readings"><div class="tree__row" id="tree-type-n406-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d6&focus=tree" tabindex="-1" id="tree-type-n406"><span>Hourly Weather Station Readings</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="7" aria-selected="false" aria-labelledby="tree-type-n407-row" data-label="Sample Business Registry Extract"><div class="tree__row" id="tree-type-n407-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d7&focus=tree" tabindex="-1" id="tree-type-n407"><span>Sample Business Registry Extract</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="8" aria-selected="false" aria-labelledby="tree-type-n408-row" data-label="Sample Household Survey, 2024"><div class="tree__row" id="tree-type-n408-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d8&focus=tree" tabindex="-1" id="tree-type-n408"><span>Sample Household Survey, 2024</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="9" aria-posinset="9" aria-selected="false" aria-labelledby="tree-type-n409-row" data-label="Sample Household Survey, 2025"><div class="tree__row" id="tree-type-n409-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataset.html?id=d9&focus=tree" tabindex="-1" id="tree-type-n409"><span>Sample Household Survey, 2025</span></a></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="2" aria-expanded="false" aria-labelledby="tree-type-n410-row" data-label="Dataset series (1)"><div class="tree__row" id="tree-type-n410-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n410" class="tree__group-label">Dataset series (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n411-row" data-label="Sample Household Survey (annual series)"><div class="tree__row" id="tree-type-n411-row"><span class="tree__spacer"></span><span class="tree__content"><a href="series.html?focus=tree" tabindex="-1" id="tree-type-n411"><span>Sample Household Survey (annual series)</span></a></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="3" aria-expanded="false" aria-labelledby="tree-type-n412-row" data-label="Data services (1)"><div class="tree__row" id="tree-type-n412-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n412" class="tree__group-label">Data services (1)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="1" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n413-row" data-label="Example Affairs Open Data API"><div class="tree__row" id="tree-type-n413-row"><span class="tree__spacer"></span><span class="tree__content"><a href="dataservice.html?focus=tree" tabindex="-1" id="tree-type-n413"><span>Example Affairs Open Data API</span></a></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="4" aria-expanded="false" aria-labelledby="tree-type-n414-row" data-label="Distributions (14)"><div class="tree__row" id="tree-type-n414-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n414" class="tree__group-label">Distributions (14)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n415-row" data-label="Bridge ratings (CSV)"><div class="tree__row" id="tree-type-n415-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?focus=tree" tabindex="-1" id="tree-type-n415"><span>Bridge ratings (CSV)</span></a> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 1 problem</span></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="2" aria-selected="false" aria-labelledby="tree-type-n416-row" data-label="Garden plots (CSV)"><div class="tree__row" id="tree-type-n416-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d2-0&focus=tree" tabindex="-1" id="tree-type-n416"><span>Garden plots (CSV)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="3" aria-selected="false" aria-labelledby="tree-type-n417-row" data-label="Garden plots (GeoJSON)"><div class="tree__row" id="tree-type-n417-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d2-1&focus=tree" tabindex="-1" id="tree-type-n417"><span>Garden plots (GeoJSON)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="4" aria-selected="false" aria-labelledby="tree-type-n418-row" data-label="Library visits (XLSX)"><div class="tree__row" id="tree-type-n418-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d3-0&focus=tree" tabindex="-1" id="tree-type-n418"><span>Library visits (XLSX)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="5" aria-selected="false" aria-labelledby="tree-type-n419-row" data-label="Data dictionary (PDF)"><div class="tree__row" id="tree-type-n419-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d3-1&focus=tree" tabindex="-1" id="tree-type-n419"><span>Data dictionary (PDF)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="6" aria-selected="false" aria-labelledby="tree-type-n420-row" data-label="Fleet fuel use (CSV)"><div class="tree__row" id="tree-type-n420-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d4-0&focus=tree" tabindex="-1" id="tree-type-n420"><span>Fleet fuel use (CSV)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="7" aria-selected="false" aria-labelledby="tree-type-n421-row" data-label="Grants (CSV)"><div class="tree__row" id="tree-type-n421-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d5-0&focus=tree" tabindex="-1" id="tree-type-n421"><span>Grants (CSV)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="8" aria-selected="false" aria-labelledby="tree-type-n422-row" data-label="Grants (JSON)"><div class="tree__row" id="tree-type-n422-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d5-1&focus=tree" tabindex="-1" id="tree-type-n422"><span>Grants (JSON)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="9" aria-selected="false" aria-labelledby="tree-type-n423-row" data-label="Readings via API"><div class="tree__row" id="tree-type-n423-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d6-0&focus=tree" tabindex="-1" id="tree-type-n423"><span>Readings via API</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="10" aria-selected="false" aria-labelledby="tree-type-n424-row" data-label="Distribution: ZIP (untitled)"><div class="tree__row" id="tree-type-n424-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d7-0&focus=tree" tabindex="-1" id="tree-type-n424"><span>Distribution: ZIP (untitled)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="11" aria-selected="false" aria-labelledby="tree-type-n425-row" data-label="Survey 2024 (CSV)"><div class="tree__row" id="tree-type-n425-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d8-0&focus=tree" tabindex="-1" id="tree-type-n425"><span>Survey 2024 (CSV)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="12" aria-selected="false" aria-labelledby="tree-type-n426-row" data-label="Survey 2024 (SAS)"><div class="tree__row" id="tree-type-n426-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d8-1&focus=tree" tabindex="-1" id="tree-type-n426"><span>Survey 2024 (SAS)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="13" aria-selected="false" aria-labelledby="tree-type-n427-row" data-label="Survey 2025 (CSV)"><div class="tree__row" id="tree-type-n427-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d9-0&focus=tree" tabindex="-1" id="tree-type-n427"><span>Survey 2025 (CSV)</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="14" aria-posinset="14" aria-selected="false" aria-labelledby="tree-type-n428-row" data-label="Survey 2025 (SAS)"><div class="tree__row" id="tree-type-n428-row"><span class="tree__spacer"></span><span class="tree__content"><a href="distribution.html?id=d9-1&focus=tree" tabindex="-1" id="tree-type-n428"><span>Survey 2025 (SAS)</span></a></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="5" aria-expanded="false" aria-labelledby="tree-type-n429-row" data-label="Contacts (5)"><div class="tree__row" id="tree-type-n429-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n429" class="tree__group-label">Contacts (5)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="5" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n430-row" data-label="OSS Data Help Desk"><div class="tree__row" id="tree-type-n430-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?focus=tree" tabindex="-1" id="tree-type-n430"><span>OSS Data Help Desk</span></a> <span class="tree__meta">used in 5 places</span></span></div></li><li role="treeitem" aria-level="2" aria-setsize="5" aria-posinset="2" aria-selected="false" aria-labelledby="tree-type-n431-row" data-label="Bridge Program Office"><div class="tree__row" id="tree-type-n431-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact-bridge.html?focus=tree" tabindex="-1" id="tree-type-n431"><span>Bridge Program Office</span></a> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 1 problem</span></span></div></li><li role="treeitem" aria-level="2" aria-setsize="5" aria-posinset="3" aria-selected="false" aria-labelledby="tree-type-n432-row" data-label="Library Statistics Team"><div class="tree__row" id="tree-type-n432-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-lib&focus=tree" tabindex="-1" id="tree-type-n432"><span>Library Statistics Team</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="5" aria-posinset="4" aria-selected="false" aria-labelledby="tree-type-n433-row" data-label="Weather Network Operations"><div class="tree__row" id="tree-type-n433-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-wx&focus=tree" tabindex="-1" id="tree-type-n433"><span>Weather Network Operations</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="5" aria-posinset="5" aria-selected="false" aria-labelledby="tree-type-n434-row" data-label="Dr. Rosa Example"><div class="tree__row" id="tree-type-n434-row"><span class="tree__spacer"></span><span class="tree__content"><a href="contact.html?id=kind-rosa&focus=tree" tabindex="-1" id="tree-type-n434"><span>Dr. Rosa Example</span></a> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="6" aria-expanded="false" aria-labelledby="tree-type-n435-row" data-label="Organizations (2)"><div class="tree__row" id="tree-type-n435-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n435" class="tree__group-label">Organizations (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n436-row" data-label="Office of Sample Statistics"><div class="tree__row" id="tree-type-n436-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?focus=tree" tabindex="-1" id="tree-type-n436"><span>Office of Sample Statistics</span></a> <span class="tree__meta">used in 10 places</span></span></div></li><li role="treeitem" aria-level="2" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-type-n437-row" data-label="Department of Example Affairs"><div class="tree__row" id="tree-type-n437-row"><span class="tree__spacer"></span><span class="tree__content"><a href="organization.html?id=org-dea&focus=tree" tabindex="-1" id="tree-type-n437"><span>Department of Example Affairs</span></a> <span class="tree__meta">used in 3 places</span></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="7" aria-expanded="false" aria-labelledby="tree-type-n438-row" data-label="Locations (2)"><div class="tree__row" id="tree-type-n438-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n438" class="tree__group-label">Locations (2)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="2" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n439-row" data-label="City of Example"><div class="tree__row" id="tree-type-n439-row"><span class="tree__spacer"></span><span class="tree__content"><a href="object.html?id=loc-city&focus=tree" tabindex="-1" id="tree-type-n439"><span>City of Example</span></a> <span class="tree__meta">used in 1 place</span></span></div></li><li role="treeitem" aria-level="2" aria-setsize="2" aria-posinset="2" aria-selected="false" aria-labelledby="tree-type-n440-row" data-label="Example County"><div class="tree__row" id="tree-type-n440-row"><span class="tree__spacer"></span><span class="tree__content"><a href="object.html?focus=tree" tabindex="-1" id="tree-type-n440"><span>Example County</span></a> <span class="tree__meta">used in 0 places</span></span></div></li></ul></li><li role="treeitem" aria-level="1" aria-setsize="8" aria-posinset="8" aria-expanded="false" aria-labelledby="tree-type-n441-row" data-label="Periods of time (3)"><div class="tree__row" id="tree-type-n441-row"><span class="tree__twisty"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#navigate_next"></use></svg></span><span class="tree__content"><span id="tree-type-n441" class="tree__group-label">Periods of time (3)</span></span></div><ul role="group"><li role="treeitem" aria-level="2" aria-setsize="3" aria-posinset="1" aria-selected="false" aria-labelledby="tree-type-n442-row" data-label="Oct 1, 2024 – Sep 30, 2025"><div class="tree__row" id="tree-type-n442-row"><span class="tree__spacer"></span><span class="tree__content"><a href="object.html?id=pot-fy25&focus=tree" tabindex="-1" id="tree-type-n442"><span>Oct 1, 2024 – Sep 30, 2025</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="3" aria-posinset="2" aria-selected="false" aria-labelledby="tree-type-n443-row" data-label="2020 – 2025"><div class="tree__row" id="tree-type-n443-row"><span class="tree__spacer"></span><span class="tree__content"><a href="object.html?id=pot-2020&focus=tree" tabindex="-1" id="tree-type-n443"><span>2020 – 2025</span></a></span></div></li><li role="treeitem" aria-level="2" aria-setsize="3" aria-posinset="3" aria-selected="false" aria-labelledby="tree-type-n444-row" data-label="2024"><div class="tree__row" id="tree-type-n444-row"><span class="tree__spacer"></span><span class="tree__content"><a href="object.html?id=pot-2024&focus=tree" tabindex="-1" id="tree-type-n444"><span>2024</span></a></span></div></li></ul></li></ul></div>
+    <p class="margin-top-2 font-body-xs"><a class="usa-link" href="list.html">View all datasets as a table</a></p>
+    <p class="font-body-2xs text-base-dark">Use arrow keys to move, Right and Left to open and close, Enter to open an object.</p>
+  </nav>
+  <main id="main-content" class="editor-detail-pane" tabindex="-1">
+    
+<nav class="usa-breadcrumb padding-top-0" aria-label="Breadcrumbs"><ol class="usa-breadcrumb__list"><li class="usa-breadcrumb__list-item"><a href="catalog.html" class="usa-breadcrumb__link"><span>Catalog</span></a></li><li class="usa-breadcrumb__list-item"><a href="list.html" class="usa-breadcrumb__link"><span>Datasets</span></a></li><li class="usa-breadcrumb__list-item usa-current" aria-current="page"><span>Regional Bridge Condition Ratings</span></li></ol></nav>
+
+<div class="object-header">
+  <span class="usa-tag bg-base-dark">Dataset</span> <span class="usa-tag bg-secondary-dark"><svg class="usa-icon usa-icon--size-3 text-middle" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 2 problems</span>
+  <h2 id="object-title" data-live-title>Regional Bridge Condition Ratings</h2>
+  
+<div class="usa-accordion margin-y-1">
+  <h3 class="usa-accordion__heading"><button type="button" class="usa-accordion__button" aria-expanded="false" aria-controls="uses-list">Used in 1 place</button></h3>
+  <div id="uses-list" class="usa-accordion__content" hidden><div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless usa-table--compact"><thead><tr><th scope="col">Object</th><th scope="col">Type</th><th scope="col">Field</th></tr></thead><tbody><tr><th scope="row">Department of Example Affairs Data Catalog</th><td>Catalog</td><td>Datasets</td></tr></tbody></table></div></div>
+</div>
+  <ul class="usa-button-group margin-top-1">
+    <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--outline" data-toggle-errors aria-pressed="false" data-on-msg="Advisory check finished for this object.">Check this object</button></li>
+    
+    <li class="usa-button-group__item"><a href="#delete-modal" class="usa-button usa-button--secondary" aria-controls="delete-modal" data-open-modal>Delete</a></li>
+  </ul>
+</div>
+
+<div class="usa-alert usa-alert--error margin-bottom-2" data-error-summary hidden tabindex="-1" id="err-summary">
+  <div class="usa-alert__body">
+    <h3 class="usa-alert__heading">This dataset has 2 problems</h3>
+    <ul class="usa-list">
+      <li><a class="usa-link" href="#f-dse-modified">Last modified: use YYYY, YYYY-MM, YYYY-MM-DD, or a date and time</a></li>
+      <li><a class="usa-link" href="#f-dse-accrualPeriodicity">Frequency: choose a frequency from the list</a></li>
+    </ul>
+    <p class="usa-alert__text">2 linked objects also have problems: <a class="usa-link" href="contact-bridge.html?state=errors">Bridge Program Office</a> (Email) and <a class="usa-link" href="distribution.html?state=errors">Bridge ratings (CSV)</a> (Download URL).</p>
+    <p class="usa-alert__text font-body-2xs">Advisory check against the DCAT-US 3.0 schema copy (GSA/dcat-us, version of October 7, 2026, commit 4996591). Not the official Data.gov validator.</p>
+  </div>
+</div>
+<script>document.addEventListener("DOMContentLoaded",function(){var b=document.querySelector("[data-toggle-errors]");if(b&&/state=errors/.test(location.search))b.setAttribute("aria-pressed","true");});</script>
+
+<form class="usa-form" onsubmit="return false" aria-label="Dataset fields" data-fake-save>
+<p class="usa-hint">Fields come from the DCAT-US 3.0 schema. Required fields are marked “(required)”. Nothing is blocked: missing fields are flagged by the advisory check.</p>
+<section class="form-section" aria-labelledby="dse-req-h">
+  <h3 id="dse-req-h">Required</h3>
+  
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-contactPoint">
+  <legend class="usa-legend text-bold">Contact point <span class="field-level">(required)</span></legend>
+  <div class="usa-hint" id="f-dse-contactPoint-hint">A contact point for questions about the Dataset (single contact or list). Include an email address that is continuously monitored <span class="display-block">Holds: Contact (Kind).</span></div>
+  
+  <ul class="linked-list"><li class="linked-obj linked-obj--problem">
+  <div><span class="linked-obj__title">Bridge Program Office</span> <span class="usa-tag bg-base-dark">Contact</span> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 1 problem</span></div>
+  <div class="linked-obj__meta">bridges@example.gov · Used in 1 place</div>
+  <div class="linked-obj__actions">
+    <a class="usa-link" href="contact-bridge.html">Open</a>
+    
+    <a class="usa-link" href="?state=removed-link">Remove from this field<span class="usa-sr-only">: Bridge Program Office</span></a>
+  </div>
+</li></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add contact point: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-description">Description <span class="field-level">(required)</span></label>
+  <div class="usa-hint" id="f-dse-description-hint">Plain-language summary of the dataset.</div>
+  
+  <textarea class="usa-textarea" id="f-dse-description" name="description" rows="4" aria-describedby="f-dse-description-hint f-dse-description-note" data-fake-save></textarea>
+  
+  <p class="usa-hint text-italic margin-top-05" id="f-dse-description-note">This required field is blank. The schema allows a blank value, so the check does not flag it, but Data.gov may.</p>
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-identifier">Identifier <span class="field-level">(required)</span></label>
+  <div class="usa-hint" id="f-dse-identifier-hint">An identifier that is unique to this Dataset within its Catalog. Do not reuse it for another Dataset in the Catalog, including a Dataset that is a member of a Dataset Series..</div>
+  
+  <input class="usa-input" type="text" id="f-dse-identifier" name="identifier" value="DEA-OSS-0001" aria-describedby="f-dse-identifier-hint" data-fake-save>
+  <button type="button" class="usa-button usa-button--unstyled margin-top-1" aria-expanded="false" data-show="f-dse-identifier-detail" >Use detailed form</button><p id="f-dse-identifier-detail" class="usa-hint" hidden>Mockup: the detailed Identifier form (notation, schema agency, …) would open here, carrying over the text value.</p>
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-title">Title <span class="field-level">(required)</span></label>
+  <div class="usa-hint" id="f-dse-title-hint">Human-readable title of the dataset.</div>
+  
+  <input class="usa-input" type="text" id="f-dse-title" name="title" value="Regional Bridge Condition Ratings" aria-describedby="f-dse-title-hint" data-fake-save data-title-field>
+  
+  
+</div>
+</section>
+<section class="form-section" aria-labelledby="dse-rec-h">
+  <h3 id="dse-rec-h">Recommended <span class="level-note">Not required, but strongly advised.</span></h3>
+  
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-distribution">
+  <legend class="usa-legend text-bold">Dataset distribution</legend>
+  <div class="usa-hint" id="f-dse-distribution-hint">List of available distributions for the dataset. This can be omitted when no distribution is available yet. <span class="display-block">Holds: Distribution.</span></div>
+  
+  <ul class="linked-list"><li class="linked-obj linked-obj--problem">
+  <div><span class="linked-obj__title">Bridge ratings (CSV)</span> <span class="usa-tag bg-base-dark">Distribution</span> <span class="tree__problem"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> 1 problem</span></div>
+  <div class="linked-obj__meta">CSV · text/csv · Used in 1 place</div>
+  <div class="linked-obj__actions">
+    <a class="usa-link" href="distribution.html">Open</a>
+    
+    <a class="usa-link" href="?state=removed-link">Remove from this field<span class="usa-sr-only">: Bridge ratings (CSV)</span></a>
+  </div>
+</li></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add distribution: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Keyword" data-fake-save>
+  <legend class="usa-legend text-bold">Keyword/tag</legend>
+  <div class="usa-hint" id="f-dse-keyword-hint">List of keywords or tags describing the dataset</div>
+  
+  <ol class="repeat-list"><li>
+  <div><label class="usa-label" for="f-dse-keyword-1">Keyword 1</label>
+  <input class="usa-input" type="text" id="f-dse-keyword-1" value="bridges"></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> bridges</span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> bridges</span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> bridges</span></button>
+  </span>
+</li><li>
+  <div><label class="usa-label" for="f-dse-keyword-2">Keyword 2</label>
+  <input class="usa-input" type="text" id="f-dse-keyword-2" value="infrastructure"></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> infrastructure</span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> infrastructure</span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> infrastructure</span></button>
+  </span>
+</li><li>
+  <div><label class="usa-label" for="f-dse-keyword-3">Keyword 3</label>
+  <input class="usa-input" type="text" id="f-dse-keyword-3" value="inspections"></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> inspections</span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> inspections</span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> inspections</span></button>
+  </span>
+</li></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-keyword-new">Keyword </label>
+  <input class="usa-input" type="text" id="f-dse-keyword-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another keyword</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-landingPage">
+  <legend class="usa-legend text-bold">Landing page</legend>
+  <div class="usa-hint" id="f-dse-landingPage-hint">A web page from the original data provider that gives access to the Dataset, its Distributions, and related information <span class="display-block">Holds: Document.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add landing page: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Theme/category" data-fake-save>
+  <legend class="usa-legend text-bold">Theme/category</legend>
+  <div class="usa-hint" id="f-dse-theme-hint">List of themes or categories for the dataset</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-theme-new">Theme/category </label>
+  <input class="usa-input" type="text" id="f-dse-theme-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another theme/category</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-describedBy">
+  <legend class="usa-legend text-bold">Data dictionary</legend>
+  <div class="usa-hint" id="f-dse-describedBy-hint">A distribution describing the Data Dictionary for this dataset <span class="display-block">Holds: Distribution.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add data dictionary: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-inventoried">Inventoried date</label>
+  <div class="usa-hint" id="f-dse-inventoried-hint">Date on which the dataset was added to the catalog. This may differ from the publication/release date.. Use YYYY, YYYY-MM, YYYY-MM-DD, or a date and time.</div>
+  
+  <input class="usa-input usa-input--md" id="f-dse-inventoried" name="inventoried" value="" aria-describedby="f-dse-inventoried-hint" data-fake-save>
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-modified">Last modified</label>
+  <div class="usa-hint" id="f-dse-modified-hint">Most recent date when the dataset&#x27;s actual data changed, not just metadata. Use YYYY, YYYY-MM, YYYY-MM-DD, or a date and time.</div>
+  <span class="usa-error-message" id="f-dse-modified-error" data-error hidden><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> <span class="usa-sr-only">Problem:</span> Use YYYY, YYYY-MM, YYYY-MM-DD, or a date and time. You entered 03/14/2025.</span>
+  <input class="usa-input usa-input--md" id="f-dse-modified" name="modified" value="03/14/2025" aria-describedby="f-dse-modified-hint f-dse-modified-error" data-fake-save>
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-publisher">
+  <legend class="usa-legend text-bold">Publisher</legend>
+  <div class="usa-hint" id="f-dse-publisher-hint">Organization responsible for publishing and making the dataset available <span class="display-block">Holds: Organization.</span></div>
+  
+  <ul class="linked-list"><li class="linked-obj">
+  <div><span class="linked-obj__title">Office of Sample Statistics</span> <span class="usa-tag bg-base-dark">Organization</span></div>
+  <div class="linked-obj__meta">Used in 10 places (shared)</div>
+  <div class="linked-obj__actions">
+    <a class="usa-link" href="organization.html">Open</a>
+    <a class="usa-link" href="?state=copy-made">Edit a copy for this one</a>
+    <a class="usa-link" href="?state=removed-link">Remove from this field<span class="usa-sr-only">: Office of Sample Statistics</span></a>
+  </div>
+</li></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add publisher: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-license">License</label>
+  <div class="usa-hint" id="f-dse-license-hint">License that governs how the dataset can be used or reused.</div>
+  
+  <input class="usa-input" type="text" id="f-dse-license" name="license" value="https://creativecommons.org/publicdomain/zero/1.0/" aria-describedby="f-dse-license-hint" data-fake-save>
+  
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-accessRestriction">
+  <legend class="usa-legend text-bold">Access restriction</legend>
+  <div class="usa-hint" id="f-dse-accessRestriction-hint">List of access restrictions related to the dataset <span class="display-block">Holds: Access restriction.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add access restriction: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-cuiRestriction">
+  <legend class="usa-legend text-bold">CUI restriction</legend>
+  <div class="usa-hint" id="f-dse-cuiRestriction-hint">Controlled Unclassified Information restriction related to the dataset <span class="display-block">Holds: CUI restriction.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add cui restriction: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-useRestriction">
+  <legend class="usa-legend text-bold">Use restriction</legend>
+  <div class="usa-hint" id="f-dse-useRestriction-hint">List of use restrictions related to the dataset <span class="display-block">Holds: Use restriction.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add use restriction: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Right" data-fake-save>
+  <legend class="usa-legend text-bold">Rights</legend>
+  <div class="usa-hint" id="f-dse-rights-hint">Rights statements not already covered by license or accessRights, such as copyright or policy restrictions</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-rights-new">Right </label>
+  <input class="usa-input" type="text" id="f-dse-rights-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another right</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-spatial">
+  <legend class="usa-legend text-bold">Spatial/geographic coverage</legend>
+  <div class="usa-hint" id="f-dse-spatial-hint">A geographic region or regions that are covered by the Dataset <span class="display-block">Holds: Location.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add spatial/geographic coverage: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-temporal">
+  <legend class="usa-legend text-bold">Temporal coverage</legend>
+  <div class="usa-hint" id="f-dse-temporal-hint">Time periods covered by the dataset <span class="display-block">Holds: Period of time.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add temporal coverage: select existing or create new</a>
+</fieldset>
+</section>
+<section class="form-section" aria-labelledby="dse-opt-h">
+  <h3 class="usa-sr-only" id="dse-opt-h">Optional</h3>
+  <div class="usa-accordion usa-accordion--bordered">
+    <h4 class="usa-accordion__heading"><button type="button" class="usa-accordion__button" aria-expanded="false" aria-controls="dse-optional">Optional fields (42, 0 filled in)</button></h4>
+    <div id="dse-optional" class="usa-accordion__content" hidden>
+      
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-at-id">@id</label>
+  <div class="usa-hint" id="f-dse-at-id-hint">. Enter a full web address, starting with https:// or http://.</div>
+  
+  <input class="usa-input" type="url" id="f-dse-at-id" name="@id" value="" aria-describedby="f-dse-at-id-hint" data-fake-save>
+  
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Other identifier" data-fake-save>
+  <legend class="usa-legend text-bold">Other identifier</legend>
+  <div class="usa-hint" id="f-dse-otherIdentifier-hint">Additional identifiers for the dataset besides the main identifier, such as a DOI or other persistent ID</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-otherIdentifier-new">Other identifier </label>
+  <input class="usa-input" type="text" id="f-dse-otherIdentifier-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another other identifier</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-sample">
+  <legend class="usa-legend text-bold">Sample</legend>
+  <div class="usa-hint" id="f-dse-sample-hint">List of sample distributions for the dataset <span class="display-block">Holds: Distribution.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add sample: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-status">Lifecycle status</label>
+  <div class="usa-hint" id="f-dse-status-hint">Lifecycle status of the dataset, such as completed, deprecated, under development, or withdrawn.</div>
+  
+  <input class="usa-input" type="text" id="f-dse-status" name="status" value="" aria-describedby="f-dse-status-hint" data-fake-save>
+  <button type="button" class="usa-button usa-button--unstyled margin-top-1" aria-expanded="false" data-show="f-dse-status-detail" >Use detailed form</button><p id="f-dse-status-detail" class="usa-hint" hidden>Mockup: the detailed Concept form (notation, schema agency, …) would open here, carrying over the text value.</p>
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-supportedSchema">
+  <legend class="usa-legend text-bold">Supported schema</legend>
+  <div class="usa-hint" id="f-dse-supportedSchema-hint">supported schema for this dataset <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add supported schema: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-versionNotes">Version notes</label>
+  <div class="usa-hint" id="f-dse-versionNotes-hint">Notes describing how this version differs from earlier versions of the dataset.</div>
+  
+  <textarea class="usa-textarea" id="f-dse-versionNotes" name="versionNotes" rows="4" aria-describedby="f-dse-versionNotes-hint" data-fake-save></textarea>
+  
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-first">
+  <legend class="usa-legend text-bold">First</legend>
+  <div class="usa-hint" id="f-dse-first-hint">the first item of the sequence the dataset belongs to <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add first: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-hasCurrentVersion">
+  <legend class="usa-legend text-bold">Current version</legend>
+  <div class="usa-hint" id="f-dse-hasCurrentVersion-hint">reference to the current (latest) version of a dataset <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add current version: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-hasVersion">
+  <legend class="usa-legend text-bold">Has version</legend>
+  <div class="usa-hint" id="f-dse-hasVersion-hint">List of related Datasets that are a version, edition, or adaptation of the described Dataset <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add has version: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-previousVersion">
+  <legend class="usa-legend text-bold">Previous version</legend>
+  <div class="usa-hint" id="f-dse-previousVersion-hint">reference to the previous dataset version <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add previous version: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-qualifiedRelation">
+  <legend class="usa-legend text-bold">Qualified relation</legend>
+  <div class="usa-hint" id="f-dse-qualifiedRelation-hint">Detailed relationship between the dataset and another resource, including the role of that relationship <span class="display-block">Holds: Relationship.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add qualified relation: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-spatialResolutionInMeters">Spatial resolution (meters)</label>
+  <div class="usa-hint" id="f-dse-spatialResolutionInMeters-hint">Smallest spatial distance between data points, in meters, represented as a single value.</div>
+  
+  <input class="usa-input" type="text" id="f-dse-spatialResolutionInMeters" name="spatialResolutionInMeters" value="" aria-describedby="f-dse-spatialResolutionInMeters-hint" data-fake-save>
+  
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-temporalResolution">Temporal resolution</label>
+  <div class="usa-hint" id="f-dse-temporalResolution-hint">Smallest time interval between data points, using xsd:duration format (for example, P1D).</div>
+  
+  <input class="usa-input" type="text" id="f-dse-temporalResolution" name="temporalResolution" value="" aria-describedby="f-dse-temporalResolution-hint" data-fake-save>
+  
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-version">Version</label>
+  <div class="usa-hint" id="f-dse-version-hint">The version indicator (name or identifier) of a resource.</div>
+  
+  <input class="usa-input" type="text" id="f-dse-version" name="version" value="" aria-describedby="f-dse-version-hint" data-fake-save>
+  
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-liabilityStatement">Liability statement</label>
+  <div class="usa-hint" id="f-dse-liabilityStatement-hint">A liability statement about the dataset that may clarify limitations of responsibility, qualifications on the accuracy, reliability, and completeness of the data, or absence of endorsement by the data publisher or provider, among other considerations.</div>
+  
+  <textarea class="usa-textarea" id="f-dse-liabilityStatement" name="liabilityStatement" rows="4" aria-describedby="f-dse-liabilityStatement-hint" data-fake-save></textarea>
+  
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-metadataDistribution">
+  <legend class="usa-legend text-bold">Metadata distribution</legend>
+  <div class="usa-hint" id="f-dse-metadataDistribution-hint">Distribution of the original metadata document this dataset was derived from <span class="display-block">Holds: Distribution.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add metadata distribution: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-purpose">Purpose</label>
+  <div class="usa-hint" id="f-dse-purpose-hint">The purpose of the dataset.</div>
+  
+  <textarea class="usa-textarea" id="f-dse-purpose" name="purpose" rows="4" aria-describedby="f-dse-purpose-hint" data-fake-save></textarea>
+  
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-accessRights">Access rights</label>
+  <div class="usa-hint" id="f-dse-accessRights-hint">Information about whether the dataset is publicly accessible, restricted, or not public.</div>
+  
+  <input class="usa-input" type="text" id="f-dse-accessRights" name="accessRights" value="" aria-describedby="f-dse-accessRights-hint" data-fake-save>
+  
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-accrualPeriodicity">Frequency</label>
+  <div class="usa-hint" id="f-dse-accrualPeriodicity-hint">The frequency at which the Dataset is updated. Choose a value, or “Other repeating period” for an ISO 8601 value such as R/P1M.</div>
+  <span class="usa-error-message" id="f-dse-accrualPeriodicity-error" data-error hidden><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#error"></use></svg> <span class="usa-sr-only">Problem:</span> Choose a frequency from the list. Values are lower case: “monthly”, not “Monthly”.</span>
+  <select class="usa-select" id="f-dse-accrualPeriodicity" aria-describedby="f-dse-accrualPeriodicity-hint f-dse-accrualPeriodicity-error" data-other-reveal="f-dse-accrualPeriodicity-other-box" data-fake-save>
+    <option value="">- Not set -</option><option value="Monthly" selected>Monthly (as loaded, not an allowed value)</option>
+    <optgroup label="ISO 19115"><option value="continual">continual</option><option value="daily">daily</option><option value="weekly">weekly</option><option value="fortnightly">fortnightly</option><option value="monthly">monthly</option><option value="quarterly">quarterly</option><option value="biannually">biannually</option><option value="annually">annually</option><option value="asNeeded">asNeeded</option><option value="irregular">irregular</option><option value="notPlanned">notPlanned</option><option value="unknown">unknown</option></optgroup>
+    <optgroup label="Dublin Core"><option value="continuous">continuous</option><option value="biweekly">biweekly</option><option value="semiannual">semiannual</option><option value="annual">annual</option><option value="triennial">triennial</option><option value="biennial">biennial</option><option value="threeTimesAYear">threeTimesAYear</option><option value="bimonthly">bimonthly</option><option value="semimonthly">semimonthly</option><option value="threeTimesAMonth">threeTimesAMonth</option><option value="semiweekly">semiweekly</option><option value="threeTimesAWeek">threeTimesAWeek</option></optgroup>
+    <option value="other">Other repeating period (ISO 8601)</option>
+  </select>
+  <div id="f-dse-accrualPeriodicity-other-box" hidden>
+    <label class="usa-label" for="f-dse-accrualPeriodicity-other">Repeating period</label>
+    <div class="usa-hint" id="f-dse-accrualPeriodicity-other-hint">Starts with R/P, for example R/PT1H (hourly) or R/P1M (monthly).</div>
+    <input class="usa-input" id="f-dse-accrualPeriodicity-other" aria-describedby="f-dse-accrualPeriodicity-other-hint" value="" data-fake-save>
+  </div>
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-conformsTo">
+  <legend class="usa-legend text-bold">Conforms to</legend>
+  <div class="usa-hint" id="f-dse-conformsTo-hint">List of standards, schemas, or profiles the dataset follows <span class="display-block">Holds: Standard.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add conforms to: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-contributor">
+  <legend class="usa-legend text-bold">Contributor</legend>
+  <div class="usa-hint" id="f-dse-contributor-hint">List of agents contributing to the Dataset <span class="display-block">Holds: Agent.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add contributor: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-created">Creation date</label>
+  <div class="usa-hint" id="f-dse-created-hint">The date on which the Dataset was first created. Use YYYY, YYYY-MM, YYYY-MM-DD, or a date and time.</div>
+  
+  <input class="usa-input usa-input--md" id="f-dse-created" name="created" value="" aria-describedby="f-dse-created-hint" data-fake-save>
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-creator">
+  <legend class="usa-legend text-bold">Creator</legend>
+  <div class="usa-hint" id="f-dse-creator-hint">Person or organization responsible for creating the dataset <span class="display-block">Holds: Agent.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add creator: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-hasPart">
+  <legend class="usa-legend text-bold">Has part</legend>
+  <div class="usa-hint" id="f-dse-hasPart-hint">List of related datasets that are part of the described dataset <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add has part: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Is referenced by" data-fake-save>
+  <legend class="usa-legend text-bold">Is referenced by</legend>
+  <div class="usa-hint" id="f-dse-isReferencedBy-hint">List of links to related resources, such as publications, that reference, cite, or otherwise point to the Dataset</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-isReferencedBy-new">Is referenced by </label>
+  <input class="usa-input" type="url" id="f-dse-isReferencedBy-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another is referenced by</button>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-issued">Release date</label>
+  <div class="usa-hint" id="f-dse-issued-hint">Date when the dataset was first published. If the exact publication date is unknown, use the date it was first referenced in the catalog.. Use YYYY, YYYY-MM, YYYY-MM-DD, or a date and time.</div>
+  
+  <input class="usa-input usa-input--md" id="f-dse-issued" name="issued" value="" aria-describedby="f-dse-issued-hint" data-fake-save>
+  
+</div>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Language" data-fake-save>
+  <legend class="usa-legend text-bold">Language</legend>
+  <div class="usa-hint" id="f-dse-language-hint">ISO 639-1 language code values used in the dataset text or metadata, such as en or es, full list can be seen at https://id.loc.gov/vocabulary/iso639-1.html</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-language-new">Language </label>
+  <input class="usa-input" type="text" id="f-dse-language-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another language</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Provenance" data-fake-save>
+  <legend class="usa-legend text-bold">Provenance</legend>
+  <div class="usa-hint" id="f-dse-provenance-hint">List of statements about the lineage of a Dataset, including any changes in its ownership or custody since its creation that may be significant for its authenticity, integrity, or interpretation</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-provenance-new">Provenance </label>
+  <input class="usa-input" type="text" id="f-dse-provenance-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another provenance</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Related resource" data-fake-save>
+  <legend class="usa-legend text-bold">Related resource</legend>
+  <div class="usa-hint" id="f-dse-relation-hint">List of links to related resources when the relationship is not otherwise specified</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-relation-new">Related resource </label>
+  <input class="usa-input" type="url" id="f-dse-relation-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another related resource</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-replaces">
+  <legend class="usa-legend text-bold">Replaces</legend>
+  <div class="usa-hint" id="f-dse-replaces-hint">List of Datasets replaced by this Dataset <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add replaces: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-rightsHolder">
+  <legend class="usa-legend text-bold">Rights holder</legend>
+  <div class="usa-hint" id="f-dse-rightsHolder-hint">List of agents (organizations) holding rights on the Dataset <span class="display-block">Holds: Organization.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add rights holder: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-source">
+  <legend class="usa-legend text-bold">Data source</legend>
+  <div class="usa-hint" id="f-dse-source-hint">List of related Datasets from which the described Dataset is derived <span class="display-block">Holds: Dataset.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add data source: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Subject" data-fake-save>
+  <legend class="usa-legend text-bold">Subject</legend>
+  <div class="usa-hint" id="f-dse-subject-hint">List of primary subjects for the dataset, usually narrower than broad theme categories</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-subject-new">Subject </label>
+  <input class="usa-input" type="text" id="f-dse-subject-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another subject</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" data-repeat data-item-label="Category" data-fake-save>
+  <legend class="usa-legend text-bold">Category</legend>
+  <div class="usa-hint" id="f-dse-category-hint">List of high-level categories for the dataset</div>
+  
+  <ol class="repeat-list"></ol>
+  <template><li>
+  <div><label class="usa-label" for="f-dse-category-new">Category </label>
+  <input class="usa-input" type="text" id="f-dse-category-new" value=""></div>
+  <span class="row-actions">
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="up">Move up<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled" data-row-action="down">Move down<span class="usa-sr-only"> </span></button>
+    <button type="button" class="usa-button usa-button--unstyled text-secondary-dark" data-row-action="remove">Remove<span class="usa-sr-only"> </span></button>
+  </span>
+</li></template>
+  <button type="button" class="usa-button usa-button--unstyled" data-row-action="add"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add another category</button>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-hasQualityMeasurement">
+  <legend class="usa-legend text-bold">Quality measurement</legend>
+  <div class="usa-hint" id="f-dse-hasQualityMeasurement-hint">List of quality measurements for the dataset (for example, completeness, accuracy, or timeliness) beyond spatial or temporal resolution <span class="display-block">Holds: Quality measurement.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add quality measurement: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-page">
+  <legend class="usa-legend text-bold">Documentation</legend>
+  <div class="usa-hint" id="f-dse-page-hint">List of pages or documents about this dataset <span class="display-block">Holds: Document.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add documentation: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-qualifiedAttribution">
+  <legend class="usa-legend text-bold">Qualified attribution</legend>
+  <div class="usa-hint" id="f-dse-qualifiedAttribution-hint">List of agents with specific responsibilities for the dataset <span class="display-block">Holds: Attribution.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add qualified attribution: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-wasAttributedTo">
+  <legend class="usa-legend text-bold">Attribution</legend>
+  <div class="usa-hint" id="f-dse-wasAttributedTo-hint">List of agents attributed to this dataset <span class="display-block">Holds: Agent.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add attribution: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-wasGeneratedBy">
+  <legend class="usa-legend text-bold">Was generated by</legend>
+  <div class="usa-hint" id="f-dse-wasGeneratedBy-hint">List of activities that generated, or provide the business context for the creation of the dataset <span class="display-block">Holds: Activity.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add was generated by: select existing or create new</a>
+</fieldset>
+<fieldset class="usa-fieldset usa-form-group margin-top-3" id="f-dse-wasUsedBy">
+  <legend class="usa-legend text-bold">Used by</legend>
+  <div class="usa-hint" id="f-dse-wasUsedBy-hint">List of activities that used the Dataset <span class="display-block">Holds: Activity.</span></div>
+  <p class="usa-hint margin-y-05">Not filled in yet.</p>
+  <ul class="linked-list"></ul>
+  <a href="#select-modal" class="usa-button usa-button--outline usa-button--small" aria-controls="select-modal" data-open-modal data-open-panel="sel-panel-select"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Add used by: select existing or create new</a>
+</fieldset>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-image">Image</label>
+  <div class="usa-hint" id="f-dse-image-hint">Thumbnail image illustrating the dataset, especially useful for visual data such as maps, photos, or video. Enter a full web address, starting with https:// or http://.</div>
+  
+  <input class="usa-input" type="url" id="f-dse-image" name="image" value="" aria-describedby="f-dse-image-hint" data-fake-save>
+  
+  
+</div>
+<div class="usa-form-group margin-top-3">
+  <label class="usa-label" for="f-dse-scopeNote">Usage note</label>
+  <div class="usa-hint" id="f-dse-scopeNote-hint">usage note for the dataset.</div>
+  
+  <textarea class="usa-textarea" id="f-dse-scopeNote" name="scopeNote" rows="4" aria-describedby="f-dse-scopeNote-hint" data-fake-save></textarea>
+  
+  
+</div>
+    </div>
+  </div>
+</section>
+
+</form>
+    
+  </main>
+</div>
+
+<aside class="mock-states grid-container" aria-label="Mockup states (not part of the product)">
+  <h2>Mockup only: view this screen in another state</h2>
+  <ul><li><a href="dataset-errors.html">Problems hidden (as opened from the tree)</a></li><li><a href="dataset-errors.html?state=errors">Problems shown (from Check results)</a></li></ul>
+</aside>
+
+<footer class="usa-footer usa-footer--slim">
+  <div class="grid-container usa-footer__return-to-top"><a href="#">Return to top</a></div>
+  <div class="usa-footer__primary-section">
+    <div class="usa-footer__primary-container grid-row">
+      <div class="grid-col-12">
+        <nav class="usa-footer__nav" aria-label="Footer navigation">
+          <ul class="grid-row grid-gap">
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="../help.html">Help</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="../help.html#your-data">Where your data lives</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="../feedback.html">Give feedback</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="#clear-modal" aria-controls="clear-modal" data-open-modal>Clear my data from this browser</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  <div class="usa-footer__secondary-section">
+    <div class="grid-container">
+      <p class="font-body-2xs margin-0">Advisory check uses a copy of the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591). It is not the official Data.gov validator.
+      No catalog content leaves this browser. Editor alpha 0.1.0 (mockup).</p>
+      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="../index.html">Mockup screen map</a></p>
+    </div>
+  </div>
+</footer>
+<div class="usa-identifier">
+  <section class="usa-identifier__section usa-identifier__section--masthead" aria-label="Agency identifier">
+    <div class="usa-identifier__container">
+      <section class="usa-identifier__identity" aria-label="Agency description">
+        <p class="usa-identifier__identity-domain">alpha.inventory.data.gov</p>
+        <p class="usa-identifier__identity-disclaimer">An official website of the <a href="#">U.S. General Services Administration</a></p>
+      </section>
+    </div>
+  </section>
+  <nav class="usa-identifier__section usa-identifier__section--required-links" aria-label="Important links">
+    <div class="usa-identifier__container">
+      <ul class="usa-identifier__required-links-list">
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">About GSA</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Accessibility statement</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">FOIA requests</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">No FEAR Act data</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Office of the Inspector General</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Performance reports</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Privacy policy</a></li>
+      </ul>
+    </div>
+  </nav>
+  <section class="usa-identifier__section usa-identifier__section--usagov" aria-label="U.S. government information and services">
+    <div class="usa-identifier__container">
+      <div class="usa-identifier__usagov-description">Looking for U.S. government information and services?</div>
+      <a href="#" class="usa-link">Visit USA.gov</a>
+    </div>
+  </section>
+</div>
+<div id="mock-status" class="usa-sr-only" role="status" aria-live="polite"></div>
+
+<div class="usa-modal" id="clear-modal" aria-labelledby="clear-modal-heading" aria-describedby="clear-modal-desc">
+  <div class="usa-modal__content">
+    <div class="usa-modal__main">
+      <h2 class="usa-modal__heading" id="clear-modal-heading">Clear your data from this browser?</h2>
+      <div class="usa-prose">
+<p id="clear-modal-desc">This deletes your working copy of <em>Department of Example Affairs Data Catalog</em> from this browser on this device.
+It is not backed up anywhere, so you cannot get it back. Export the catalog first if you want to keep it.</p></div>
+      <div class="usa-modal__footer"><ul class="usa-button-group"><li class="usa-button-group__item"><a href="../export.html" class="usa-button usa-button--outline">Export first</a></li><li class="usa-button-group__item"><a href="../start.html?state=cleared" class="usa-button usa-button--secondary">Clear my data</a></li><li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105 text-center" data-close-modal>Cancel</button></li></ul></div>
+    </div>
+    <button type="button" class="usa-button usa-modal__close" aria-label="Close this window" data-close-modal><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#close"></use></svg></button>
+  </div>
+</div>
+
+<div class="usa-modal usa-modal--lg" id="select-modal" aria-labelledby="select-modal-heading" aria-describedby="select-modal-desc">
+  <div class="usa-modal__content">
+    <div class="usa-modal__main">
+<div class="mock-panel" id="sel-panel-select">
+  <h2 class="usa-modal__heading" id="select-modal-heading">Add a contact point to “Regional Bridge Condition Ratings”</h2>
+  <p class="usa-hint" id="select-modal-desc">Pick a contact that is already in this catalog, or create a new one. Picking an existing contact shares it: changes to it apply everywhere it is used.</p>
+  <p class="mock-note">Mockup: every “Add …: select existing or create new” button on this page opens this contact point example.</p>
+  <label class="usa-label" for="pick-search">Search contacts in this catalog</label>
+  <input class="usa-input" type="search" id="pick-search" aria-describedby="pick-count">
+  <p class="usa-hint" id="pick-count" role="status">5 contacts. Showing 5.</p>
+  <fieldset class="usa-fieldset"><legend class="usa-sr-only">Contacts</legend>
+<div class="usa-radio">
+  <input class="usa-radio__input usa-radio__input--tile" id="pick-kind-help" type="radio" name="pick" value="kind-help" checked>
+  <label class="usa-radio__label" for="pick-kind-help">OSS Data Help Desk <span class="usa-checkbox__label-description">mailto:data-help@example.gov · Contact (Kind) · Used in 5 places<br>Used by: Community Garden Plot Registry, Fleet Vehicle Fuel Use, FY2025, and 3 more</span></label>
+</div>
+<div class="usa-radio">
+  <input class="usa-radio__input usa-radio__input--tile" id="pick-kind-rosa" type="radio" name="pick" value="kind-rosa">
+  <label class="usa-radio__label" for="pick-kind-rosa">Dr. Rosa Example <span class="usa-checkbox__label-description">mailto:r.example@example.gov · Contact (Kind) · Used in 3 places<br>Used by: Sample Household Survey (annual series), and 2 more</span></label>
+</div>
+<div class="usa-radio">
+  <input class="usa-radio__input usa-radio__input--tile" id="pick-kind-lib" type="radio" name="pick" value="kind-lib">
+  <label class="usa-radio__label" for="pick-kind-lib">Library Statistics Team <span class="usa-checkbox__label-description">mailto:library-stats@example.gov · Contact (Kind) · Used in 1 place<br>Used by: Public Library Visits by Branch</span></label>
+</div>
+<div class="usa-radio">
+  <input class="usa-radio__input usa-radio__input--tile" id="pick-kind-wx" type="radio" name="pick" value="kind-wx">
+  <label class="usa-radio__label" for="pick-kind-wx">Weather Network Operations <span class="usa-checkbox__label-description">mailto:wx-ops@example.gov · Contact (Kind) · Used in 1 place<br>Used by: Hourly Weather Station Readings</span></label>
+</div>
+<div class="usa-radio">
+  <input class="usa-radio__input usa-radio__input--tile" id="pick-kind-bridge" type="radio" name="pick" value="kind-bridge">
+  <label class="usa-radio__label" for="pick-kind-bridge">Bridge Program Office <span class="usa-checkbox__label-description">bridges@example.gov · Contact (Kind) · Used in 1 place · 1 problem<br>Used by: Regional Bridge Condition Ratings</span></label>
+</div></fieldset>
+  <ul class="usa-button-group margin-top-2">
+    <li class="usa-button-group__item"><button type="button" class="usa-button" data-close-modal data-show="linked-alert">Select</button></li>
+    <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--outline" data-swap="sel-panel-create"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Create a new contact</button></li>
+    <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105" data-close-modal>Cancel</button></li>
+  </ul>
+</div>
+<div class="mock-panel" id="sel-panel-create" hidden>
+  <nav class="usa-breadcrumb padding-top-0" aria-label="Breadcrumbs"><ol class="usa-breadcrumb__list"><li class="usa-breadcrumb__list-item"><a href="#" class="usa-breadcrumb__link"><span>Contact point</span></a></li><li class="usa-breadcrumb__list-item usa-current" aria-current="page"><span>New contact</span></li></ol></nav>
+  <h2 class="usa-modal__heading">New contact (Kind)</h2>
+  <p class="usa-hint">This creates a new contact and adds it to “Regional Bridge Condition Ratings”. You can add it to other places later.</p>
+  <div class="usa-form-group"><label class="usa-label" for="new-fn">Formatted name <span class="field-level">(required)</span></label>
+    <div class="usa-hint" id="new-fn-hint">The contact’s full name, or the name of a team or office.</div>
+    <input class="usa-input" id="new-fn" aria-describedby="new-fn-hint" data-autofocus></div>
+  <div class="usa-form-group"><label class="usa-label" for="new-email">Email <span class="field-level">(required)</span></label>
+    <div class="usa-hint" id="new-email-hint">Start with mailto:, for example mailto:name@example.gov. Use an address that is checked regularly.</div>
+    <input class="usa-input" id="new-email" aria-describedby="new-email-hint" value="mailto:"></div>
+  <div class="usa-form-group"><label class="usa-label" for="new-tel">Telephone <span class="field-level">(optional)</span></label>
+    <input class="usa-input usa-input--md" id="new-tel"></div>
+  <fieldset class="usa-fieldset usa-form-group"><legend class="usa-legend">Address <span class="field-level">(optional)</span></legend>
+    <p class="usa-hint margin-y-05" id="addr-none">Not filled in yet.</p>
+    <p class="margin-y-05" id="addr-added" hidden><strong>200 Example Plaza, Example City, EX 00000</strong> (new address)</p>
+    <button type="button" class="usa-button usa-button--outline usa-button--small" data-swap="sel-panel-nested"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#add"></use></svg> Create a new address</button>
+  </fieldset>
+  <ul class="usa-button-group margin-top-2">
+    <li class="usa-button-group__item"><button type="button" class="usa-button" data-close-modal data-show="created-alert">Create and add</button></li>
+    <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--outline" data-swap="sel-panel-select">Back</button></li>
+  </ul>
+  <p class="usa-hint margin-top-1">Missing required fields do not stop you creating the contact. The advisory check flags them.</p>
+</div>
+<div class="mock-panel" id="sel-panel-nested" hidden>
+  <nav class="usa-breadcrumb padding-top-0" aria-label="Breadcrumbs"><ol class="usa-breadcrumb__list"><li class="usa-breadcrumb__list-item"><a href="#" class="usa-breadcrumb__link"><span>Contact point</span></a></li><li class="usa-breadcrumb__list-item"><a href="#" class="usa-breadcrumb__link"><span>New contact</span></a></li><li class="usa-breadcrumb__list-item usa-current" aria-current="page"><span>New address</span></li></ol></nav>
+  <h2 class="usa-modal__heading">New address</h2>
+  <p class="usa-hint">This replaces the dialog’s content. It never opens a second dialog on top. Back returns you to the new contact.</p>
+  <div class="usa-form-group"><label class="usa-label" for="new-street">Street address <span class="field-level">(recommended)</span></label><input class="usa-input" id="new-street" value="200 Example Plaza"></div>
+  <div class="usa-form-group"><label class="usa-label" for="new-locality">Locality <span class="field-level">(recommended)</span></label><input class="usa-input" id="new-locality" value="Example City"></div>
+  <div class="usa-form-group"><label class="usa-label" for="new-region">Administrative area <span class="field-level">(recommended)</span></label><input class="usa-input usa-input--sm" id="new-region" value="EX"></div>
+  <div class="usa-form-group"><label class="usa-label" for="new-postal">Postal code <span class="field-level">(recommended)</span></label><input class="usa-input usa-input--sm" id="new-postal" value="00000"></div>
+  <div class="usa-form-group"><label class="usa-label" for="new-country">Country <span class="field-level">(recommended)</span></label><input class="usa-input usa-input--md" id="new-country" value="United States"></div>
+  <ul class="usa-button-group margin-top-2">
+    <li class="usa-button-group__item"><button type="button" class="usa-button" data-swap="sel-panel-create" data-show="addr-added" data-hide="addr-none">Add address</button></li>
+    <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--outline" data-swap="sel-panel-create">Back to New contact</button></li>
+  </ul>
+</div></div>
+    <button type="button" class="usa-button usa-modal__close" aria-label="Close this window" data-close-modal><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="../vendor/uswds/img/sprite.svg#close"></use></svg></button>
+  </div>
+</div>
+<div class="usa-modal" id="delete-modal" aria-labelledby="delete-modal-heading" aria-describedby="delete-modal-desc" data-force-action>
+  <div class="usa-modal__content">
+    <div class="usa-modal__main">
+      <h2 class="usa-modal__heading" id="delete-modal-heading">Delete dataset “Regional Bridge Condition Ratings”?</h2>
+      <div class="usa-prose"><p id="delete-modal-desc">This dataset is used in 1 place: the catalog’s Datasets field. Deleting it removes it from there. You can undo the last removal while this tab is open.</p></div>
+      <div class="usa-modal__footer"><ul class="usa-button-group"><li class="usa-button-group__item"><a href="catalog.html?state=deleted-dataset" class="usa-button usa-button--secondary">Delete dataset</a></li><li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105" data-close-modal>Cancel</button></li></ul></div>
+    </div>
+    
+  </div>
+</div>
+<script src="../vendor/uswds/js/uswds.min.js"></script>
+<script src="../assets/mock.js"></script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Help | Data.gov Inventory editor (alpha) mockup</title>
+<link rel="stylesheet" href="vendor/uswds/css/uswds.min.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="vendor/uswds/js/uswds-init.min.js"></script>
+</head>
+<body>
+<a class="usa-skipnav" href="#main-content">Skip to main content</a>
+<section class="usa-banner" aria-label="Official website of the United States government">
+  <div class="usa-accordion">
+    <header class="usa-banner__header">
+      <div class="usa-banner__inner">
+        <div class="grid-col-auto"><img aria-hidden="true" class="usa-banner__header-flag" src="vendor/uswds/img/us_flag_small.png" alt=""></div>
+        <div class="grid-col-fill tablet:grid-col-auto" aria-hidden="true">
+          <p class="usa-banner__header-text">An official website of the United States government</p>
+          <p class="usa-banner__header-action">Here’s how you know</p>
+        </div>
+        <button type="button" class="usa-accordion__button usa-banner__button" aria-expanded="false" aria-controls="gov-banner"><span class="usa-banner__button-text">Here’s how you know</span></button>
+      </div>
+    </header>
+    <div class="usa-banner__content usa-accordion__content" id="gov-banner">
+      <div class="grid-row grid-gap-lg">
+        <div class="usa-banner__guidance tablet:grid-col-6">
+          <img class="usa-banner__icon usa-media-block__img" src="vendor/uswds/img/icon-dot-gov.svg" role="img" alt="" aria-hidden="true">
+          <div class="usa-media-block__body"><p><strong>Official websites use .gov</strong><br>A <strong>.gov</strong> website belongs to an official government organization in the United States.</p></div>
+        </div>
+        <div class="usa-banner__guidance tablet:grid-col-6">
+          <img class="usa-banner__icon usa-media-block__img" src="vendor/uswds/img/icon-https.svg" role="img" alt="" aria-hidden="true">
+          <div class="usa-media-block__body"><p><strong>Secure .gov websites use HTTPS</strong><br>A <strong>lock</strong> or <strong>https://</strong> means you’ve safely connected to the .gov website. Share sensitive information only on official, secure websites.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="usa-site-alert usa-site-alert--info usa-site-alert--slim" aria-label="Site alert">
+  <div class="usa-alert">
+    <div class="usa-alert__body">
+      <p class="usa-alert__text"><strong>Alpha.</strong> This is a test version of the Data.gov inventory editor. Your catalog stays in this browser. <a class="usa-link" href="feedback.html">Give feedback</a></p>
+    </div>
+  </div>
+</section>
+<div class="usa-overlay"></div>
+<header class="usa-header usa-header--basic">
+  <div class="usa-nav-container">
+    <div class="usa-navbar">
+      <div class="usa-logo"><em class="usa-logo__text"><a href="workspace.html" title="Data.gov Inventory editor home">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
+      <button type="button" class="usa-menu-btn">Menu</button>
+    </div>
+    <nav aria-label="Primary" class="usa-nav">
+      <button type="button" class="usa-nav__close"><img src="vendor/uswds/img/usa-icons/close.svg" role="img" alt="Close"></button>
+      <ul class="usa-nav__primary usa-accordion">
+        <li class="usa-nav__primary-item"><a href="workspace.html" class="usa-nav-link"><span>Overview</span></a></li><li class="usa-nav__primary-item"><a href="editor/catalog.html" class="usa-nav-link"><span>Editor</span></a></li><li class="usa-nav__primary-item"><a href="check.html" class="usa-nav-link"><span>Check</span></a></li><li class="usa-nav__primary-item"><a href="export.html" class="usa-nav-link"><span>Export</span></a></li><li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link usa-current" aria-current="page"><span>Help</span></a></li><li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<div class="workspace-bar">
+  <div class="grid-container">
+    <span><span class="text-bold">Working copy:</span> Department of Example Affairs Data Catalog</span>
+    <span class="save-status save-status--saved" data-save-status role="status"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#check_circle"></use></svg><span data-save-text>Saved in this browser at 2:41 PM</span></span>
+    <a class="usa-link" href="help.html#your-data">Where your data lives</a>
+  </div>
+</div>
+<main id="main-content">
+
+<div class="grid-container padding-bottom-4">
+<div class="usa-in-page-nav-container">
+  <aside class="usa-in-page-nav" data-title-text="On this page" data-heading-elements="h2"></aside>
+  <div class="usa-prose" id="help-content">
+  <h1>Help</h1>
+  <h2 id="about-alpha">About this alpha</h2>
+  <p>This is an early test version of the Data.gov inventory editor. It is for trying out the editing model and giving feedback. It may change, and it may have problems.</p>
+  <ol class="usa-process-list">
+    <li class="usa-process-list__item"><h3 class="usa-process-list__heading">Open</h3><p>Open a DCAT-US 3.0 JSON file, paste JSON, or start a blank catalog.</p></li>
+    <li class="usa-process-list__item"><h3 class="usa-process-list__heading">Edit</h3><p>Browse the catalog tree and edit any object. Reuse contacts and publishers, or create new ones.</p></li>
+    <li class="usa-process-list__item"><h3 class="usa-process-list__heading">Check</h3><p>Run the advisory check and fix the problems it finds.</p></li>
+    <li class="usa-process-list__item"><h3 class="usa-process-list__heading">Export</h3><p>Download the catalog as a DCAT-US 3.0 JSON file.</p></li>
+  </ol>
+  <h3>Not in this alpha</h3>
+  <div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless"><thead><tr><th scope="col">You might expect</th><th scope="col">In the alpha</th></tr></thead><tbody><tr><th scope="row">Publishing to Data.gov</th><td>Not available. Export the file instead.</td></tr><tr><th scope="row">Opening data.json (DCAT-US 1.1)</th><td>Not available. Files are refused with a message.</td></tr><tr><th scope="row">Signing in, sharing, roles</th><td>Not available. There are no accounts.</td></tr><tr><th scope="row">The official Data.gov validator</th><td>Not used. The check is advisory only.</td></tr><tr><th scope="row">A live JSON preview</th><td>Not available.</td></tr><tr><th scope="row">More than one catalog at a time</th><td>Not available. One working copy per browser.</td></tr><tr><th scope="row">Backup or sync</th><td>Not available. Export to keep your work.</td></tr><tr><th scope="row">Uploading or hosting files</th><td>Not available.</td></tr><tr><th scope="row">Merging identical objects when a file opens</th><td>Not available. Objects load as written.</td></tr><tr><th scope="row">Full undo and redo</th><td>Only the last removal can be undone.</td></tr></tbody></table></div>
+  <h2 id="your-data">Where your data lives</h2>
+  <ul class="usa-icon-list">
+    <li class="usa-icon-list__item"><div class="usa-icon-list__icon text-green"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#check_circle"></use></svg></div><div class="usa-icon-list__content">Your working copy is kept in this browser’s own storage, on this device only.</div></li>
+    <li class="usa-icon-list__item"><div class="usa-icon-list__icon text-green"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#check_circle"></use></svg></div><div class="usa-icon-list__content">Files are read in the browser. Nothing is uploaded and nothing is sent anywhere.</div></li>
+    <li class="usa-icon-list__item"><div class="usa-icon-list__icon text-secondary-dark"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#warning"></use></svg></div><div class="usa-icon-list__content">It is not backed up. Clearing this browser’s site data deletes it. Export to keep a copy.</div></li>
+    <li class="usa-icon-list__item"><div class="usa-icon-list__icon text-secondary-dark"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#warning"></use></svg></div><div class="usa-icon-list__content">On a shared computer, use <strong>Clear my data</strong> when you finish.</div></li>
+  </ul>
+  <p>When you come back, the editor asks whether to restore your working copy or discard it. It never restores silently. If you leave with changes that are not saved yet, the browser warns you.</p>
+  <p>The status bar under the header shows “Saving…”, “Saved in this browser at [time]”, or “Not saved”.</p>
+  <h2 id="the-check">The advisory check</h2>
+  <p><strong>This is an advisory check, not the official Data.gov validator.</strong> It compares your catalog with the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591), in your browser. Passing it does not mean Data.gov will accept your catalog.</p>
+  <h2 id="known-limits">Known limits</h2>
+  <ul>
+    <li>DCAT-US 3.0 JSON only. data.json (DCAT-US 1.1) and JSON-LD files are not opened. To convert a 1.1 file, see the conversion script in the GSA/dcat-us repository.</li>
+    <li>One working copy at a time, in one tab at a time.</li>
+    <li>Files up to 50 MB. Catalogs of up to [number from the responsiveness check, #29] datasets stay responsive.</li>
+    <li>Tested in [browsers from #29 and #30].</li>
+  </ul>
+  <h2 id="keyboard">Using the catalog tree with a keyboard</h2>
+  <ul>
+    <li>Tab moves into the tree once. Up and Down arrows move between items.</li>
+    <li>Right arrow opens an item, or moves to its first child. Left arrow closes it, or moves to its parent.</li>
+    <li>Home and End go to the first and last item. Typing a letter jumps to the next item starting with it.</li>
+    <li>Enter opens the object in the form. Moving through the tree does not open objects by itself.</li>
+  </ul>
+  <h2 id="custom-parts">Parts built for this editor</h2>
+  <p>Most of the editor uses the U.S. Web Design System as is. These parts were built for it and are tested separately (#30): the catalog tree (an ARIA treeview), the two-pane layout, reordering rows in fields that hold several values, and the linked-object rows.</p>
+  </div>
+</div>
+</div>
+
+</main>
+<footer class="usa-footer usa-footer--slim">
+  <div class="grid-container usa-footer__return-to-top"><a href="#">Return to top</a></div>
+  <div class="usa-footer__primary-section">
+    <div class="usa-footer__primary-container grid-row">
+      <div class="grid-col-12">
+        <nav class="usa-footer__nav" aria-label="Footer navigation">
+          <ul class="grid-row grid-gap">
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html">Help</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html#your-data">Where your data lives</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="feedback.html">Give feedback</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="#clear-modal" aria-controls="clear-modal" data-open-modal>Clear my data from this browser</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  <div class="usa-footer__secondary-section">
+    <div class="grid-container">
+      <p class="font-body-2xs margin-0">Advisory check uses a copy of the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591). It is not the official Data.gov validator.
+      No catalog content leaves this browser. Editor alpha 0.1.0 (mockup).</p>
+      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="index.html">Mockup screen map</a></p>
+    </div>
+  </div>
+</footer>
+<div class="usa-identifier">
+  <section class="usa-identifier__section usa-identifier__section--masthead" aria-label="Agency identifier">
+    <div class="usa-identifier__container">
+      <section class="usa-identifier__identity" aria-label="Agency description">
+        <p class="usa-identifier__identity-domain">alpha.inventory.data.gov</p>
+        <p class="usa-identifier__identity-disclaimer">An official website of the <a href="#">U.S. General Services Administration</a></p>
+      </section>
+    </div>
+  </section>
+  <nav class="usa-identifier__section usa-identifier__section--required-links" aria-label="Important links">
+    <div class="usa-identifier__container">
+      <ul class="usa-identifier__required-links-list">
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">About GSA</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Accessibility statement</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">FOIA requests</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">No FEAR Act data</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Office of the Inspector General</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Performance reports</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Privacy policy</a></li>
+      </ul>
+    </div>
+  </nav>
+  <section class="usa-identifier__section usa-identifier__section--usagov" aria-label="U.S. government information and services">
+    <div class="usa-identifier__container">
+      <div class="usa-identifier__usagov-description">Looking for U.S. government information and services?</div>
+      <a href="#" class="usa-link">Visit USA.gov</a>
+    </div>
+  </section>
+</div>
+<div id="mock-status" class="usa-sr-only" role="status" aria-live="polite"></div>
+
+<div class="usa-modal" id="clear-modal" aria-labelledby="clear-modal-heading" aria-describedby="clear-modal-desc">
+  <div class="usa-modal__content">
+    <div class="usa-modal__main">
+      <h2 class="usa-modal__heading" id="clear-modal-heading">Clear your data from this browser?</h2>
+      <div class="usa-prose">
+<p id="clear-modal-desc">This deletes your working copy of <em>Department of Example Affairs Data Catalog</em> from this browser on this device.
+It is not backed up anywhere, so you cannot get it back. Export the catalog first if you want to keep it.</p></div>
+      <div class="usa-modal__footer"><ul class="usa-button-group"><li class="usa-button-group__item"><a href="export.html" class="usa-button usa-button--outline">Export first</a></li><li class="usa-button-group__item"><a href="start.html?state=cleared" class="usa-button usa-button--secondary">Clear my data</a></li><li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105 text-center" data-close-modal>Cancel</button></li></ul></div>
+    </div>
+    <button type="button" class="usa-button usa-modal__close" aria-label="Close this window" data-close-modal><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#close"></use></svg></button>
+  </div>
+</div>
+
+<script src="vendor/uswds/js/uswds.min.js"></script>
+<script src="assets/mock.js"></script>
+</body>
+</html>

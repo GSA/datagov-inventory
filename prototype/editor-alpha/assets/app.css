@@ -1,0 +1,95 @@
+/*
+ * The few styles USWDS does not provide. Everything else is stock USWDS 3.14.0 classes.
+ * Custom parts (listed for #30): the catalog tree (an ARIA treeview), the two-pane editor
+ * layout, linked-object rows, multi-value rows, and the mockup-only state switcher.
+ */
+
+/* ---------- workspace bar (catalog title + save status) ---------- */
+.workspace-bar { background: #f0f0f0; border-bottom: 1px solid #dfe1e2; }
+.workspace-bar .grid-container { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; align-items: center; padding-top: .5rem; padding-bottom: .5rem; }
+.save-status { display: inline-flex; align-items: center; gap: .25rem; }
+.save-status .usa-icon { flex: none; }
+.save-status--saving .usa-icon { color: #71767a; }
+.save-status--saved .usa-icon { color: #00a91c; }
+.save-status--failed { color: #b50909; font-weight: 700; }
+
+/* ---------- two-pane editor ---------- */
+.editor-layout { display: grid; grid-template-columns: minmax(16rem, 22rem) 1fr; gap: 0; border-top: 1px solid #dfe1e2; }
+.editor-tree-pane { border-right: 1px solid #dfe1e2; padding: 1rem; background: #fafafa; max-height: calc(100vh - 2rem); overflow: auto; position: sticky; top: 0; }
+.editor-detail-pane { padding: 1rem 2rem 3rem; min-width: 0; }
+.editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .75rem 0; }
+.editor-toolbar h1 { margin: 0 auto 0 0; font-size: 1.34rem; }
+.tree-disclosure { display: none; }
+@media (max-width: 52em) {
+  .editor-layout { grid-template-columns: 1fr; }
+  .editor-tree-pane { position: static; max-height: none; border-right: 0; border-bottom: 1px solid #dfe1e2; display: none; }
+  .editor-tree-pane.is-open { display: block; }
+  .tree-disclosure { display: inline-block; }
+  .editor-detail-pane { padding: 1rem; }
+}
+
+/* ---------- catalog tree (custom, WAI-ARIA APG treeview) ---------- */
+.tree, .tree [role="group"] { list-style: none; margin: 0; padding: 0; }
+.tree [role="group"] { padding-left: 1.1rem; border-left: 1px dotted #a9aeb1; margin-left: .55rem; }
+.tree [role="treeitem"] { margin: 0; }
+.tree [role="treeitem"]:focus { outline: none; }
+.tree [role="treeitem"]:focus > .tree__row { outline: .25rem solid #2491ff; outline-offset: 0; }
+.tree [role="treeitem"][aria-expanded="false"] > [role="group"] { display: none; }
+.tree__row { display: flex; align-items: flex-start; gap: .25rem; min-height: 2.25rem; padding: .3rem .25rem; border-radius: .25rem; line-height: 1.25; }
+.tree__content { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .35rem; padding-top: .1rem; }
+.tree [aria-selected="true"] > .tree__row { background: #e7f2f5; box-shadow: inset .25rem 0 0 #005ea2; font-weight: 700; }
+.tree__row a { color: #1b1b1b; text-decoration: none; }
+.tree__row a:hover { text-decoration: underline; color: #005ea2; }
+.tree__twisty { display: inline-flex; width: 1.5rem; height: 1.5rem; align-items: center; justify-content: center; cursor: pointer; flex: none; border-radius: .25rem; }
+.tree__twisty:hover { background: #dfe1e2; }
+.tree__twisty .usa-icon { transition: transform .1s; }
+.tree [aria-expanded="true"] > .tree__row .tree__twisty .usa-icon { transform: rotate(90deg); }
+.tree__spacer { display: inline-block; width: 1.5rem; flex: none; }
+.tree__group-label { color: #565c65; font-size: .93rem; }
+.tree__meta { font-size: .8rem; color: #565c65; font-weight: 400; }
+.tree__problem { font-size: .8rem; color: #b50909; font-weight: 700; display: inline-flex; align-items: center; gap: .1rem; }
+.tree__more { color: #005ea2; text-decoration: underline; cursor: pointer; font-size: .93rem; }
+.tree--filtered-out { display: none; }
+.tree .usa-tag { font-size: .7rem; padding: 0 .3rem; }
+
+/* search inputs: keep USWDS input box model (Safari/Chrome default search styling breaks it) */
+input.usa-input[type="search"] { display: block; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
+
+/* ---------- linked-object rows (class-valued fields, #25) ---------- */
+.linked-list { list-style: none; margin: .5rem 0; padding: 0; }
+.linked-obj { border: 1px solid #a9aeb1; border-radius: .25rem; padding: .5rem .75rem; margin-bottom: .5rem; background: #fff; }
+.linked-obj__title { font-weight: 700; }
+.linked-obj__meta { font-size: .87rem; color: #565c65; }
+.linked-obj__actions { margin-top: .25rem; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.linked-obj--problem { border-left: .25rem solid #b50909; }
+
+/* ---------- multi-value rows (#24) ---------- */
+.repeat-list { list-style: none; margin: .5rem 0 0; padding: 0; }
+.repeat-list > li { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .25rem .75rem; margin-bottom: .5rem; }
+.repeat-list > li .usa-label { margin-top: 0; font-weight: 400; font-size: .87rem; }
+.repeat-list > li .usa-input { margin-top: .1rem; max-width: 20rem; }
+.repeat-list > li .row-actions { display: flex; gap: .75rem; padding-bottom: .55rem; }
+
+/* ---------- section headings in object forms ---------- */
+.form-section { margin-top: 2rem; }
+.form-section > h3 { border-bottom: 2px solid #dfe1e2; padding-bottom: .25rem; }
+.level-note { font-weight: 400; color: #565c65; font-size: .93rem; }
+.field-level { font-weight: 400; color: #565c65; }
+.usa-form .usa-input, .usa-form .usa-textarea, .usa-form .usa-select { max-width: 40rem; }
+.usa-form { max-width: none; }
+
+/* ---------- object header ---------- */
+.object-header { border-bottom: 1px solid #dfe1e2; padding-bottom: 1rem; margin-bottom: 1rem; }
+.object-header h2 { margin: .25rem 0; font-size: 1.95rem; }
+
+/* ---------- progress (USWDS has no progress bar) ---------- */
+progress { width: 100%; max-width: 30rem; height: 1rem; accent-color: #005ea2; }
+
+/* ---------- mockup-only chrome: never part of the product ---------- */
+.mock-states { border: 2px dashed #8168b3; background: #f5f2fb; padding: .75rem 1rem; margin: 2rem 0 0; font-size: .93rem; }
+.mock-states h2 { font-size: 1rem; margin: 0 0 .25rem; color: #54278f; }
+.mock-states ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.mock-states a[aria-current] { font-weight: 700; text-decoration: none; color: #1b1b1b; }
+.mock-states a[aria-current]::before { content: "▶ "; }
+.mock-note { border-left: .25rem solid #8168b3; background: #f5f2fb; padding: .5rem .75rem; font-size: .93rem; margin: 1rem 0; }
+.screen-map td, .screen-map th { vertical-align: top; }
