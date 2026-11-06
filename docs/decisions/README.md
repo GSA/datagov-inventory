@@ -82,7 +82,12 @@ not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).
 |-----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
 | 0011 | Run a time-boxed spike proving the full PostgreSQL-Audit setup works on cloud.gov RDS: trigger and function creation by the application role, `activity` and `transaction` populating end to end, ORM-bypass behavior, `old_data`/`changed_data` shape, 2,000-object import cost, `INSERT, SELECT`-only grants, and no `SECURITY DEFINER`. | Design |
 | 0014 | Demonstrate that the deployed browser app can validate supported-size catalogs directly through the API without credentials, with CORS, structured results and versions, limits, timeouts, rate limits, and outages handled explicitly. | Integration |
-| 0014 | Confirm the team can build and maintain a React/TypeScript/IndexedDB editor, or name who will. | Organizational |
+
+**Resolved:** ADR 0014's organizational blocker (confirm the team can build and
+maintain a React/TypeScript/IndexedDB editor, or name who will) is resolved; see
+ADR 0014's "Resolved blockers" section and
+[GSA/datagov-inventory#8](https://github.com/GSA/datagov-inventory/issues/8).
+
 
 ## Status lifecycle
 
