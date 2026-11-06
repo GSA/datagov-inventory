@@ -12,6 +12,13 @@ risk_treatment: "mitigate"
 
 # Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata
 
+> **Phase applicability, 2026-10-30:** This decision applies to phase 3 dataset
+> hosting under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phases 1
+> and 2 edit and persist metadata, including external `accessURL` and `downloadURL`
+> values, but do not host dataset bytes. Promotion of a phase 1 catalog to phase 2
+> transfers metadata only; it never silently uploads browser-local files. The
+> hosted-file model and lifecycle below remain unchanged.
+
 ## Context and Problem Statement
 
 [ADR 0006](0006-quarantine-then-scan-antivirus.md) specifies how an uploaded file
@@ -276,8 +283,8 @@ tell hosted from agency-hosted. Consequences:
   files are kept indefinitely and a deleted one would break a published link.
 - **Download volume is outside v2's control** (see
   [How a download is served](#how-a-download-is-served)).
-- **Public download at MVP moves ADR 0006's malware-distribution risk to launch
-  day.** That record's "bounded by authentication" framing no longer holds.
+- **Public download in phase 3 moves ADR 0006's malware-distribution risk to the
+  phase 3 launch.** That record's "bounded by authentication" framing no longer holds.
 - **The bookmark is an opaque UUID.** A human-meaningful path would need a mutable
   name with uniqueness rules; out of scope.
 
@@ -375,7 +382,7 @@ accepted. Track each as an issue.
 - [ADR 0009](0009-terraform-cloudgov-for-infrastructure.md) — provisions the two S3 instances
 - [ADR 0011](0011-audit-trail-mechanism.md) — captures every event here as a row mutation
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — feature list
-- [`docs/architecture.md`](../architecture.md) §4, §5.2, §5.3 — data model, presigned delivery, upload flow
+- [`docs/architecture.md`](../architecture.md) §4, §5.4, §5.5 — data model, presigned delivery, upload flow
 - NIST SP 800-53 Rev 5.2 — AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8
 - **Supersedes an earlier, never-committed draft** that tied a hosted file to a `Distribution`. Its driving requirements, R4 and R5, were withdrawn by the product owner.
 - **v1 code citations** in this record refer to [`GSA/inventory-app@9fc0003a`](https://github.com/GSA/inventory-app/tree/9fc0003a7f2aeac92bab852c7ad7e5418925de5c) (2026-09-04), the v1 HEAD at the time of writing.

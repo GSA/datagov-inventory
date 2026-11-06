@@ -12,6 +12,13 @@ risk_treatment: "accept"
 
 # Onboard agencies by importing published DCAT-US 3.0 data.json rather than migrating from CKAN
 
+> **Phase applicability, 2026-10-30:** Authoritative agency onboarding, re-import,
+> permission preservation, audit events, and v1 retirement in this record apply
+> to phase 2 under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1
+> also ingests DCAT-US 3.0, but only into browser-local IndexedDB; that does not
+> establish a system-of-record catalog, owner, permission, or audit history. The
+> decision not to accept or convert DCAT-US 1.1 applies in every phase.
+
 ## Context and Problem Statement
 
 Inventory v1 holds agency metadata in CKAN's database as DCAT-US 1.1 datasets. v2
@@ -261,7 +268,7 @@ Work to schedule, not blockers. Track each as an issue.
 
 - [Inventory Beta Re-design](https://github.com/GSA/data.gov/wiki/Inventory-Beta-Re%E2%80%90design) — import/export from a current DCAT-US 3.0 catalog
 - [DCAT-US 3.0 migration guide](https://resources.data.gov/resources/dcat-us-3-migration/) and [M-25-05 crosswalk](https://resources.data.gov/resources/dcat-us-3-crosswalk/)
-- [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — run **out-of-band**; **not** part of v2 ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11))
+- [GSA/dcat-us 1.1→3.0 conversion script](https://github.com/GSA/dcat-us/blob/main/jsonschema/convert_dcat_1_1_to_3_0.py) and [`transforms.py`](https://github.com/GSA/dcat-us/blob/main/jsonschema/transforms.py) — run **out-of-band**; **not** part of v2
 - [ADR 0004](0004-jit-user-provisioning-and-catalog-rbac.md) — why user accounts need no migration
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the object model import decomposes into
 - [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) — how v2 depends on the first-party, in-boundary `GSA/dcat-us` repo and the validator API
