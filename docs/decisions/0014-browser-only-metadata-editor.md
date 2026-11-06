@@ -381,8 +381,15 @@ rendering decision is intentionally deferred.
    machine-readable errors, warnings, paths, and validator/schema versions for
    catalogs up to the supported phase 1 size. Confirm CORS, payload limits,
    timeout and rate-limit behavior, and unavailable-service handling.
-2. Confirm the team can maintain the React/TypeScript/IndexedDB application or
-   identify who will.
+
+## Resolved blockers
+
+1. **Team can maintain the React/TypeScript/IndexedDB application.** Resolved:
+   `cody-seibert-gsa` and `jaredb96` are primarily responsible for building the
+   editor and both have React/TypeScript experience; two additional developers
+   with React/TypeScript experience are available as backups. No team member has
+   IndexedDB experience; `sanason` has taken responsibility for learning it.
+   Recorded in [GSA/datagov-inventory#8](https://github.com/GSA/datagov-inventory/issues/8).
 
 ## Links
 
