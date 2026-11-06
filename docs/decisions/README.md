@@ -23,7 +23,7 @@ records, to preserve the audit trail.
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
 | [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | proposed | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
 | [0013](0013-deliver-inventory-in-three-phases.md) | Deliver Inventory as a browser editor, collaborative service, then dataset host | proposed | 2026-10-30 | **yes-boundary** | CM-2, CM-3, CM-4, CM-7, SA-5, SA-8, SA-15 |
-| [0014](0014-browser-only-metadata-editor.md) | Implement the phase 1 metadata editor with React, TypeScript, and IndexedDB | proposed | 2026-10-30 | **yes-boundary** | SI-10, SI-15, SC-18, CM-2, CM-3, SA-8, SA-15, SR-3 |
+| [0014](0014-browser-only-metadata-editor.md) | Implement the phase 1 metadata editor with React, TypeScript, and IndexedDB | proposed | 2026-11-05 | **yes-boundary** | SI-10, SI-15, SC-18, CM-2, CM-3, SA-8, SA-15, SR-3 |
 
 **By status:** 11 proposed, 1 accepted, 0 deprecated, 1 superseded.
 

@@ -135,7 +135,7 @@ flowchart TB
         end
     end
 
-    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>3.0 schemas + validation code<br/>pinned commit — ADR 0010"]
+    SCHEMA["GSA/dcat-us<br/>_external/dcat-us submodule<br/>3.0 schemas<br/>pinned commit — ADR 0010"]
 
     EDITOR <-->|"static assets<br/>authenticated API when signed in"| PROXY
     EDITOR -->|"anonymous or signed-in validation"| VAL["Data.gov validator API"]
@@ -237,19 +237,24 @@ in [ADR 0005](decisions/0005-object-graph-data-model-for-dcat-us-3.md).
 The graph is the shared logical model across phases. Phase 1 stores separate
 records in IndexedDB; phase 2 makes the Postgres model below authoritative:
 
-| Phase 1 object store | Logical/server counterpart |
-|---|---|
-| `catalogs` | `catalog` |
-| `metadataObjects`, indexed by `catalogId` | `metadata_object` |
-| `objectReferences`, indexed by parent, child, and `[parentObjectId, property, ordinal]` | `object_reference` |
-| `catalogLinks`, indexed by parent, child, and `[parentCatalogId, ordinal]` | `catalog_link` |
+| Phase 1 object store | Key fields and indexes | Logical/server counterpart |
+|---|---|---|
+| `catalogs` | `id`, root object ID, schema version, local revision, timestamps | `catalog` |
+| `metadataObjects` | key `id`; index `catalogId` | `metadata_object` |
+| `objectReferences` | key `id`; indexes by parent, child, and `[parentObjectId, property, ordinal]` | `object_reference` |
+| `catalogLinks` | key `id`; indexes by parent, child, and `[parentCatalogId, ordinal]` | `catalog_link` |
 
 Browser-generated UUIDs, graph relationships, and ordering are compatible with
 phase 2. IndexedDB has no foreign keys or recursive queries, so the TypeScript
-domain library checks roots, scopes, references, cycles, and depth, and loads a
+domain library checks roots, scopes, references, ordinal integrity, cycles, and
+depth before graph-changing commits and again before export, and loads a
 consistent snapshot into memory for phase 1 export. Phase 2 may instead use
-paginated queries, granular commands, and server-side whole-catalog jobs for
-catalogs beyond the published browser limit.
+cursor-paginated summaries, filtered search, on-demand object and reference
+details, revision-checked graph commands, and server-side whole-catalog jobs for
+catalogs beyond the published browser limit. IndexedDB then becomes a bounded
+cache for the current working set rather than a complete mirror. Stable IDs,
+graph semantics, and edit operations are the cross-phase compatibility contract;
+complete browser materialization is not.
 
 Phase 1 preserves distinct input object instances, even when their scalar
 properties are identical, so a load/export round trip does not merge data the
@@ -257,6 +262,56 @@ user did not choose to share. ADR 0008's convergence of identical objects begins
 with authoritative phase 2 onboarding. Phase 1 also preserves the graph shape
 without exposing `draft`/`live`, publish, or unpublish workflow; the `state` model
 described below starts in phase 2.
+
+### Phase 1 persistence contract
+
+The phase 1 `CatalogRepository` contract covers listing catalogs, loading one
+consistent graph snapshot, and creating, saving, or deleting a graph with an
+expected revision. Its `IndexedDbCatalogRepository` implementation owns IndexedDB
+transactions, maps stored records to storage-independent domain inputs, and
+reports migration, quota, and stale-revision failures to the application layer.
+Section 8 defines the dependency direction between the UI, application services,
+domain library, interface, and implementation.
+
+Writes that affect multiple object stores commit in one transaction. Every
+catalog has a local revision: a successful graph-changing transaction advances
+it, an interrupted transaction leaves the prior committed revision intact, and
+a write based on an old expected revision fails rather than overwriting work from
+another tab. Revisions support dirty-state reporting and stale-tab detection;
+they are not version history or audit records.
+
+The interface distinguishes these independent status dimensions:
+
+| Dimension | Meaning |
+|---|---|
+| Local persistence | In-memory edits are either unsaved or committed to this origin's IndexedDB. A local save is not a backup, validation result, publication, or audit record. |
+| Validation | The current assembled graph is unvalidated, valid, or invalid according to a named validator and schema version. Any later edit makes that result stale. |
+| Export history | A catalog file or report may have been downloaded; a download does not make the file or IndexedDB authoritative. |
+| Server persistence | Phase 2 only: the server either has not accepted the working revision or has saved it authoritatively after independent authorization and validation. |
+
+Deleting a phase 1 catalog requires clear confirmation and transactionally
+removes its scoped objects and edges. From phase 2 onward, deleting or evicting a
+local working copy does not delete its server catalog, and server acceptance does
+not make IndexedDB authoritative.
+
+### IndexedDB lifecycle and recovery
+
+The IndexedDB schema is versioned independently of the bundled DCAT-US schema.
+Application upgrades migrate stored records in an upgrade transaction, preserve
+existing catalogs or fail visibly, and never silently clear an incompatible
+database. Tabs holding an older database version must close or reload when they
+block an upgrade. A DCAT-US schema change must not make a previously saved catalog
+unrecoverable.
+
+IndexedDB provides transactional durability only within one exact origin
+(scheme, host, and port). Data does not automatically follow a domain change,
+browser profile, device, or private-browsing session and can be lost through
+site-data clearing, browser policy, storage pressure, profile or device loss, or
+a faulty migration. The editor monitors storage estimates, requests persistent
+storage where supported, and reports quota failures without discarding the last
+committed revision. A persistent-storage grant reduces eviction risk but is not a
+backup. Until phase 2 provides authoritative server storage, a downloaded catalog
+is the only portable recovery copy.
 
 The remainder of this section describes the phase 2 Postgres model and the phase
 3 hosted-file additions.
@@ -470,23 +525,56 @@ manual repair).
 sequenceDiagram
     actor U as Anonymous data manager
     participant UI as Browser editor
+    participant A as Editor application service
     participant D as TypeScript DCAT domain library
-    participant I as IndexedDB
+    participant R as CatalogRepository
+    participant I as IndexedDB implementation
 
     U->>UI: Create blank catalog or choose DCAT-US 3.0 JSON
-    UI->>D: Parse with byte, object, and depth limits
+    UI->>A: Create or ingest input
+    A->>D: Parse within resource budgets
     D->>D: Decompose to distinct objects and ordered references
-    D->>I: Save separate records in one transaction
+    D-->>A: Storage-independent graph
+    A->>R: Create graph
+    R->>I: Save separate records in one transaction
     U->>UI: Edit, reuse, copy, or remove objects
-    UI->>D: Apply graph operation
-    D->>I: Commit affected records atomically
+    UI->>A: Request graph operation
+    A->>D: Apply operation to domain records
+    D-->>A: Updated records and relationships
+    A->>R: Save with expected revision
+    R->>I: Commit affected records atomically
+    I-->>R: New revision or stale-revision failure
+    R-->>A: Save result
 ```
 
 On a later visit, the editor offers the saved working copy and requires an
 explicit restore-or-discard choice. It never silently restores catalog data. The
-responsiveness check measures catalogs through at least 3,000 datasets and sets a
-published phase 1 size limit; handling all 3,000 is not an architecture-acceptance
-condition.
+workspace combines catalog navigation, the selected object's form, and
+validation/export status. Reference fields allow selecting an existing object or
+creating one. Creation uses one dialog level with an accessible return path;
+dialogs do not stack. Shared objects display their reference count, and operations
+that would change shared content expose copy-on-write where the graph rules
+require it.
+
+All imported files and stored records are untrusted. Phase 1 publishes measured
+limits for input bytes, object and reference counts, nesting depth, individual
+value size, processing time, and assembled export size. Inputs over a limit fail
+early with a clear explanation rather than exhausting browser memory or blocking
+the main thread. Invalid metadata remains editable and is reported rather than
+represented as successfully validated. Import creates a new local catalog; it
+establishes no agency ownership, server permission, or audit record. Parsing,
+decomposition, assembly, or validation preparation moves to a Web Worker if
+responsiveness measurements show unacceptable main-thread blocking; a worker is
+not required before the measurements justify it.
+
+The responsiveness check runs the complete ingest, edit, persist, reload,
+validate, and export loop with representative catalogs through at least 3,000
+datasets. It establishes the published phase 1 size limit and action-latency
+budgets; handling all 3,000 datasets is not an architecture-acceptance condition.
+Accessibility must still hold at the resulting supported limit. Automated axe
+checks block regressions, and manual keyboard and screen-reader tests cover the
+complete application. Tree rendering is lazy or virtualized where measurements
+require it.
 
 ### 5.2 Phase 1 export with success and error reporting
 
@@ -494,27 +582,45 @@ condition.
 sequenceDiagram
     actor U as Anonymous data manager
     participant UI as Browser editor
-    participant I as IndexedDB
+    participant A as Editor application service
+    participant R as CatalogRepository
+    participant I as IndexedDB implementation
     participant D as TypeScript DCAT domain library
     participant V as Data.gov validator API
 
     U->>UI: Export
-    UI->>I: Load consistent graph snapshot
-    I-->>D: Catalog, objects, references, links
-    D->>D: Walk from root<br/>preserve order<br/>detect missing references, cycles, and depth
-    D-->>UI: Assembled DCAT-US 3.0 or graph errors
-    UI->>V: Validate assembled catalog
-    V-->>UI: Errors, warnings, validator and schema versions
-    alt valid
-        UI-->>U: Download data.json and success report
-    else invalid or unavailable
-        UI-->>U: Error report and explicitly labeled invalid-file option
+    UI->>A: Request export
+    A->>R: Load consistent graph snapshot
+    R->>I: Read catalog, objects, references, and links in one transaction
+    I-->>R: Stored records at one revision
+    R-->>A: Storage-independent graph snapshot
+    A->>D: Assemble snapshot
+    D->>D: Walk from root<br/>verify ordinals and preserve order<br/>detect missing references, cycles, and depth
+    D-->>A: Assembled DCAT-US 3.0 or graph errors
+    alt graph errors
+        A-->>UI: Structured errors with object/property paths
+        UI-->>U: Error report without validator request
+    else assembled
+        A->>V: Validate assembled catalog
+        V-->>A: Errors and warnings with paths<br/>validator and schema versions
+        alt valid
+            A-->>UI: Valid catalog and versioned success report
+            UI-->>U: Download data.json and success report
+        else validator-confirmed invalid
+            A-->>UI: Invalid result and versioned error report
+            UI-->>U: Error report and explicitly labeled invalid-file option
+        else validator unavailable
+            A-->>UI: Validation unavailable
+            UI-->>U: Error report and explicitly labeled unvalidated-file option
+        end
     end
 ```
 
-The API call is explicit, non-credentialed, and disclosed to the user. Editing
-and local saving continue if the API is unavailable, but the app does not report
-a successful validated export.
+The API call is explicit and non-credentialed. Before it occurs, the interface
+tells users that their working catalog will be sent to the Data.gov service;
+Inventory does not validate on every keystroke. Editing and local saving continue
+if the API is unavailable, but the app does not report a successful validated
+export. Export reports identify the application, validator, and schema versions.
 
 ### 5.3 Authentication and first-login provisioning
 
@@ -570,7 +676,7 @@ sequenceDiagram
     W->>DB: INSERT export_run (status=running, schema_commit)
     W->>DB: recursive walk from catalog.root_object_id<br/>object_reference (+ catalog_link, re-authorized)<br/>WHERE state='live' (cycle-detected, depth-bounded)
     DB-->>W: object graph
-    W->>V: assemble nested JSON
+    W->>W: assemble nested JSON
     W->>V: validate assembled catalog (3.0)
     V-->>W: errors + warnings + validator/schema versions
     W->>DB: UPDATE export_run (status, error_count, report)
@@ -712,11 +818,19 @@ objects are imported and flagged, and cannot go `live`.
 
 ### Phase 1 static deployment
 
-Phase 1 deploys versioned static assets over HTTPS. It needs a restrictive
-Content Security Policy that permits the explicit validator API connection,
-dependency and secret scanning, accessible error handling, and a validator CORS
-policy allowing the deployed origin. It provisions none of the Postgres, Login.gov,
-scanner, S3, audit, or shared-log components below.
+Phase 1 deploys versioned static assets over HTTPS. A restrictive Content Security
+Policy permits only the required first-party runtime sources and the explicit
+validator API connection. The validator CORS policy allows the deployed origin,
+and errors are accessible. Metadata is rendered as text, never as unsanitized
+HTML. The build pins first-party assets and direct dependencies, commits a
+lockfile, scans dependencies and secrets in CI, and subjects upgrades to review.
+
+Release gates include TypeScript unit tests, import-boundary and graph-integrity
+tests, Playwright flows, automated axe checks, manual keyboard and screen-reader
+testing, and the supported-size responsiveness loop in [§5.1](#51-phase-1-create-ingest-and-edit).
+Phase 1 provisions none of the Postgres, Login.gov, scanner, S3, audit, or
+shared-log components below. The unresolved deployed-validator verification is
+tracked only in the [decision-record blocker list](decisions/README.md#blockers).
 
 ### Phase 2 and phase 3 cloud.gov deployment
 
@@ -901,17 +1015,21 @@ codebases run and are patched concurrently for months.
 flowchart TB
     subgraph new["GSA/datagov-inventory (new)"]
         direction TB
-        EDITOR["editor/ — phase 1 React + TypeScript<br/>USWDS · application services"]
+        EDITOR["editor/ — phase 1 React + TypeScript<br/>USWDS user interface"]
+        SERVICE["editor/src/application/ — editor services<br/>coordinate domain + repository"]
         TSLIB["editor/src/dcat/ — pure TypeScript<br/>decompose/assemble · graph operations<br/><i>no React, DOM, or IndexedDB</i>"]
-        STORE["editor/src/storage/ — CatalogRepository<br/>IndexedDB implementation"]
+        REPO["editor/src/storage/CatalogRepository<br/>persistence interface"]
+        STORE["editor/src/storage/IndexedDbCatalogRepository<br/>transactions · revisions · migrations"]
         APP["app/ — phase 2 backend proposal<br/>runtime to be decided<br/>Python/Flask views · auth · models shown here"]
         LIB["dcat/ — proposed server domain layer<br/>authoritative graph/export orchestration<br/><i>runtime follows phase 2 decision</i>"]
         SCANAPP["scanner/ — clamd wrapper app"]
         PROXYD["proxy/ — nginx config"]
         DOCS["docs/ — architecture.md + decisions/"]
         SUB["_external/dcat-us — git submodule<br/>3.0 schema definitions only<br/>pinned to a verified commit"]
-        EDITOR --> TSLIB
-        EDITOR --> STORE
+        EDITOR --> SERVICE
+        SERVICE --> TSLIB
+        SERVICE --> REPO
+        STORE -.->|"implements"| REPO
         TSLIB --> SUB
         APP --> LIB
         LIB --> SUB
@@ -928,11 +1046,23 @@ flowchart TB
     end
 
     SUB -.->|"read schemas, don't fork"| UPSTREAM
-    EDITOR -.->|"phase 1 HTTPS validate"| VALAPI
+    SERVICE -.->|"phase 1 HTTPS validate"| VALAPI
     LIB -.->|"phase 2 HTTPS validate"| VALAPI
     CKAN -.->|"re-sync or retire<br/>(v1 remediation)"| UPSTREAM
     HARV -.->|"adopts the same validator API"| VALAPI
 ```
+
+The user interface sends intents to editor application services. Those services
+invoke storage-independent domain operations and persist their results through
+`CatalogRepository`; they also coordinate export and validator calls. The domain
+library has no dependency on React, the DOM, IndexedDB, or the validator client.
+The repository implementation owns browser transactions, expected revisions,
+IndexedDB schema migrations, quota errors, and conversion between stored and
+domain records. This dependency direction is the phase 1 persistence seam and a
+phase 2 compatibility boundary. An API-backed or coordinating repository may
+replace or complement IndexedDB without moving graph rules into the UI or
+persistence layer; phase 2 may split the whole-graph contract into the granular
+queries and commands described in §4.
 
 ### Validate through the API; read only the schema definitions
 
@@ -970,7 +1100,7 @@ No record should be accepted — and no build should start on the affected area 
 until its blockers clear.
 
 **The blockers are listed once, in
-[`docs/decisions/README.md`](decisions/README.md#blockers-before-any-record-is-accepted),
+[`docs/decisions/README.md`](decisions/README.md#blockers),
 with the record each belongs to.** They are deliberately not duplicated here: this
 section previously carried a copy, and the copy drifted from the list in both
 directions.
