@@ -48,28 +48,21 @@
 <header class="usa-header usa-header--basic">
   <div class="usa-nav-container">
     <div class="usa-navbar">
-      <div class="usa-logo"><em class="usa-logo__text"><a href="workspace.html" title="Data.gov Inventory editor home">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
+      <div class="usa-logo"><em class="usa-logo__text"><a href="editor.html" title="Data.gov Inventory editor: your catalog">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
       <button type="button" class="usa-menu-btn">Menu</button>
     </div>
     <nav aria-label="Primary" class="usa-nav">
       <button type="button" class="usa-nav__close"><img src="vendor/uswds/img/usa-icons/close.svg" role="img" alt="Close"></button>
       <ul class="usa-nav__primary usa-accordion">
-        <li class="usa-nav__primary-item"><a href="workspace.html" class="usa-nav-link"><span>Overview</span></a></li><li class="usa-nav__primary-item"><a href="editor/catalog.html" class="usa-nav-link"><span>Editor</span></a></li><li class="usa-nav__primary-item"><a href="check.html" class="usa-nav-link"><span>Check</span></a></li><li class="usa-nav__primary-item"><a href="export.html" class="usa-nav-link"><span>Export</span></a></li><li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li><li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
+        <li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li>
+        <li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
       </ul>
     </nav>
   </div>
 </header>
-
-<div class="workspace-bar">
-  <div class="grid-container">
-    <span><span class="text-bold">Working copy:</span> Department of Example Affairs Data Catalog</span>
-    <span class="save-status save-status--saved" data-save-status role="status"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#check_circle"></use></svg><span data-save-text>Saved in this browser at 2:41 PM</span></span>
-    <a class="usa-link" href="help.html#your-data">Where your data lives</a>
-  </div>
-</div>
 <main id="main-content">
 <div class="grid-container padding-bottom-4"><h1>Page not found</h1><p>This page does not exist. Links into the editor work only in the browser that holds your working copy.</p>
-<p><a class="usa-link" href="workspace.html">Go to the overview</a> or <a class="usa-link" href="start.html">open or start a catalog</a>.</p></div>
+<p><a class="usa-link" href="editor.html">Go to your catalog</a> or <a class="usa-link" href="index.html">open or start a catalog</a>.</p></div>
 
 </main>
 <footer class="usa-footer usa-footer--slim">
@@ -82,7 +75,7 @@
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html">Help</a></li>
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html#your-data">Where your data lives</a></li>
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="feedback.html">Give feedback</a></li>
-            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="#clear-modal" aria-controls="clear-modal" data-open-modal>Clear my data from this browser</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><button type="button" class="usa-footer__primary-link usa-button usa-button--unstyled" data-clear-data>Clear my data from this browser</button></li>
           </ul>
         </nav>
       </div>
@@ -91,8 +84,8 @@
   <div class="usa-footer__secondary-section">
     <div class="grid-container">
       <p class="font-body-2xs margin-0">Advisory check uses a copy of the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591). It is not the official Data.gov validator.
-      No catalog content leaves this browser. Editor alpha 0.1.0 (mockup).</p>
-      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="index.html">Mockup screen map</a></p>
+      No catalog content leaves this browser. Editor alpha 0.2.0 (mockup).</p>
+      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="screens.html">Mockup screen and route map</a></p>
     </div>
   </div>
 </footer>
@@ -125,22 +118,18 @@
     </div>
   </section>
 </div>
-<div id="mock-status" class="usa-sr-only" role="status" aria-live="polite"></div>
+<div id="announcer" class="usa-sr-only" aria-live="polite" aria-atomic="true"></div>
 
-<div class="usa-modal" id="clear-modal" aria-labelledby="clear-modal-heading" aria-describedby="clear-modal-desc">
-  <div class="usa-modal__content">
-    <div class="usa-modal__main">
-      <h2 class="usa-modal__heading" id="clear-modal-heading">Clear your data from this browser?</h2>
-      <div class="usa-prose">
-<p id="clear-modal-desc">This deletes your working copy of <em>Department of Example Affairs Data Catalog</em> from this browser on this device.
-It is not backed up anywhere, so you cannot get it back. Export the catalog first if you want to keep it.</p></div>
-      <div class="usa-modal__footer"><ul class="usa-button-group"><li class="usa-button-group__item"><a href="export.html" class="usa-button usa-button--outline">Export first</a></li><li class="usa-button-group__item"><a href="start.html?state=cleared" class="usa-button usa-button--secondary">Clear my data</a></li><li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105 text-center" data-close-modal>Cancel</button></li></ul></div>
-    </div>
-    <button type="button" class="usa-button usa-modal__close" aria-label="Close this window" data-close-modal><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#close"></use></svg></button>
+<dialog class="inv-dialog" id="confirm-dialog" aria-labelledby="confirm-heading" aria-describedby="confirm-body">
+  <div class="inv-dialog__main">
+    <h2 class="inv-dialog__heading" id="confirm-heading"></h2>
+    <div class="usa-prose" id="confirm-body"></div>
+    <div class="inv-dialog__footer"><ul class="usa-button-group" id="confirm-buttons"></ul></div>
   </div>
-</div>
-
+</dialog>
 <script src="vendor/uswds/js/uswds.min.js"></script>
-<script src="assets/mock.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/frame.js"></script>
 </body>
 </html>

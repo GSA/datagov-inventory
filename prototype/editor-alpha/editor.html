@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Continue where you left off? | Data.gov Inventory editor (alpha) mockup</title>
+<title>Editor | Data.gov Inventory editor (alpha) mockup</title>
 <link rel="stylesheet" href="vendor/uswds/css/uswds.min.css">
 <link rel="stylesheet" href="assets/app.css">
 <script src="vendor/uswds/js/uswds-init.min.js"></script>
 </head>
 <body>
 <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+<a class="usa-skipnav" href="#catalog-tree">Skip to catalog contents</a>
 <section class="usa-banner" aria-label="Official website of the United States government">
   <div class="usa-accordion">
     <header class="usa-banner__header">
@@ -48,60 +49,62 @@
 <header class="usa-header usa-header--basic">
   <div class="usa-nav-container">
     <div class="usa-navbar">
-      <div class="usa-logo"><em class="usa-logo__text"><a href="start.html" title="Data.gov Inventory editor home">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
+      <div class="usa-logo"><em class="usa-logo__text"><a href="editor.html" title="Data.gov Inventory editor: your catalog">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
       <button type="button" class="usa-menu-btn">Menu</button>
     </div>
     <nav aria-label="Primary" class="usa-nav">
       <button type="button" class="usa-nav__close"><img src="vendor/uswds/img/usa-icons/close.svg" role="img" alt="Close"></button>
       <ul class="usa-nav__primary usa-accordion">
-        <li class="usa-nav__primary-item"><a href="start.html" class="usa-nav-link"><span>Start</span></a></li><li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li><li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
+        <li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li>
+        <li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
       </ul>
     </nav>
   </div>
 </header>
+<div class="workspace-bar">
+  <div class="grid-container-widescreen">
+    <span><span class="text-bold">Working copy:</span> <span id="wc-title">…</span></span>
+    <span class="save-status save-status--saved" id="save-status" role="status"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#check_circle"></use></svg><span id="save-text">Saved in this browser</span></span>
+    <a class="usa-link" href="index.html">Open another catalog</a>
+    <a class="usa-link" href="help.html#your-data">Where your data lives</a>
+  </div>
+</div>
 
-<main id="main-content">
+<div class="grid-container-widescreen">
+  <div class="editor-toolbar">
+    <h1>Edit catalog</h1>
+    <button type="button" class="usa-button usa-button--outline tree-disclosure" aria-expanded="false" aria-controls="catalog-tree" data-tree-disclosure>Show catalog contents</button>
+    <a class="problem-chip" id="problem-chip" href="#/check" hidden></a>
+    <ul class="usa-button-group">
+      <li class="usa-button-group__item"><a class="usa-button usa-button--outline" id="btn-check" href="#/check"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#verified"></use></svg> Check catalog</a></li>
+      <li class="usa-button-group__item"><a class="usa-button" id="btn-export" href="#/export"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#file_download"></use></svg> Export</a></li>
+    </ul>
+  </div>
+  <div id="page-alerts"></div>
+</div>
 
-<div class="grid-container padding-bottom-4">
-  <h1>Continue where you left off?</h1>
-  <div data-state-default data-state="restoring">
-  <div class="usa-summary-box margin-y-3" role="region" aria-labelledby="restore-summary">
-    <div class="usa-summary-box__body">
-      <h2 class="usa-summary-box__heading" id="restore-summary">This browser has a working copy</h2>
-      <div class="usa-summary-box__text">
-        <p><strong>Department of Example Affairs Data Catalog</strong> (9 datasets, 1 dataset series, 1 data service), last saved on November 5, 2026 at 2:41 PM.</p>
-        <p>Nothing is restored until you choose.</p>
-      </div>
+<div class="editor-layout grid-container-widescreen" id="editor-layout">
+  <nav class="editor-tree-pane" id="catalog-tree" aria-label="Catalog contents" tabindex="-1">
+    <h2 class="font-heading-md margin-top-0">Catalog contents</h2>
+    <ul class="usa-button-group usa-button-group--segmented margin-bottom-1" aria-label="How to list the catalog">
+      <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--small" aria-pressed="true" data-view-mode="structure">By catalog structure</button></li>
+      <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--small usa-button--outline" aria-pressed="false" data-view-mode="type">By type</button></li>
+    </ul>
+    <div id="structure-pane">
+      <label class="usa-label margin-top-1" for="tree-filter">Filter by title or name</label>
+      <input class="usa-input" type="search" id="tree-filter" aria-describedby="tree-filter-count" autocomplete="off">
+      <p class="usa-hint margin-y-05" id="tree-filter-count" role="status"></p>
+      <div class="margin-top-1"><ul role="tree" class="tree" id="tree" aria-label="Catalog contents"></ul></div>
+      <p class="font-body-2xs text-base-dark margin-top-2">Arrow keys move, Right and Left open and close, Enter opens an object.</p>
     </div>
-  </div>
-  <ul class="usa-button-group">
-    <li class="usa-button-group__item"><button type="button" class="usa-button" data-fake-progress="restore-run" data-then="workspace.html">Restore working copy</button></li>
-    <li class="usa-button-group__item"><a href="#discard-modal" class="usa-button usa-button--outline" aria-controls="discard-modal" data-open-modal>Discard it</a></li>
-  </ul>
-  <p><button type="button" class="usa-button usa-button--unstyled" data-fake-download="restore-dl">Download it as a file before deciding</button></p>
-  <p id="restore-dl" tabindex="-1" hidden><div class="usa-alert usa-alert--success usa-alert--slim ">
-  <div class="usa-alert__body"><p class="usa-alert__text">Downloaded <em>department-of-example-affairs-data-catalog-2026-11-05.json</em> (mockup: no file is produced). Objects used in more than one place are written out in full wherever they are used.</p></div>
-</div></p>
-  <div id="restore-run" data-state="restoring" class="margin-y-2">
-    <label class="usa-label" for="restore-bar">Restoring working copy…</label>
-    <progress id="restore-bar" max="100" value="60">60%</progress>
-    <p class="usa-hint" data-progress-text="Restoring working copy… {n}%">Restoring working copy… 60%</p>
-  </div>
-  </div>
-  <div data-state="unreadable">
-    <div class="usa-alert usa-alert--error " role="alert">
-  <div class="usa-alert__body"><h4 class="usa-alert__heading">Your saved working copy could not be opened</h4><p class="usa-alert__text">The copy in this browser is damaged or was saved by a newer version of the editor. You can discard it and start again.</p></div>
+    <div id="type-pane" hidden>
+      <ul class="usa-sidenav type-nav" id="type-nav"></ul>
+    </div>
+  </nav>
+  <main id="main-content" class="editor-detail-pane" tabindex="-1">
+    <div id="view"><p>Opening your working copy…</p></div>
+  </main>
 </div>
-    <p class="margin-top-2"><a href="#discard-modal" class="usa-button usa-button--secondary" aria-controls="discard-modal" data-open-modal>Discard it</a></p>
-  </div>
-  <a href="#discard-modal" aria-controls="discard-modal" data-open-modal data-open-on-state="discard-confirm" hidden>open</a>
-</div>
-
-<aside class="mock-states grid-container" aria-label="Mockup states (not part of the product)">
-  <h2>Mockup only: view this screen in another state</h2>
-  <ul><li><a href="restore.html">Restore or discard</a></li><li><a href="restore.html?state=discard-confirm">Discard (dialog)</a></li><li><a href="restore.html?state=restoring">Restoring</a></li><li><a href="restore.html?state=unreadable">Saved copy unreadable</a></li></ul>
-</aside>
-</main>
 <footer class="usa-footer usa-footer--slim">
   <div class="grid-container usa-footer__return-to-top"><a href="#">Return to top</a></div>
   <div class="usa-footer__primary-section">
@@ -112,7 +115,7 @@
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html">Help</a></li>
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html#your-data">Where your data lives</a></li>
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="feedback.html">Give feedback</a></li>
-            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html#your-data">Clear my data from this browser</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><button type="button" class="usa-footer__primary-link usa-button usa-button--unstyled" data-clear-data>Clear my data from this browser</button></li>
           </ul>
         </nav>
       </div>
@@ -121,8 +124,8 @@
   <div class="usa-footer__secondary-section">
     <div class="grid-container">
       <p class="font-body-2xs margin-0">Advisory check uses a copy of the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591). It is not the official Data.gov validator.
-      No catalog content leaves this browser. Editor alpha 0.1.0 (mockup).</p>
-      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="index.html">Mockup screen map</a></p>
+      No catalog content leaves this browser. Editor alpha 0.2.0 (mockup).</p>
+      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="screens.html">Mockup screen and route map</a></p>
     </div>
   </div>
 </footer>
@@ -155,20 +158,19 @@
     </div>
   </section>
 </div>
-<div id="mock-status" class="usa-sr-only" role="status" aria-live="polite"></div>
+<div id="announcer" class="usa-sr-only" aria-live="polite" aria-atomic="true"></div>
 
-
-<div class="usa-modal" id="discard-modal" aria-labelledby="discard-modal-heading" aria-describedby="discard-modal-desc" data-force-action>
-  <div class="usa-modal__content">
-    <div class="usa-modal__main">
-      <h2 class="usa-modal__heading" id="discard-modal-heading">Discard this working copy?</h2>
-      <div class="usa-prose"><p id="discard-modal-desc">It will be deleted from this browser and cannot be recovered.</p></div>
-      <div class="usa-modal__footer"><ul class="usa-button-group"><li class="usa-button-group__item"><a href="start.html?state=cleared" class="usa-button usa-button--secondary">Discard working copy</a></li><li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105" data-close-modal>Cancel</button></li></ul></div>
-    </div>
-    
+<dialog class="inv-dialog" id="confirm-dialog" aria-labelledby="confirm-heading" aria-describedby="confirm-body">
+  <div class="inv-dialog__main">
+    <h2 class="inv-dialog__heading" id="confirm-heading"></h2>
+    <div class="usa-prose" id="confirm-body"></div>
+    <div class="inv-dialog__footer"><ul class="usa-button-group" id="confirm-buttons"></ul></div>
   </div>
-</div>
+</dialog>
 <script src="vendor/uswds/js/uswds.min.js"></script>
-<script src="assets/mock.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/frame.js"></script>
+<script src="assets/editor.js"></script>
 </body>
 </html>

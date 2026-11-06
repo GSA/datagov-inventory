@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Mockup screen and route map | Data.gov Inventory editor (alpha) mockup</title>
+<link rel="stylesheet" href="vendor/uswds/css/uswds.min.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="vendor/uswds/js/uswds-init.min.js"></script>
+</head>
+<body>
+<a class="usa-skipnav" href="#main-content">Skip to main content</a>
+<section class="usa-banner" aria-label="Official website of the United States government">
+  <div class="usa-accordion">
+    <header class="usa-banner__header">
+      <div class="usa-banner__inner">
+        <div class="grid-col-auto"><img aria-hidden="true" class="usa-banner__header-flag" src="vendor/uswds/img/us_flag_small.png" alt=""></div>
+        <div class="grid-col-fill tablet:grid-col-auto" aria-hidden="true">
+          <p class="usa-banner__header-text">An official website of the United States government</p>
+          <p class="usa-banner__header-action">Here’s how you know</p>
+        </div>
+        <button type="button" class="usa-accordion__button usa-banner__button" aria-expanded="false" aria-controls="gov-banner"><span class="usa-banner__button-text">Here’s how you know</span></button>
+      </div>
+    </header>
+    <div class="usa-banner__content usa-accordion__content" id="gov-banner">
+      <div class="grid-row grid-gap-lg">
+        <div class="usa-banner__guidance tablet:grid-col-6">
+          <img class="usa-banner__icon usa-media-block__img" src="vendor/uswds/img/icon-dot-gov.svg" role="img" alt="" aria-hidden="true">
+          <div class="usa-media-block__body"><p><strong>Official websites use .gov</strong><br>A <strong>.gov</strong> website belongs to an official government organization in the United States.</p></div>
+        </div>
+        <div class="usa-banner__guidance tablet:grid-col-6">
+          <img class="usa-banner__icon usa-media-block__img" src="vendor/uswds/img/icon-https.svg" role="img" alt="" aria-hidden="true">
+          <div class="usa-media-block__body"><p><strong>Secure .gov websites use HTTPS</strong><br>A <strong>lock</strong> or <strong>https://</strong> means you’ve safely connected to the .gov website. Share sensitive information only on official, secure websites.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="usa-site-alert usa-site-alert--info usa-site-alert--slim" aria-label="Site alert">
+  <div class="usa-alert">
+    <div class="usa-alert__body">
+      <p class="usa-alert__text"><strong>Alpha.</strong> This is a test version of the Data.gov inventory editor. Your catalog stays in this browser. <a class="usa-link" href="feedback.html">Give feedback</a></p>
+    </div>
+  </div>
+</section>
+<div class="usa-overlay"></div>
+<header class="usa-header usa-header--basic">
+  <div class="usa-nav-container">
+    <div class="usa-navbar">
+      <div class="usa-logo"><em class="usa-logo__text"><a href="editor.html" title="Data.gov Inventory editor: your catalog">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
+      <button type="button" class="usa-menu-btn">Menu</button>
+    </div>
+    <nav aria-label="Primary" class="usa-nav">
+      <button type="button" class="usa-nav__close"><img src="vendor/uswds/img/usa-icons/close.svg" role="img" alt="Close"></button>
+      <ul class="usa-nav__primary usa-accordion">
+        <li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li>
+        <li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main-content">
+<div class="grid-container padding-bottom-4">
+  <div class="mock-note"><strong>Mockup only.</strong> This page is not part of the product. It lists every screen and route in the revised mockup (after the team huddle of November 6, 2026).</div>
+  <h1>Screens and routes</h1>
+  <p>The editor is now one page, <code>editor.html</code>, that switches views by its hash route. Load a catalog first: routes below open in your current working copy.</p>
+  <h2>Pages</h2>
+  <div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map">
+    <thead><tr><th scope="col">Page</th><th scope="col">What it is</th></tr></thead>
+    <tbody>
+      <tr><th scope="row"><a class="usa-link" href="index.html">index.html</a></th><td>Start: import from a file, paste JSON, import from a web address (mocked), start from scratch. Shows “Continue where you left off?” when a working copy exists. The mockup box loads the 9-dataset sample or a generated 2,000-dataset catalog.</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="editor.html">editor.html</a></th><td>The editor: tree or By type list on the left, one form on the right. Check catalog and Export are views on this page.</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="help.html">help.html</a></th><td>Help</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="feedback.html">feedback.html</a></th><td>Give feedback</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="404.html">404.html</a></th><td>Not found</td></tr>
+    </tbody>
+  </table></div>
+  <h2>Editor routes</h2>
+  <p>With the 9-dataset sample loaded, these ids exist. Ids are made when a catalog is loaded, so they differ for other catalogs.</p>
+  <div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map">
+    <thead><tr><th scope="col">Route</th><th scope="col">View</th></tr></thead>
+    <tbody id="route-rows">
+      <tr><th scope="row"><a class="usa-link" href="editor.html#/">#/</a></th><td>Catalog form</td></tr>
+      <tr><th scope="row"><code>#/dataset/&lt;id&gt;</code></th><td>Dataset form, reached from the catalog</td></tr>
+      <tr><th scope="row"><code>#/dataset/&lt;id&gt;/distribution/&lt;id&gt;</code></th><td>Distribution form, under its dataset. Each id must link to the next one.</td></tr>
+      <tr><th scope="row"><code>#/dataset/&lt;id&gt;/distribution/&lt;id&gt;/access-restriction/&lt;id&gt;</code></th><td>Three levels deep: Catalog › Dataset › Distribution › Access restriction</td></tr>
+      <tr><th scope="row"><code>#/contact/&lt;id&gt;</code></th><td>Any object by id. The editor finds where it lives in the tree and opens that path; an object that is not linked anywhere opens under “Not linked anywhere”.</td></tr>
+      <tr><th scope="row"><code>…?field=modified</code></th><td>Open the object and move focus to one field (used by the check results).</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="editor.html#/type/dataset">#/type/dataset</a>, <a class="usa-link" href="editor.html#/type/contact">#/type/contact</a>, …</th><td>By type: every object of a class, A to Z, 50 per page, with New, Edit and Delete. <code>?page=2&amp;q=help</code> pages and filters.</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="editor.html#/check">#/check</a></th><td>Advisory check results (always current: the check runs after every edit)</td></tr>
+      <tr><th scope="row"><a class="usa-link" href="editor.html#/export">#/export</a></th><td>Export: problems first, Review problems, Download anyway. Downloads a real JSON file made in the browser.</td></tr>
+    </tbody>
+  </table></div>
+  <h2>Flows to click through</h2>
+  <ol>
+    <li><strong>Load:</strong> Start → “Load the 9-dataset sample” → the editor opens on the catalog with a load summary.</li>
+    <li><strong>Edit a dataset:</strong> tree → Grants to Local Partners → type in Title. The tree label changes as you type; the status goes Saving… then Saved.</li>
+    <li><strong>Create, three levels deep:</strong> Regional Bridge Condition Ratings → Dataset distribution → Create new distribution → the form is replaced by “Unnamed distribution”, linked to the dataset and already in the tree → Access restriction → Create new access restriction → fill in Restriction status → Back to the distribution → Back to the dataset. Everything typed is kept.</li>
+    <li><strong>Pick an existing object:</strong> any dataset → Contact point → “Add an existing contact” → type “help” → choose OSS Data Help Desk.</li>
+    <li><strong>By type:</strong> By type → Contacts → the trash icon on a row → “referenced in N places” → Delete.</li>
+    <li><strong>Check and export:</strong> Check catalog → a problem → the field. Export → Review problems or Download anyway.</li>
+    <li><strong>Deep link:</strong> copy the address of any form and open it in a new tab.</li>
+    <li><strong>Scale:</strong> Start → “Load a generated catalog with 2,000 datasets” → filter the tree.</li>
+  </ol>
+  <h2>Removed in this revision</h2>
+  <p><code>workspace.html</code> (Overview), <code>check.html</code>, <code>export.html</code>, <code>start.html</code>, <code>paste.html</code>, <code>restore.html</code>, <code>in-use.html</code> and the 11 <code>editor/*.html</code> pages. See README.md.</p>
+</div>
+</main>
+<footer class="usa-footer usa-footer--slim">
+  <div class="grid-container usa-footer__return-to-top"><a href="#">Return to top</a></div>
+  <div class="usa-footer__primary-section">
+    <div class="usa-footer__primary-container grid-row">
+      <div class="grid-col-12">
+        <nav class="usa-footer__nav" aria-label="Footer navigation">
+          <ul class="grid-row grid-gap">
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html">Help</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html#your-data">Where your data lives</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="feedback.html">Give feedback</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><button type="button" class="usa-footer__primary-link usa-button usa-button--unstyled" data-clear-data>Clear my data from this browser</button></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+  <div class="usa-footer__secondary-section">
+    <div class="grid-container">
+      <p class="font-body-2xs margin-0">Advisory check uses a copy of the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591). It is not the official Data.gov validator.
+      No catalog content leaves this browser. Editor alpha 0.2.0 (mockup).</p>
+      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="screens.html">Mockup screen and route map</a></p>
+    </div>
+  </div>
+</footer>
+<div class="usa-identifier">
+  <section class="usa-identifier__section usa-identifier__section--masthead" aria-label="Agency identifier">
+    <div class="usa-identifier__container">
+      <section class="usa-identifier__identity" aria-label="Agency description">
+        <p class="usa-identifier__identity-domain">alpha.inventory.data.gov</p>
+        <p class="usa-identifier__identity-disclaimer">An official website of the <a href="#">U.S. General Services Administration</a></p>
+      </section>
+    </div>
+  </section>
+  <nav class="usa-identifier__section usa-identifier__section--required-links" aria-label="Important links">
+    <div class="usa-identifier__container">
+      <ul class="usa-identifier__required-links-list">
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">About GSA</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Accessibility statement</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">FOIA requests</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">No FEAR Act data</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Office of the Inspector General</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Performance reports</a></li>
+        <li class="usa-identifier__required-links-item"><a href="#" class="usa-identifier__required-link usa-link">Privacy policy</a></li>
+      </ul>
+    </div>
+  </nav>
+  <section class="usa-identifier__section usa-identifier__section--usagov" aria-label="U.S. government information and services">
+    <div class="usa-identifier__container">
+      <div class="usa-identifier__usagov-description">Looking for U.S. government information and services?</div>
+      <a href="#" class="usa-link">Visit USA.gov</a>
+    </div>
+  </section>
+</div>
+<div id="announcer" class="usa-sr-only" aria-live="polite" aria-atomic="true"></div>
+
+<dialog class="inv-dialog" id="confirm-dialog" aria-labelledby="confirm-heading" aria-describedby="confirm-body">
+  <div class="inv-dialog__main">
+    <h2 class="inv-dialog__heading" id="confirm-heading"></h2>
+    <div class="usa-prose" id="confirm-body"></div>
+    <div class="inv-dialog__footer"><ul class="usa-button-group" id="confirm-buttons"></ul></div>
+  </div>
+</dialog>
+<script src="vendor/uswds/js/uswds.min.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/frame.js"></script>
+</body>
+</html>

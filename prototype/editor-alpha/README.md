@@ -1,8 +1,10 @@
-# Inventory editor alpha: clickable mockups
+# Inventory editor alpha: clickable mockup
 
-**Prototype only.** This is not the editor itself and nothing here is built or deployed.
+**Prototype only.** This is not the editor itself, and nothing here is built or deployed.
 
-These are static, clickable mockups for the browser-only DCAT-US 3.0 editor alpha ([GSA/datagov-inventory#15](https://github.com/GSA/datagov-inventory/issues/15)). They are built with plain HTML, CSS and JS and the U.S. Web Design System 3.14.0, which is vendored in `vendor/uswds/`, so they work offline. There is no build step and no backend. Nothing is really read, saved or sent.
+This is a static, clickable mockup of the browser-only DCAT-US 3.0 editor alpha ([GSA/datagov-inventory#15](https://github.com/GSA/datagov-inventory/issues/15)). It is plain HTML, CSS and JavaScript on the U.S. Web Design System 3.14.0 (vendored in `vendor/uswds/`). There is no build step, no React, no backend, and nothing to install, and it works offline.
+
+**Revised 2026-11-06 after the team huddle.** The revision is one editor page with hash routes, no dialogs for select or create, autosave, a working By type view, and real import and export. See `SPEC.md` ("Decisions from the 2026-11-06 huddle") and `analysis/huddle-2026-11-06.md`.
 
 ## Run it
 
@@ -12,95 +14,115 @@ From this folder:
 ./run.sh
 ```
 
-Then open http://localhost:8000/. It runs `python3 -m http.server` and needs no installs. To use another port, run `PORT=9000 ./run.sh`. Without the script, `python3 -m http.server 8000` from this folder does the same. Opening `index.html` straight from disk mostly works too, but a local server is more reliable.
+Then open http://localhost:8000/. The script runs `python3 -m http.server`, so there is nothing to install. To use another port, run `PORT=9000 ./run.sh`.
 
-Start at `index.html`, the screen map. It links to every screen and every state. Most screens also have a dashed **"Mockup only"** box at the bottom for switching states. Neither the screen map nor those boxes are part of the product.
+1. On the start page, use the dashed **"Mockup only: sample data"** box. **Load the 9-dataset sample** goes through the same import as a file.
+2. You land in the editor. Everything works on that sample: editing, creating, linking, deleting, checking and exporting.
+3. To see the editor at scale, use **Load a generated catalog with 2,000 datasets**. It is generated in the browser, about the size of the Department of Justice catalog.
+
+The working copy is kept in this browser's IndexedDB, so it survives a reload and opens in new tabs. To start over, use **Clear my data from this browser** in the footer.
+
+Use a local server. Opening the files straight from disk is not supported, because browsers limit IndexedDB on `file://`.
 
 ## Screens
 
 | File | Screen |
 |---|---|
-| `index.html` | Screen map (mockup only) |
-| `start.html` | Start: data notice, then open a file, paste JSON, or start a blank catalog. States include file too large, not JSON, no DCAT class, data.json 1.1 refused, the replace-working-copy dialog, and "cleared". |
-| `paste.html` | Paste JSON |
-| `restore.html` | Continue where you left off? (restore, discard, or download first) |
-| `in-use.html` | Editor is open in another tab |
-| `workspace.html` | **Overview / dashboard (the hub).** States: just loaded (load summary), check out of date, storage unavailable, Clear my data dialog, large catalog (3,214 datasets), no catalog open. |
-| `editor/catalog.html` | Editor: tree plus catalog form. States: blank catalog, after deleting a dataset, storage unavailable. |
-| `editor/list.html` | Editor: all datasets as a table. The large variant has pagination and a tree that shows 50 more at a time. |
-| `editor/dataset.html` | Editor: dataset form. States: select-existing dialog, create-new dialog, nested create (breadcrumb in the same dialog), after "Edit a copy for this one", after removing a link (undo). |
-| `editor/dataset-errors.html` | Editor: dataset with advisory-check problems shown next to its fields |
-| `editor/distribution.html` | Editor: distribution (no required fields; a web address problem) |
-| `editor/dataservice.html` | Editor: data service |
-| `editor/series.html` | Editor: dataset series |
-| `editor/contact.html` | Editor: shared contact used in 5 places. States: delete-shared dialog, after delete with undo. `?from=d5` adds "Edit a copy for this one". |
-| `editor/contact-bridge.html` | Editor: contact with an email problem |
-| `editor/organization.html` | Editor: organization used in 10 places |
-| `editor/object.html` | Editor: generic form for any other class (an unused Location), with delete |
-| `check.html` | Check results (advisory). States: not run, running, out of date, no problems. |
-| `export.html` | Export. States: no problems, building, downloaded, loop error. |
-| `help.html` | Help: about the alpha, what's not in it, where your data lives, the check, known limits, keyboard, custom parts |
-| `feedback.html` | Give feedback, with a sensitive-data warning |
+| `index.html` | **Start.** Import from a file (really read in the browser), paste JSON, import from a web address (mocked: no request is made; the sample loads), or start from scratch. Every path uses the same import. Shows "Continue where you left off?" when a working copy exists, and asks before replacing it. Errors: not JSON, no DCAT-US 3.0 catalog, DCAT-US 1.1 refused, file too large. The mockup box has the samples and example pastes. |
+| `editor.html` | **The editor**, one page that switches views by hash route. The tree ("By catalog structure") or "By type" is on the left, and one view is on the right. |
+| ↳ `#/`, `#/dataset/<id>/…` | Object form for any class, generated from the schema, with a breadcrumb, a "Linked to … › field" bar, Back, and inline pick or create in class-valued fields |
+| ↳ `#/type/<type>` | By type list: A to Z, 50 per page, filter, New, Edit, and a trash icon |
+| ↳ `#/check` | Advisory check results, always current |
+| ↳ `#/export` | Export: problems first, Review problems, Download anyway (a real file) |
+| `help.html` | Help |
+| `feedback.html` | Give feedback |
 | `404.html` | Not found |
+| `screens.html` | Mockup only: page and route map, and flows to click through |
+
+**Removed** in this revision (folded into `index.html` or `editor.html`):
+- `workspace.html` (Overview), `check.html`, `export.html`
+- `start.html`, `paste.html`, `restore.html`, `in-use.html`
+- the 11 `editor/*.html` pages: catalog, list, dataset, dataset-errors, distribution, dataservice, series, contact, contact-bridge, organization, object
+- `assets/mock.js`
 
 ## Flows to click through
 
-1. **First visit, open a file:** Start → **Open file** (fake progress) → Overview with load summary → **Open in editor** → pick a dataset in the tree.
-2. **Blank catalog:** Start → **Start a blank catalog** → fill in Title.
-3. **Returning user:** `restore.html` → **Restore working copy** → Overview.
-4. **Reuse or create a contact:** Dataset → **Add contact point: select existing or create new** → **Create a new contact** → **Create a new address** (the dialog content is replaced and a breadcrumb appears; no second dialog) → **Add address** → **Create and add**.
-5. **Shared contact:** Dataset → contact row **Open** → "Used in 5 places" → **Edit a copy for this one**.
-6. **Remove and undo:** Dataset contact row → **Remove from this field** → **Undo**. Then the contact's **Delete** → "Delete from 5 places" → Undo.
-7. **Check and fix:** **Check** → results → a problem link → the field error on the dataset.
-8. **Export:** **Export** → problem summary → **Download anyway** → confirmation.
-9. **Large catalog:** `workspace.html?state=large` → **Browse datasets** → in the tree, **Show 50 more datasets**.
-10. **Clear my data:** footer link → confirm → Start, with a "cleared" message.
-
-Things to try:
-- **The tree:** it works with the keyboard (arrows, Home and End, typing a letter, Enter). The filter, the "By type" view, and the narrow-screen disclosure button all work.
-- **Fake autosave:** typing in any field flips the status bar to "Saving…" and then "Saved", and editing a title updates the tree label.
-- **Check this object:** toggles the prepared problem messages on and off.
+1. **Load:** Start → **Load the 9-dataset sample** → the editor opens with a load summary and "4 problems in 3 objects".
+2. **Edit a dataset:** tree → **Grants to Local Partners** → type in Title. The tree label and breadcrumb follow as you type, and the status goes Saving… then Saved.
+3. **Create, three levels deep, then back twice:**
+   1. **Regional Bridge Condition Ratings** → type something in Description.
+   2. Dataset distribution → **Create new distribution**. The form is replaced by "Unnamed distribution", which is linked to the dataset and already selected in the tree.
+   3. Type a Title, then Access restriction → **Create new access restriction**. You are now at Catalog › Dataset › Distribution › Access restriction, with a "1 problem" marker.
+   4. Fill in Restriction status, then **Back to …** twice. Everything you typed is still there.
+4. **Pick an existing object:** **Fleet Vehicle Fuel Use** → Contact point → **Add an existing contact** → type "rosa" → Enter.
+5. **Edit a copy:** **Grants to Local Partners** → Contact point → **Edit a copy for this one**.
+6. **By type:** **By type** → **Contacts** → the trash icon on OSS Data Help Desk → "referenced in 5 places" → Delete → **Undo**.
+7. **Check and export:** the problem chip or **Check catalog** → a problem → the field. Then **Export** → **Review problems** or **Download anyway**.
+8. **Deep link:** copy the address of any form and open it in a new tab. The same tree node and form open.
+9. **Scale:** Start → **Load a generated catalog with 2,000 datasets** → filter the tree ("recidivism by state") → open a dataset → **Add an existing contact** ("Showing 25 of …").
+10. **Broken files still load:** Start → **Paste a broken 3.0 catalog** → **Load pasted JSON**.
 
 ## Folder contents
 
-- `SPEC.md`: the merged spec. It covers personas, flows, the route map, components per screen, data rules, the sub-agent debate and open questions, each tied to its source issue.
-- `analysis/`: the sub-agents' raw write-ups from rounds 1–3.
-- `assets/mock.js`: all the mock interactions:
-  - `?state=` switching
-  - dialogs and panel swaps
-  - fake save and fake progress
-  - error toggling
-  - the tree keyboard model
-  - the filter
-  - multi-value rows
-- `assets/app.css`: the few styles USWDS doesn't provide: the tree, the two-pane layout, linked-object and multi-value rows, and the mockup-only chrome.
+- `SPEC.md`: the spec covers the following, each tied to its source issue:
+  - the huddle decisions
+  - personas and flows
+  - pages and routes
+  - the editor layout
+  - data rules and the field → class mapping
+  - open questions and future work
+- `analysis/huddle-2026-11-06.md`: the huddle's decisions, the ideas left undecided, and the **impact on each of epic #15's sub-issues**.
+- `analysis/` (other files): the first round's sub-agent write-ups (rounds 1–3). They are kept for history; where they disagree with the huddle, the huddle wins.
+- `assets/schema.js`: a trimmed DCAT-US 3.0 schema for the editor. For each property it has the label, help text, requirement level, widget, whether it holds several values, and the classes allowed. It is generated by `tools/build-schema.py` from GSA/dcat-us @ 4996591. To rebuild it: `python3 tools/build-schema.py <dcat-us>/jsonschema/definitions <commit>`.
+- `assets/store.js`: the working copy and its logic:
+  - import and export
+  - IndexedDB autosave, one record per object
+  - links, usage and home paths
+  - link modes
+  - the advisory check
+  - delete and undo
+- `assets/editor.js`: the editor page:
+  - the hash router and the accessibility on route change
+  - the tree and By type views
+  - the generated forms and the inline combo box
+  - autosave status
+  - the check and export views
+- `assets/start.js`: the start page.
+- `assets/samples.js`: the 9-dataset sample and the 2,000-dataset generator, both fictional.
+- `assets/frame.js`: the announcer, the confirmation dialog, and Clear my data. It is used on every page.
+- `assets/app.css`: the few styles USWDS doesn't provide.
 - `run.sh`: the one-command local server.
-- `vendor/uswds/`: USWDS 3.14.0 `dist` (css, js, fonts, img), taken from the `@uswds/uswds` npm tarball (sha512 integrity verified).
+- `vendor/uswds/`: USWDS 3.14.0 `dist` from the `@uswds/uswds` npm tarball.
 
-The pages were written by a small Python generator that is not shipped, so the HTML has a lot of repeated markup. Edit the HTML directly. The schema-driven forms take their labels, help text and required/recommended/optional levels from the DCAT-US 3.0 schema (GSA/dcat-us @ 4996591).
+The static HTML is hand-editable. Every page repeats the same banner, header and footer, so change those on all pages together.
 
-All data is fictional (Department of Example Affairs, example.gov).
+All data is fictional (Department of Example Affairs and Department of Example Justice, example.gov).
 
-## Checks run on these mockups
+## Checks run on this revision
 
-- **Link crawl:** a headless Chrome crawl of every link (273 page and state URLs) found no broken links and no JS errors.
-- **axe (WCAG 2.1 A/AA)** on every page. The only remaining finding is `label-content-name-mismatch` on expanded tree nodes. It comes from the nested ARIA treeview pattern: child items add visible text to the parent's name. It is listed as open question 15 for #30.
-- **Interactions:** dialogs, panel swaps, tree keys, the filter, the view switch, errors, rows, progress and the mobile tree were all scripted and checked.
+- **Scripted click-through** (headless Chrome via Playwright, not committed): every flow above, plus these, ended with no JS errors:
+  - start-page errors, start from scratch, and the replace confirmation
+  - URL import
+  - tree keyboard (Home, arrows, Enter)
+  - unlinked objects
+  - Edit a copy, multi-value reordering, and undo of an unlink and of a delete
+  - an exported file re-checked for the new distribution and its access restriction
+- **Scale** (generated 2,000 datasets, 9,966 objects, in Chrome on a laptop):
+  - load to editor: about 0.5 s
+  - reload or deep link: about 0.2 s
+  - tree filter: about 0.25 s
+  - edit to Saved: about 0.5 s, which is the debounce
+  - check: 30 ms
+  - export: a 3.6 MB pretty-printed file
+- **axe (WCAG 2.1 A/AA)** on the start page, the catalog form, a dataset form, a By type list, check, export, help, feedback, the screen map and 404: no violations.
 
 ## Open questions
 
-See `SPEC.md` §8 for the full list (15). The main ones:
+See `SPEC.md` "Open questions" for the full list (17). The main ones:
 
-1. Should data.json 1.1 files be refused explicitly? (#20)
-2. How should "select existing" handle thousands of identical-looking contacts after a load? (#25)
-3. Who owns the override file for field grouping, promoted fields and multi-line text boxes? (#19)
-4. The `iri` format check is needed for web-address problems. (#27)
-5. Can Agent-typed publisher fields pick Organizations? (#25)
-6. What are the size limits? (#29)
-7. Can a second tab take over editing? (#28)
-8. What is the feedback email address? (#32)
-9. Is the host .gov, so the gov banner stays? (#31)
-10. Browser check vs calling the validator API from the browser. (#9 comment)
-11. Is the datasets table page in alpha scope?
-12. Should unlinked objects get their own tree group?
-13. How should the treeview handle the axe label-in-name finding? (#30)
+1. Import from a URL conflicts with the CSP and "nothing is sent anywhere" (#21, #16).
+2. Working set and lazy loading for very large catalogs: undecided; measure first (#29).
+3. Should objects that share an `@id` be one object on load, and should repeated contacts be merged (#20)?
+4. One-tab lock (#28) vs deep links that open new tabs.
+5. A blank Distribution is valid in DCAT-US 3.0. Should the editor flag it anyway?
+6. Link modes (create only, pick only, or both) need a home in #19's override file.

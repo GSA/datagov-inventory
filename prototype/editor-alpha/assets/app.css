@@ -1,12 +1,13 @@
 /*
  * The few styles USWDS does not provide. Everything else is stock USWDS 3.14.0 classes.
  * Custom parts (listed for #30): the catalog tree (an ARIA treeview), the two-pane editor
- * layout, linked-object rows, multi-value rows, and the mockup-only state switcher.
+ * layout, linked-object rows, the inline "add an existing" combobox, multi-value rows,
+ * the confirmation dialog (native <dialog>), and the mockup-only boxes.
  */
 
 /* ---------- workspace bar (catalog title + save status) ---------- */
 .workspace-bar { background: #f0f0f0; border-bottom: 1px solid #dfe1e2; }
-.workspace-bar .grid-container { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; align-items: center; padding-top: .5rem; padding-bottom: .5rem; }
+.workspace-bar .grid-container, .workspace-bar .grid-container-widescreen { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; align-items: center; padding-top: .5rem; padding-bottom: .5rem; }
 .save-status { display: inline-flex; align-items: center; gap: .25rem; }
 .save-status .usa-icon { flex: none; }
 .save-status--saving .usa-icon { color: #71767a; }
@@ -37,7 +38,6 @@
 .tree [role="treeitem"][aria-expanded="false"] > [role="group"] { display: none; }
 .tree__row { display: flex; align-items: flex-start; gap: .25rem; min-height: 2.25rem; padding: .3rem .25rem; border-radius: .25rem; line-height: 1.25; }
 .tree__content { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .35rem; padding-top: .1rem; }
-.tree [aria-selected="true"] > .tree__row { background: #e7f2f5; box-shadow: inset .25rem 0 0 #005ea2; font-weight: 700; }
 .tree__row a { color: #1b1b1b; text-decoration: none; }
 .tree__row a:hover { text-decoration: underline; color: #005ea2; }
 .tree__twisty { display: inline-flex; width: 1.5rem; height: 1.5rem; align-items: center; justify-content: center; cursor: pointer; flex: none; border-radius: .25rem; }
@@ -93,3 +93,98 @@ progress { width: 100%; max-width: 30rem; height: 1rem; accent-color: #005ea2; }
 .mock-states a[aria-current]::before { content: "▶ "; }
 .mock-note { border-left: .25rem solid #8168b3; background: #f5f2fb; padding: .5rem .75rem; font-size: .93rem; margin: 1rem 0; }
 .screen-map td, .screen-map th { vertical-align: top; }
+
+/* ---------- revision after the 2026-11-06 huddle ---------- */
+
+/* where you are: the current object is strongly marked in the tree */
+.tree__row.is-current { background: #005ea2; box-shadow: inset .3rem 0 0 #162e51; }
+.tree__row.is-current a, .tree__row.is-current .tree__meta { color: #fff; font-weight: 700; }
+.tree__row.is-current .tree__twisty .usa-icon { fill: #fff; color: #fff; }
+.tree__row.is-current .tree__problem { color: #fff; background: #b50909; border-radius: .2rem; padding: 0 .25rem; }
+.tree__row.is-current .tree__empty { color: #fff; border-color: #fff; }
+.tree__label { overflow-wrap: anywhere; }
+.tree__hit { background: #fff5c2; }
+.tree__row.is-current .tree__hit { background: transparent; }
+.tree__empty { font-size: .75rem; color: #565c65; border: 1px solid #a9aeb1; border-radius: .2rem; padding: 0 .25rem; }
+.tree__group > .tree__row { cursor: pointer; }
+.tree__more { cursor: pointer; }
+.inline-icon { width: 1rem; height: 1rem; vertical-align: -.15em; margin-right: .1rem; }
+.tag-icon { width: .9rem; height: .9rem; vertical-align: -.1em; margin-right: .2rem; fill: currentColor; }
+
+.crumb-type { color: #565c65; font-weight: 400; }
+.linked-to { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; background: #e7f2f5; border-left: .25rem solid #005ea2; padding: .5rem .75rem; margin-bottom: 1rem; }
+.linked-to .usa-icon { vertical-align: -.2em; }
+.used-in summary { cursor: pointer; color: #005ea2; text-decoration: underline; }
+.used-in ul { margin: .25rem 0 0; }
+
+/* toolbar */
+.problem-chip { display: inline-flex; align-items: center; gap: .25rem; color: #b50909; font-weight: 700; text-decoration: none; border: 2px solid #b50909; border-radius: 999px; padding: .1rem .6rem; }
+.problem-chip:hover { background: #f8e1de; }
+.problem-chip .usa-icon { width: 1.1rem; height: 1.1rem; }
+.editor-toolbar .usa-button.is-current { box-shadow: inset 0 0 0 2px #162e51; background: #162e51; color: #fff; }
+.editor-toolbar .usa-button .usa-icon { vertical-align: -.2em; }
+.editor-layout--empty { grid-template-columns: 1fr; }
+
+/* save status: small and quiet */
+.save-status { font-size: .93rem; color: #3d4551; }
+.save-status--saving .usa-icon { animation: inv-spin 1s linear infinite; }
+@keyframes inv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .save-status--saving .usa-icon { animation: none; } }
+
+/* form messages */
+.field-note { display: block; color: #565c65; font-style: italic; margin-top: .25rem; }
+.readonly-value code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.extra-list dt { font-weight: 700; margin-top: .5rem; }
+.extra-list dd { margin-left: 0; }
+.holds { margin-top: .15rem; }
+
+/* class-valued fields: inline pick or create (no dialogs) */
+.link-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; margin-top: .5rem; }
+.link-combo { flex: 1 1 18rem; max-width: 30rem; }
+.link-combo .usa-label { margin-top: 0; font-weight: 400; }
+.link-combo__box { position: relative; }
+.link-combo__input { max-width: none !important; padding-right: 2.5rem; }
+.link-combo__caret { position: absolute; right: .5rem; bottom: .55rem; pointer-events: none; }
+.link-combo__list { position: absolute; z-index: 10; left: 0; right: 0; top: 100%; margin: 0; padding: 0; list-style: none; background: #fff; border: 1px solid #565c65; border-top: 0; max-height: 18rem; overflow-y: auto; box-shadow: 0 .25rem .5rem rgba(0,0,0,.15); }
+.link-combo__option { padding: .4rem .6rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; display: flex; flex-direction: column; }
+.link-combo__option:hover, .link-combo__option.is-active { background: #005ea2; color: #fff; }
+.link-combo__option:hover .link-combo__meta, .link-combo__option.is-active .link-combo__meta { color: #fff; }
+.link-combo__meta { font-size: .8rem; color: #565c65; }
+.link-combo__more { padding: .4rem .6rem; font-size: .87rem; color: #565c65; background: #f0f0f0; }
+.link-create { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.link-create .usa-button { margin: 0; }
+.link-add__or { color: #565c65; }
+.link-add__note { flex-basis: 100%; margin: 0; }
+.linked-obj__title { font-weight: 700; }
+.linked-obj__actions .usa-button--unstyled { margin: 0; }
+
+/* by type */
+.type-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; }
+.type-head h2 { margin: .25rem 0; }
+.type-count { font-size: .8em; color: #565c65; font-weight: 400; }
+.type-nav .type-count { float: right; font-size: .87rem; }
+.type-table th[scope="row"] { font-weight: 400; }
+.row-actions-cell { white-space: nowrap; text-align: right; }
+.icon-button { padding: .25rem; margin-left: .75rem; }
+.icon-button .usa-icon { width: 1.4rem; height: 1.4rem; vertical-align: middle; }
+
+/* start page */
+.start-cards .usa-card__container { margin-bottom: 0; }
+.file-input { padding: .4rem; height: auto; }
+.paste-input { font-family: ui-monospace, Menlo, monospace; font-size: .87rem; }
+
+/* the confirmation dialog: a native <dialog> styled like the USWDS modal (the USWDS modal
+   script would take over an element with the usa-modal class, so it is not used) */
+dialog.inv-dialog { padding: 0; border: 0; border-radius: .5rem; max-width: 36rem; width: calc(100% - 2rem); box-shadow: 0 .25rem 1rem rgba(0,0,0,.3); }
+dialog.inv-dialog::backdrop { background: rgba(0,0,0,.7); }
+.inv-dialog__main { padding: 1.5rem 2rem; }
+.inv-dialog__heading { font-family: Merriweather Web, Georgia, serif; font-size: 1.34rem; margin: 0 0 1rem; line-height: 1.2; }
+.inv-dialog__footer { margin-top: 1.5rem; }
+dialog.inv-dialog .usa-prose ul { max-height: 14rem; overflow: auto; }
+.mock-states .usa-button--unstyled { font-size: .93rem; }
+.editor-tree-pane .usa-input { max-width: 100%; }
+.type-table { width: 100%; }
+.delete-btn.usa-button--outline { color: #b50909; box-shadow: inset 0 0 0 2px #b50909; }
+.delete-btn.usa-button--outline:hover { color: #8b0a03; box-shadow: inset 0 0 0 2px #8b0a03; background: #f8e1de; }
+#view-heading:focus { outline: .25rem solid #2491ff; outline-offset: .25rem; }
+.problem-chip[hidden], .linked-to[hidden] { display: none; }

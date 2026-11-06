@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Screen map | Data.gov Inventory editor (alpha) mockup</title>
+<title>Open or start a catalog | Data.gov Inventory editor (alpha) mockup</title>
 <link rel="stylesheet" href="vendor/uswds/css/uswds.min.css">
 <link rel="stylesheet" href="assets/app.css">
 <script src="vendor/uswds/js/uswds-init.min.js"></script>
@@ -48,37 +48,118 @@
 <header class="usa-header usa-header--basic">
   <div class="usa-nav-container">
     <div class="usa-navbar">
-      <div class="usa-logo"><em class="usa-logo__text"><a href="workspace.html" title="Data.gov Inventory editor home">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
+      <div class="usa-logo"><em class="usa-logo__text"><a href="editor.html" title="Data.gov Inventory editor: your catalog">Data.gov Inventory editor</a></em> <span class="usa-tag bg-accent-cool-darker">Alpha</span></div>
       <button type="button" class="usa-menu-btn">Menu</button>
     </div>
     <nav aria-label="Primary" class="usa-nav">
       <button type="button" class="usa-nav__close"><img src="vendor/uswds/img/usa-icons/close.svg" role="img" alt="Close"></button>
       <ul class="usa-nav__primary usa-accordion">
-        <li class="usa-nav__primary-item"><a href="workspace.html" class="usa-nav-link"><span>Overview</span></a></li><li class="usa-nav__primary-item"><a href="editor/catalog.html" class="usa-nav-link"><span>Editor</span></a></li><li class="usa-nav__primary-item"><a href="check.html" class="usa-nav-link"><span>Check</span></a></li><li class="usa-nav__primary-item"><a href="export.html" class="usa-nav-link"><span>Export</span></a></li><li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li><li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
+        <li class="usa-nav__primary-item"><a href="help.html" class="usa-nav-link"><span>Help</span></a></li>
+        <li class="usa-nav__primary-item"><a href="feedback.html" class="usa-nav-link"><span>Give feedback</span></a></li>
       </ul>
     </nav>
   </div>
 </header>
-
-<div class="workspace-bar">
-  <div class="grid-container">
-    <span><span class="text-bold">Working copy:</span> Department of Example Affairs Data Catalog</span>
-    <span class="save-status save-status--saved" data-save-status role="status"><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#check_circle"></use></svg><span data-save-text>Saved in this browser at 2:41 PM</span></span>
-    <a class="usa-link" href="help.html#your-data">Where your data lives</a>
-  </div>
-</div>
-<main id="main-content">
-
+<main id="main-content" tabindex="-1">
 <div class="grid-container padding-bottom-4">
-  <h1>Screen map: Data.gov Inventory editor alpha mockups</h1>
-  <p class="usa-intro">Clickable USWDS mockups for the browser-only editor alpha (<a class="usa-link" href="https://github.com/GSA/datagov-inventory/issues/15">GSA/datagov-inventory#15</a>). Nothing here works for real: no file is read, stored, or sent.</p>
-  <div class="mock-note">This page and the dashed “Mockup only” boxes at the bottom of screens are not part of the product. Use them to jump to any screen or state.
-  All data is fictional (Department of Example Affairs). See <code>README.md</code> and <code>SPEC.md</code> in this folder for the flows, the spec, and open questions.</div>
-  <h2>Click-through flows</h2>
-  <ol class="usa-list"><li><strong>First visit, open a file:</strong> <a class="usa-link" href="start.html">start.html</a> → <a class="usa-link" href="start.html?state=progress">start.html?state=progress</a> → <a class="usa-link" href="workspace.html?state=loaded">workspace.html?state=loaded</a> → <a class="usa-link" href="editor/catalog.html">editor/catalog.html</a> → <a class="usa-link" href="editor/dataset.html">editor/dataset.html</a></li><li><strong>Start a blank catalog:</strong> <a class="usa-link" href="start.html">start.html</a> → <a class="usa-link" href="editor/catalog.html?state=blank">editor/catalog.html?state=blank</a> → <a class="usa-link" href="editor/dataset.html?state=create">editor/dataset.html?state=create</a></li><li><strong>Returning user:</strong> <a class="usa-link" href="restore.html">restore.html</a> → <a class="usa-link" href="workspace.html">workspace.html</a> → <a class="usa-link" href="editor/catalog.html">editor/catalog.html</a></li><li><strong>Reuse or create a contact:</strong> <a class="usa-link" href="editor/dataset.html">editor/dataset.html</a> → <a class="usa-link" href="editor/dataset.html?state=select">editor/dataset.html?state=select</a> → <a class="usa-link" href="editor/dataset.html?state=create">editor/dataset.html?state=create</a> → <a class="usa-link" href="editor/dataset.html?state=create-nested">editor/dataset.html?state=create-nested</a></li><li><strong>Edit a shared contact:</strong> <a class="usa-link" href="editor/dataset.html">editor/dataset.html</a> → <a class="usa-link" href="editor/contact.html?from=d5">editor/contact.html?from=d5</a> → <a class="usa-link" href="editor/dataset.html?state=copy-made">editor/dataset.html?state=copy-made</a></li><li><strong>Remove and undo:</strong> <a class="usa-link" href="editor/dataset.html?state=removed-link">editor/dataset.html?state=removed-link</a> → <a class="usa-link" href="editor/contact.html?state=delete-shared">editor/contact.html?state=delete-shared</a> → <a class="usa-link" href="editor/contact.html?state=deleted">editor/contact.html?state=deleted</a> → <a class="usa-link" href="editor/object.html?state=delete-unused">editor/object.html?state=delete-unused</a></li><li><strong>Check and fix:</strong> <a class="usa-link" href="check.html?state=running">check.html?state=running</a> → <a class="usa-link" href="check.html">check.html</a> → <a class="usa-link" href="editor/dataset-errors.html?state=errors">editor/dataset-errors.html?state=errors</a> → <a class="usa-link" href="check.html?state=stale">check.html?state=stale</a></li><li><strong>Export:</strong> <a class="usa-link" href="export.html">export.html</a> → <a class="usa-link" href="export.html?state=done">export.html?state=done</a> → <a class="usa-link" href="export.html?state=loop-error">export.html?state=loop-error</a></li><li><strong>Large catalog:</strong> <a class="usa-link" href="workspace.html?state=large">workspace.html?state=large</a> → <a class="usa-link" href="editor/list.html?state=large">editor/list.html?state=large</a> → <a class="usa-link" href="editor/dataset.html">editor/dataset.html</a></li><li><strong>Clear my data, storage problems, second tab:</strong> <a class="usa-link" href="workspace.html?state=clear-confirm">workspace.html?state=clear-confirm</a> → <a class="usa-link" href="start.html?state=cleared">start.html?state=cleared</a> → <a class="usa-link" href="editor/dataset.html?state=storage-failed">editor/dataset.html?state=storage-failed</a> → <a class="usa-link" href="in-use.html">in-use.html</a></li></ol>
-  <h2>Getting in</h2><div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map"><thead><tr><th scope="col">Screen</th><th scope="col">What it is</th><th scope="col">States</th><th scope="col">Issues</th></tr></thead><tbody><tr><th scope="row"><a class="usa-link" href="start.html">Start</a><br><code class="font-body-3xs">start.html</code></th><td>Opening screen when no working copy exists. Shows the data notice on every visit, plus three ways in: open a file, paste JSON, or start a blank catalog.</td><td><a class="usa-link" href="start.html?state=progress">opening a large file</a>, <a class="usa-link" href="start.html?state=too-large">file too large</a>, <a class="usa-link" href="start.html?state=not-json">not JSON</a>, <a class="usa-link" href="start.html?state=no-dcat">no DCAT-US 3.0 class</a>, <a class="usa-link" href="start.html?state=dcat-11">data.json 1.1 refused</a>, <a class="usa-link" href="start.html?state=replace-confirm">replace working copy dialog</a>, <a class="usa-link" href="start.html?state=cleared">after Clear my data</a></td><td>#21, #32, #28</td></tr><tr><th scope="row"><a class="usa-link" href="paste.html">Paste JSON</a><br><code class="font-body-3xs">paste.html</code></th><td>Load pasted text through the same path as a file.</td><td><a class="usa-link" href="paste.html?state=not-json">not JSON</a>, <a class="usa-link" href="paste.html?state=no-dcat">no DCAT class</a>, <a class="usa-link" href="paste.html?state=progress">building objects</a>, <a class="usa-link" href="paste.html?state=replace-confirm">replace dialog</a></td><td>#21</td></tr><tr><th scope="row"><a class="usa-link" href="restore.html">Continue where you left off?</a><br><code class="font-body-3xs">restore.html</code></th><td>Shown on return when this browser holds a working copy. Nothing is restored silently.</td><td><a class="usa-link" href="restore.html?state=discard-confirm">discard dialog</a>, <a class="usa-link" href="restore.html?state=restoring">restoring</a>, <a class="usa-link" href="restore.html?state=unreadable">saved copy unreadable</a></td><td>#28</td></tr><tr><th scope="row"><a class="usa-link" href="in-use.html">Open in another tab</a><br><code class="font-body-3xs">in-use.html</code></th><td>Second-tab lock.</td><td>—</td><td>#28</td></tr></tbody></table></div><h2>Hub</h2><div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map"><thead><tr><th scope="col">Screen</th><th scope="col">What it is</th><th scope="col">States</th><th scope="col">Issues</th></tr></thead><tbody><tr><th scope="row"><a class="usa-link" href="workspace.html">Overview (dashboard)</a><br><code class="font-body-3xs">workspace.html</code></th><td>Home once a catalog is loaded: catalog summary, objects by type, check status, save status, and actions. The load summary is a state of this page.</td><td><a class="usa-link" href="workspace.html?state=loaded">just loaded (load summary)</a>, <a class="usa-link" href="workspace.html?state=stale-check">check results out of date</a>, <a class="usa-link" href="workspace.html?state=storage-failed">storage unavailable</a>, <a class="usa-link" href="workspace.html?state=clear-confirm">Clear my data dialog</a>, <a class="usa-link" href="workspace.html?state=large">large catalog, 3,214 datasets</a>, <a class="usa-link" href="workspace.html?state=empty">no catalog open</a></td><td>#21, #27, #28</td></tr></tbody></table></div><h2>Editor</h2><div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map"><thead><tr><th scope="col">Screen</th><th scope="col">What it is</th><th scope="col">States</th><th scope="col">Issues</th></tr></thead><tbody><tr><th scope="row"><a class="usa-link" href="editor/catalog.html">Editor: Catalog</a><br><code class="font-body-3xs">editor/catalog.html</code></th><td>Tree on the left (by catalog structure or by type, with a filter), the catalog&#x27;s schema-generated form on the right.</td><td><a class="usa-link" href="editor/catalog.html?state=blank">blank catalog</a>, <a class="usa-link" href="editor/catalog.html?state=deleted-dataset">after deleting a dataset, with undo</a>, <a class="usa-link" href="editor/catalog.html?state=storage-failed">storage unavailable</a></td><td>#21, #23, #24</td></tr><tr><th scope="row"><a class="usa-link" href="editor/list.html">Editor: Datasets list</a><br><code class="font-body-3xs">editor/list.html</code></th><td>Every dataset in a table. The large variant shows 3,214 datasets with pagination and a tree that loads 50 at a time.</td><td><a class="usa-link" href="editor/list.html?state=large">large catalog</a></td><td>#23, #29</td></tr><tr><th scope="row"><a class="usa-link" href="editor/dataset.html">Editor: Dataset</a><br><code class="font-body-3xs">editor/dataset.html</code></th><td>The main editing form (Grants to Local Partners): linked contact used in 5 places, multi-value keywords, distributions, frequency.</td><td><a class="usa-link" href="editor/dataset.html?state=select">select existing contact dialog</a>, <a class="usa-link" href="editor/dataset.html?state=create">create new contact dialog</a>, <a class="usa-link" href="editor/dataset.html?state=create-nested">nested create with breadcrumb</a>, <a class="usa-link" href="editor/dataset.html?state=copy-made">after Edit a copy for this one</a>, <a class="usa-link" href="editor/dataset.html?state=removed-link">after removing a link, with undo</a>, <a class="usa-link" href="editor/dataset.html?state=storage-failed">storage unavailable</a></td><td>#24, #25, #26, #28</td></tr><tr><th scope="row"><a class="usa-link" href="editor/dataset-errors.html">Editor: Dataset with problems</a><br><code class="font-body-3xs">editor/dataset-errors.html</code></th><td>Regional Bridge Condition Ratings with advisory-check problems next to the fields and in a summary.</td><td><a class="usa-link" href="editor/dataset-errors.html?state=errors">problems shown</a></td><td>#27</td></tr><tr><th scope="row"><a class="usa-link" href="editor/distribution.html">Editor: Distribution</a><br><code class="font-body-3xs">editor/distribution.html</code></th><td>A class with no required fields. Download URL and Media type are promoted. Shows a web address problem.</td><td><a class="usa-link" href="editor/distribution.html?state=errors">problems shown</a></td><td>#23, #24, #27</td></tr><tr><th scope="row"><a class="usa-link" href="editor/dataservice.html">Editor: Data service</a><br><code class="font-body-3xs">editor/dataservice.html</code></th><td>Endpoint URLs (multi-value), datasets served (select existing), and a publisher that takes an Agent.</td><td>—</td><td>#24, #25</td></tr><tr><th scope="row"><a class="usa-link" href="editor/series.html">Editor: Dataset series</a><br><code class="font-body-3xs">editor/series.html</code></th><td>The series IRI as a field, and ordered series members.</td><td>—</td><td>#24</td></tr><tr><th scope="row"><a class="usa-link" href="editor/contact.html">Editor: Contact (shared)</a><br><code class="font-body-3xs">editor/contact.html</code></th><td>OSS Data Help Desk, used in 5 places: usage list, “changes apply to all”, deleting a shared object.</td><td><a class="usa-link" href="editor/contact.html?state=delete-shared">delete shared object dialog</a>, <a class="usa-link" href="editor/contact.html?state=deleted">after delete, with undo</a></td><td>#25, #26</td></tr><tr><th scope="row"><a class="usa-link" href="editor/contact.html?from=d5">Editor: Contact reached from a field</a><br><code class="font-body-3xs">editor/contact.html?from=d5</code></th><td>Same contact opened from a dataset&#x27;s Contact point field, which offers “Edit a copy for this one”.</td><td>—</td><td>#25</td></tr><tr><th scope="row"><a class="usa-link" href="editor/contact-bridge.html">Editor: Contact with a problem</a><br><code class="font-body-3xs">editor/contact-bridge.html</code></th><td>Bridge Program Office: email without mailto:.</td><td><a class="usa-link" href="editor/contact-bridge.html?state=errors">problems shown</a></td><td>#27</td></tr><tr><th scope="row"><a class="usa-link" href="editor/organization.html">Editor: Organization</a><br><code class="font-body-3xs">editor/organization.html</code></th><td>Office of Sample Statistics, publisher used in 10 places.</td><td>—</td><td>#25</td></tr><tr><th scope="row"><a class="usa-link" href="editor/object.html">Editor: any other class (Location)</a><br><code class="font-body-3xs">editor/object.html</code></th><td>The generic renderer for any class, on a Location used nowhere. Delete an unused object.</td><td><a class="usa-link" href="editor/object.html?state=delete-unused">delete dialog</a>, <a class="usa-link" href="editor/object.html?state=deleted">after delete</a></td><td>#19, #24, #26</td></tr></tbody></table></div><h2>Check and export</h2><div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map"><thead><tr><th scope="col">Screen</th><th scope="col">What it is</th><th scope="col">States</th><th scope="col">Issues</th></tr></thead><tbody><tr><th scope="row"><a class="usa-link" href="check.html">Check results</a><br><code class="font-body-3xs">check.html</code></th><td>Whole-catalog advisory check, grouped by type, each problem linked to its field.</td><td><a class="usa-link" href="check.html?state=not-run">not run</a>, <a class="usa-link" href="check.html?state=running">running</a>, <a class="usa-link" href="check.html?state=stale">out of date</a>, <a class="usa-link" href="check.html?state=clean">no problems</a></td><td>#27, #9, #32</td></tr><tr><th scope="row"><a class="usa-link" href="export.html">Export</a><br><code class="font-body-3xs">export.html</code></th><td>Build and download the DCAT-US 3.0 file. Shows the problem summary first and explains shared objects once.</td><td><a class="usa-link" href="export.html?state=clean">no problems</a>, <a class="usa-link" href="export.html?state=exporting">building</a>, <a class="usa-link" href="export.html?state=done">downloaded</a>, <a class="usa-link" href="export.html?state=loop-error">loop in links</a></td><td>#22, #27</td></tr></tbody></table></div><h2>Help</h2><div class="usa-table-container--scrollable" tabindex="0"><table class="usa-table usa-table--borderless screen-map"><thead><tr><th scope="col">Screen</th><th scope="col">What it is</th><th scope="col">States</th><th scope="col">Issues</th></tr></thead><tbody><tr><th scope="row"><a class="usa-link" href="help.html">Help</a><br><code class="font-body-3xs">help.html</code></th><td>About the alpha, what is not in it, where your data lives, the advisory check, known limits, keyboard use, and custom parts.</td><td>—</td><td>#32, #29, #30</td></tr><tr><th scope="row"><a class="usa-link" href="feedback.html">Give feedback</a><br><code class="font-body-3xs">feedback.html</code></th><td>Warning not to paste sensitive data, then links to a GitHub issue form or email.</td><td>—</td><td>#32</td></tr><tr><th scope="row"><a class="usa-link" href="404.html">Page not found</a><br><code class="font-body-3xs">404.html</code></th><td>Bad link.</td><td>—</td><td></td></tr></tbody></table></div>
-</div>
+  <h1>Open or start a DCAT-US 3.0 catalog</h1>
+  <p class="usa-intro">Edit a DCAT-US 3.0 catalog in your browser: browse it, fix it, check it against the schema, and download the result.</p>
 
+  <div id="start-alerts"></div>
+
+  <div class="usa-alert usa-alert--info margin-bottom-3">
+    <div class="usa-alert__body">
+      <h2 class="usa-alert__heading">Your catalog stays in this browser</h2>
+      <p class="usa-alert__text">Files you open are not uploaded, and nothing you enter is sent anywhere. The editor keeps your working copy in this browser on this device only. It is not backed up, and it is lost if you clear this browser’s site data. To keep your work, export it. <a class="usa-link" href="help.html#your-data">More about where your data lives</a></p>
+    </div>
+  </div>
+
+  <section id="resume" class="usa-summary-box margin-bottom-4" aria-labelledby="resume-h" hidden>
+    <div class="usa-summary-box__body">
+      <h2 class="usa-summary-box__heading" id="resume-h">Continue where you left off?</h2>
+      <div class="usa-summary-box__text">
+        <p>You have a working copy of <strong id="resume-title"></strong> in this browser: <span id="resume-counts"></span>. Last saved <span id="resume-saved"></span>.</p>
+        <ul class="usa-button-group">
+          <li class="usa-button-group__item"><a class="usa-button" href="editor.html#/">Continue editing</a></li>
+          <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--outline" id="resume-download">Download it first</button></li>
+          <li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105" id="resume-discard">Discard it</button></li>
+        </ul>
+        <p class="margin-bottom-0">Opening another catalog replaces this working copy. You will be asked first.</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="progress-box" class="margin-bottom-3" hidden>
+    <p class="text-bold margin-bottom-05" id="progress-label">Opening…</p>
+    <progress id="progress" max="100" value="0" aria-labelledby="progress-label"></progress>
+    <p class="usa-hint" id="progress-text" role="status"></p>
+  </div>
+
+  <h2>Open a catalog</h2>
+  <ul class="usa-card-group start-cards">
+    <li class="usa-card tablet:grid-col-6">
+      <div class="usa-card__container">
+        <div class="usa-card__header"><h3 class="usa-card__heading">Import from a file</h3></div>
+        <div class="usa-card__body">
+          <div class="usa-form-group margin-top-0">
+            <label class="usa-label margin-top-0" for="file-input">Choose a .json file</label>
+            <span class="usa-hint" id="file-hint">DCAT-US 3.0 JSON only. Up to 50 MB. The file is read in your browser and never uploaded.</span>
+            <input class="usa-input file-input" id="file-input" type="file" accept=".json,application/json" aria-describedby="file-hint">
+          </div>
+        </div>
+        <div class="usa-card__footer"><button type="button" class="usa-button" id="open-file">Open file</button></div>
+      </div>
+    </li>
+    <li class="usa-card tablet:grid-col-6">
+      <div class="usa-card__container">
+        <div class="usa-card__header"><h3 class="usa-card__heading">Paste JSON</h3></div>
+        <div class="usa-card__body">
+          <label class="usa-label margin-top-0" for="paste-input">Paste the text of a DCAT-US 3.0 catalog</label>
+          <textarea class="usa-textarea paste-input" id="paste-input" rows="4" spellcheck="false"></textarea>
+        </div>
+        <div class="usa-card__footer"><button type="button" class="usa-button" id="open-paste">Load pasted JSON</button></div>
+      </div>
+    </li>
+    <li class="usa-card tablet:grid-col-6">
+      <div class="usa-card__container">
+        <div class="usa-card__header"><h3 class="usa-card__heading">Import from a web address</h3></div>
+        <div class="usa-card__body">
+          <label class="usa-label margin-top-0" for="url-input">Address of a DCAT-US 3.0 JSON file</label>
+          <span class="usa-hint" id="url-hint">For example, your agency’s published catalog file.</span>
+          <input class="usa-input" id="url-input" type="url" inputmode="url" placeholder="https://www.example.gov/data.json" aria-describedby="url-hint url-note">
+          <p class="mock-note" id="url-note">Mockup: no request is made; the sample catalog loads instead. Fetching a URL sends a request from the browser, which conflicts with the epic’s “nothing is sent anywhere” promise and its CSP. It is an open question in SPEC.md.</p>
+        </div>
+        <div class="usa-card__footer"><button type="button" class="usa-button" id="open-url">Import from address</button></div>
+      </div>
+    </li>
+    <li class="usa-card tablet:grid-col-6">
+      <div class="usa-card__container">
+        <div class="usa-card__header"><h3 class="usa-card__heading">Start from scratch</h3></div>
+        <div class="usa-card__body"><p>Start with a blank catalog and add datasets one by one. It opens the same way as a file, just with nothing in it.</p></div>
+        <div class="usa-card__footer"><button type="button" class="usa-button usa-button--outline" id="open-blank">Start from scratch</button></div>
+      </div>
+    </li>
+  </ul>
+
+  <h2 class="margin-top-4">What the alpha can open</h2>
+  <ul>
+    <li>DCAT-US 3.0 JSON only. data.json (DCAT-US 1.1) files are refused with a message; DCAT-US 1.1 is not translated.</li>
+    <li>Files with problems still open. The advisory check marks the problems so you can fix them; it never blocks.</li>
+  </ul>
+
+  <section class="mock-states" aria-labelledby="mock-h">
+    <h2 id="mock-h">Mockup only: sample data</h2>
+    <p class="margin-top-0">These load through the same import path as a file.</p>
+    <ul>
+      <li><button type="button" class="usa-button usa-button--unstyled" data-sample="small">Load the 9-dataset sample (4 prepared problems)</button></li>
+      <li><button type="button" class="usa-button usa-button--unstyled" data-sample="large">Load a generated catalog with 2,000 datasets (about the size of the Department of Justice’s)</button></li>
+      <li><button type="button" class="usa-button usa-button--unstyled" data-download-large>Download the generated 2,000-dataset file</button></li>
+      <li><button type="button" class="usa-button usa-button--unstyled" data-paste-example="bad-json">Paste text that is not JSON</button></li>
+      <li><button type="button" class="usa-button usa-button--unstyled" data-paste-example="dcat11">Paste a data.json (DCAT-US 1.1) file</button></li>
+      <li><button type="button" class="usa-button usa-button--unstyled" data-paste-example="broken">Paste a broken 3.0 catalog (it still loads)</button></li>
+    </ul>
+  </section>
+</div>
 </main>
 <footer class="usa-footer usa-footer--slim">
   <div class="grid-container usa-footer__return-to-top"><a href="#">Return to top</a></div>
@@ -90,7 +171,7 @@
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html">Help</a></li>
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="help.html#your-data">Where your data lives</a></li>
             <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="feedback.html">Give feedback</a></li>
-            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><a class="usa-footer__primary-link" href="#clear-modal" aria-controls="clear-modal" data-open-modal>Clear my data from this browser</a></li>
+            <li class="mobile-lg:grid-col-6 desktop:grid-col-auto usa-footer__primary-content"><button type="button" class="usa-footer__primary-link usa-button usa-button--unstyled" data-clear-data>Clear my data from this browser</button></li>
           </ul>
         </nav>
       </div>
@@ -99,8 +180,8 @@
   <div class="usa-footer__secondary-section">
     <div class="grid-container">
       <p class="font-body-2xs margin-0">Advisory check uses a copy of the DCAT-US 3.0 schema (GSA/dcat-us, version of October 7, 2026, commit 4996591). It is not the official Data.gov validator.
-      No catalog content leaves this browser. Editor alpha 0.1.0 (mockup).</p>
-      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="index.html">Mockup screen map</a></p>
+      No catalog content leaves this browser. Editor alpha 0.2.0 (mockup).</p>
+      <p class="font-body-2xs margin-top-1 margin-bottom-0"><a class="usa-link" href="screens.html">Mockup screen and route map</a></p>
     </div>
   </div>
 </footer>
@@ -133,22 +214,20 @@
     </div>
   </section>
 </div>
-<div id="mock-status" class="usa-sr-only" role="status" aria-live="polite"></div>
+<div id="announcer" class="usa-sr-only" aria-live="polite" aria-atomic="true"></div>
 
-<div class="usa-modal" id="clear-modal" aria-labelledby="clear-modal-heading" aria-describedby="clear-modal-desc">
-  <div class="usa-modal__content">
-    <div class="usa-modal__main">
-      <h2 class="usa-modal__heading" id="clear-modal-heading">Clear your data from this browser?</h2>
-      <div class="usa-prose">
-<p id="clear-modal-desc">This deletes your working copy of <em>Department of Example Affairs Data Catalog</em> from this browser on this device.
-It is not backed up anywhere, so you cannot get it back. Export the catalog first if you want to keep it.</p></div>
-      <div class="usa-modal__footer"><ul class="usa-button-group"><li class="usa-button-group__item"><a href="export.html" class="usa-button usa-button--outline">Export first</a></li><li class="usa-button-group__item"><a href="start.html?state=cleared" class="usa-button usa-button--secondary">Clear my data</a></li><li class="usa-button-group__item"><button type="button" class="usa-button usa-button--unstyled padding-105 text-center" data-close-modal>Cancel</button></li></ul></div>
-    </div>
-    <button type="button" class="usa-button usa-modal__close" aria-label="Close this window" data-close-modal><svg class="usa-icon" aria-hidden="true" focusable="false" role="img"><use href="vendor/uswds/img/sprite.svg#close"></use></svg></button>
+<dialog class="inv-dialog" id="confirm-dialog" aria-labelledby="confirm-heading" aria-describedby="confirm-body">
+  <div class="inv-dialog__main">
+    <h2 class="inv-dialog__heading" id="confirm-heading"></h2>
+    <div class="usa-prose" id="confirm-body"></div>
+    <div class="inv-dialog__footer"><ul class="usa-button-group" id="confirm-buttons"></ul></div>
   </div>
-</div>
-
+</dialog>
 <script src="vendor/uswds/js/uswds.min.js"></script>
-<script src="assets/mock.js"></script>
+<script src="assets/schema.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/frame.js"></script>
+<script src="assets/samples.js"></script>
+<script src="assets/start.js"></script>
 </body>
 </html>
