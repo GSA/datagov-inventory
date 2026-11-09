@@ -24,12 +24,19 @@
         "@type": "Organization",
         "name": "Example Agency"
       },
-      "keyword": ["air quality", "monitoring"],
-      "theme": ["Environment"],
+      "keyword": [
+        "air quality",
+        "monitoring"
+      ],
+      "theme": [
+        "Environment"
+      ],
       "issued": "2024-01-15",
       "modified": "2025-06-30T12:00:00Z",
       "accrualPeriodicity": "daily",
-      "language": ["en"],
+      "language": [
+        "en"
+      ],
       "temporal": [
         {
           "@type": "PeriodOfTime",

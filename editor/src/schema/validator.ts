@@ -1,14 +1,16 @@
 /**
  * A JSON Schema 2020-12 validator for whole DCAT-US 3.0 documents, used by the fixture tests.
- * Formats follow upstream's Python checks closely but not exactly (e.g. Python's `\w` also
- * matches non-ASCII letters), so treat a result as advisory, not the official validator's.
+ * Formats and patterns follow upstream's Python checks closely but not exactly (e.g. in
+ * patterns Python's `\w` also matches non-ASCII letters), so treat a result as advisory.
+ * Test-only as built: Ajv compiles with `new Function`, which the production CSP
+ * (`script-src 'self'`) blocks, so the browser check (#27) needs a precompiled validator.
  */
 import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 import { fullFormats } from 'ajv-formats/dist/formats'
 import { classSchemas, rootSchema } from '.'
 
-const { uri: isUri, 'date-time': dateTime } = fullFormats as unknown as {
+const { uri: isUri, 'date-time': dateTime } = fullFormats as {
   uri: (value: string) => boolean
   'date-time': { validate: (value: string) => boolean }
 }

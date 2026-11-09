@@ -45,7 +45,7 @@ if (command === 'update' && ref) {
   const record = pin('FETCH_HEAD')
   git('checkout', '--quiet', '--detach', 'FETCH_HEAD')
   writeFileSync(pinFile, record)
-  console.log(`Pinned GSA/dcat-us at ${git('rev-parse', 'HEAD')}. Commit editor/schema/dcat-us and dcat-us.pin.json.`)
+  console.log(`Pinned GSA/dcat-us at ${git('rev-parse', 'HEAD')}. Commit editor/schema/dcat-us and editor/schema/dcat-us.pin.json.`)
 } else if (command === 'check') {
   const expected = pin('HEAD')
   if (readFileSync(pinFile, 'utf8') !== expected) {
