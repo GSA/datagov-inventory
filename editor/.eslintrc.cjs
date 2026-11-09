@@ -14,10 +14,10 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
-    'no-restricted-properties': [
+    'no-restricted-syntax': [
       'error',
       {
-        property: 'dangerouslySetInnerHTML',
+        selector: 'JSXAttribute[name.name="dangerouslySetInnerHTML"]',
         message: 'dangerouslySetInnerHTML is banned per SI-15 control',
       },
     ],
