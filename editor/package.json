@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@trussworks/react-uswds": "^8.1.0",
+    "@trussworks/react-uswds": "^13.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
