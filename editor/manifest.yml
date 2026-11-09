@@ -1,0 +1,12 @@
+---
+# Deployed by .github/workflows/deploy-editor.yml, which builds dist/ into cf/public/ first.
+applications:
+  - name: inventory-editor
+    buildpacks:
+      - nginx_buildpack
+    path: cf
+    memory: 64M
+    health-check-type: http
+    health-check-http-endpoint: /
+    routes:
+      - route: inventory-editor-dev-datagov.app.cloud.gov
