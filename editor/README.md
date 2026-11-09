@@ -12,6 +12,8 @@ npm run dev
 
 App runs at http://localhost:5173
 
+**Hot Module Replacement (HMR):** The dev server automatically watches for file changes and updates the browser instantly. Edit any file in `src/` and see changes live without manual refresh.
+
 ## Architecture
 
 - **Framework**: React 18 + TypeScript 5
@@ -24,11 +26,21 @@ App runs at http://localhost:5173
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start dev server at http://localhost:5173 |
+| `npm run dev` | Start dev server with HMR at http://localhost:5173 |
 | `npm run build` | Production build (runs typecheck + lint + vite build) |
 | `npm run preview` | Preview production build at http://localhost:4173 |
 | `npm run lint` | Run ESLint |
 | `npm run typecheck` | Run TypeScript type checking |
+
+## Development Workflow
+
+1. **Start dev server**: `npm run dev`
+2. **Open browser**: http://localhost:5173
+3. **Edit files**: Make changes to any file in `src/`
+4. **See changes instantly**: Browser updates automatically (HMR)
+5. **Check for errors**: Terminal shows TypeScript/lint errors in real-time
+
+**HMR preserves state:** React component state is preserved during hot updates, so you don't lose form inputs or UI state when editing.
 
 ## Security Controls
 
