@@ -57,7 +57,7 @@ jobs:
       - name: Smoke test
         run: |
           check() { # url, then header patterns that must all be present
-            headers=$(curl -fsS --retry 3 --retry-all-errors -o /dev/null -D - "$1")
+            headers=$(curl -fsS --compressed --retry 3 --retry-all-errors -o /dev/null -D - "$1")
             echo "== $1"; echo "$headers"
             shift
             for h in "$@"; do grep -qi "^$h" <<<"$headers" || { echo "missing: $h"; exit 1; }; done
@@ -70,4 +70,5 @@ jobs:
           done
           asset=$(curl -fsS "$APP_URL/" | grep -oE '/assets/[^"]+\.js' | head -1)
           test -n "$asset"
-          check "$APP_URL$asset" 'content-type: text/javascript' 'cache-control: .*immutable'
+          check "$APP_URL$asset" 'content-type: text/javascript' 'cache-control: .*immutable' \
+            'content-encoding: gzip' 'vary: accept-encoding'
