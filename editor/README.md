@@ -124,7 +124,7 @@ test('page is accessible', async ({ page }) => {
 GitHub Actions runs all checks on every push:
 - **lint**: ESLint checks
 - **typecheck**: TypeScript compilation
-- **test**: Vitest unit tests
+- **test**: Vitest unit tests and the DCAT-US schema pin check (`schema:check`)
 - **build**: Production build
 - **test-browser**: Playwright browser tests with accessibility
 - **audit**: npm security audit

@@ -4,8 +4,9 @@ The editor reads the DCAT-US 3.0 JSON Schema definitions from
 [GSA/dcat-us](https://github.com/GSA/dcat-us), pinned to one commit
 ([ADR 0010](../../docs/decisions/0010-depend-on-upstream-dcat-us-code.md)).
 
-- `dcat-us/`: git submodule of GSA/dcat-us. Only `jsonschema/definitions/*.json` is read,
-  as data. No upstream code is run. Fix definitions upstream, never here.
+- `dcat-us/`: git submodule of GSA/dcat-us. Only `jsonschema/definitions/*.json` (and
+  `LICENSE.md`, by the pin script) is read, as data. No upstream code is run. Fix
+  definitions upstream, never here.
 - `dcat-us.pin.json`: the pinned commit, its date, and the upstream licence.
 - `dcat-us-document.schema.json`: the root schema for a whole document.
 
