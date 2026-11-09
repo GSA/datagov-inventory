@@ -7,7 +7,7 @@ const load = (files: Record<string, unknown>) =>
 const valid = load(import.meta.glob('../../fixtures/catalogs/valid/*.json', { eager: true, import: 'default' }))
 const invalid = load(import.meta.glob('../../fixtures/catalogs/invalid/*.json', { eager: true, import: 'default' }))
 
-/** The one error each invalid fixture is meant to raise; every error must sit under `scope` (default: the error's path). */
+/** The one error each invalid fixture is meant to raise; every error must sit at that path, or within `scope`. */
 const expectedErrors: Record<string, { instancePath: string; keyword: string; scope?: string }> = {
   'missing-dataset.json': { instancePath: '', keyword: 'required' },
   'dataset-not-an-array.json': { instancePath: '/dataset', keyword: 'type' },
@@ -19,6 +19,7 @@ const expectedErrors: Record<string, { instancePath: string; keyword: string; sc
     scope: '/dataset/0/contactPoint',
   },
   'issued-not-a-date.json': { instancePath: '/dataset/0/issued', keyword: 'format' },
+  'modified-date-time-without-t.json': { instancePath: '/dataset/0/modified', keyword: 'format' },
   'unknown-accrual-periodicity.json': { instancePath: '/dataset/0/accrualPeriodicity', keyword: 'enum' },
   'distribution-download-url-not-an-iri.json': {
     instancePath: '/dataset/0/distribution/0/downloadURL',
@@ -38,10 +39,12 @@ describe('fixture catalogs', () => {
   })
 
   it.each(invalid)('%s fails in the expected way', (name, catalog) => {
-    const { instancePath, keyword, scope = instancePath } = expectedErrors[name]
+    const { instancePath, keyword, scope } = expectedErrors[name]
+    const inScope = (path: string) =>
+      path === instancePath || (scope !== undefined && (path === scope || path.startsWith(`${scope}/`)))
     expect(validateDocument(catalog)).toBe(false)
     const errors = validateDocument.errors ?? []
     expect(errors).toContainEqual(expect.objectContaining({ instancePath, keyword }))
-    expect(errors.filter((e) => !e.instancePath.startsWith(scope))).toEqual([])
+    expect(errors.filter((e) => !inScope(e.instancePath))).toEqual([])
   })
 })

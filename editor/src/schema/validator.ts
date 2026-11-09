@@ -1,10 +1,17 @@
-/** A JSON Schema 2020-12 validator for whole DCAT-US 3.0 documents, used by the fixture tests. */
+/**
+ * A JSON Schema 2020-12 validator for whole DCAT-US 3.0 documents, used by the fixture tests.
+ * Formats follow upstream's Python checks closely but not exactly (e.g. Python's `\w` also
+ * matches non-ASCII letters), so treat a result as advisory, not the official validator's.
+ */
 import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 import { fullFormats } from 'ajv-formats/dist/formats'
 import { classSchemas, rootSchema } from '.'
 
-const isUri = fullFormats.uri as (value: string) => boolean
+const { uri: isUri, 'date-time': dateTime } = fullFormats as unknown as {
+  uri: (value: string) => boolean
+  'date-time': { validate: (value: string) => boolean }
+}
 
 const ajv = new Ajv2020({
   allErrors: true,
@@ -15,7 +22,9 @@ const ajv = new Ajv2020({
 })
 // Upstream keywords that document properties rather than constrain them.
 ajv.addVocabulary(['requirementLevel', '_oldDocs'])
-addFormats(ajv, ['date', 'date-time'])
+addFormats(ajv, ['date'])
+// Upstream's checker (RFC 3339) also needs a `T`, seconds below 60, and a `Z` or `±hh:mm` offset.
+ajv.addFormat('date-time', (value: string) => /T\d\d:\d\d:[0-5]\d(\.\d+)?(Z|[+-]\d\d:\d\d)$/i.test(value) && dateTime.validate(value))
 // An IRI is a URI that may also hold non-ASCII characters: stand in an escape for each, then check as a URI.
 ajv.addFormat('iri', (value: string) => isUri(value.replace(/\P{ASCII}/gu, '%80')))
 ajv.addSchema([...classSchemas.values(), rootSchema])

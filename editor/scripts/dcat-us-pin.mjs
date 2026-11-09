@@ -7,25 +7,27 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
+const repo = new URL('../../', import.meta.url)
 const sub = new URL('../schema/dcat-us/', import.meta.url)
 const pinFile = new URL('../schema/dcat-us.pin.json', import.meta.url)
 
-const git = (...args) => execFileSync('git', args, { cwd: sub, encoding: 'utf8' }).trim()
+const run = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+const git = (...args) => run(sub, ...args)
 const fail = (message) => {
   console.error(message)
   process.exit(1)
 }
 
-/** The pin record for the submodule's checked-out commit. */
-function pin() {
+/** The pin record for a commit, read from git objects rather than the working tree. */
+function pin(rev) {
   // A licence change upstream must be reviewed by a person, not recorded silently.
-  if (!readFileSync(new URL('LICENSE.md', sub), 'utf8').includes('CC0 1.0 Universal')) {
+  if (!git('show', `${rev}:LICENSE.md`).includes('CC0 1.0 Universal')) {
     fail('dcat-us LICENSE.md is no longer CC0 1.0. Review the new licence before pinning.')
   }
   const record = {
-    repository: 'https://github.com/GSA/dcat-us',
-    commit: git('rev-parse', 'HEAD'),
-    date: git('log', '-1', '--format=%cI'),
+    repository: run(repo, 'config', '-f', '.gitmodules', 'submodule.editor/schema/dcat-us.url'),
+    commit: git('rev-parse', `${rev}^{commit}`),
+    date: git('log', '-1', '--format=%cI', rev),
     licence: 'CC0-1.0',
   }
   return JSON.stringify(record, null, 2) + '\n'
@@ -36,13 +38,16 @@ const [command, ref] = process.argv.slice(2)
 if (!existsSync(new URL('jsonschema/definitions', sub))) {
   fail('The dcat-us submodule is not checked out. Run: git submodule update --init')
 }
+if (git('status', '--porcelain')) fail('editor/schema/dcat-us has local changes. Discard them first.')
+
 if (command === 'update' && ref) {
-  git('fetch', '--quiet', 'origin', ref)
+  git('fetch', '--quiet', 'origin', '--end-of-options', ref)
+  const record = pin('FETCH_HEAD')
   git('checkout', '--quiet', '--detach', 'FETCH_HEAD')
-  writeFileSync(pinFile, pin())
+  writeFileSync(pinFile, record)
   console.log(`Pinned GSA/dcat-us at ${git('rev-parse', 'HEAD')}. Commit editor/schema/dcat-us and dcat-us.pin.json.`)
 } else if (command === 'check') {
-  const expected = pin()
+  const expected = pin('HEAD')
   if (readFileSync(pinFile, 'utf8') !== expected) {
     fail(`editor/schema/dcat-us.pin.json does not match the submodule. Expected:\n${expected}`)
   }
