@@ -1,0 +1,60 @@
+{
+  "@type": "Catalog",
+  "title": "Example Agency Catalog",
+  "description": "A catalog with one dataset that has recommended properties and distributions.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Example Agency"
+  },
+  "dataset": [
+    {
+      "@id": "https://example.gov/datasets/air-quality",
+      "@type": "Dataset",
+      "title": "Air quality readings",
+      "description": "Hourly readings from example monitoring stations.",
+      "contactPoint": [
+        {
+          "@type": "Kind",
+          "fn": "Air Quality Team",
+          "hasEmail": "mailto:air@example.gov"
+        }
+      ],
+      "identifier": "example-air-quality",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Example Agency"
+      },
+      "keyword": ["air quality", "monitoring"],
+      "theme": ["Environment"],
+      "issued": "2024-01-15",
+      "modified": "2025-06-30T12:00:00Z",
+      "accrualPeriodicity": "daily",
+      "language": ["en"],
+      "temporal": [
+        {
+          "@type": "PeriodOfTime",
+          "startDate": "2020",
+          "endDate": "2025-06"
+        }
+      ],
+      "distribution": [
+        {
+          "@type": "Distribution",
+          "title": "Readings as CSV",
+          "downloadURL": "https://example.gov/data/air-quality.csv",
+          "mediaType": "text/csv",
+          "checksum": {
+            "@type": "Checksum",
+            "algorithm": "sha256",
+            "checksumValue": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+          }
+        },
+        {
+          "@type": "Distribution",
+          "title": "Readings API",
+          "accessURL": "https://example.gov/api/air-quality"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Dataset with a bad contact email",
+      "description": "Kind.hasEmail must be a mailto: address.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/bad-email"
+    }
+  ]
+}
