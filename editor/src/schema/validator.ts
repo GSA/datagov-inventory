@@ -1,7 +1,4 @@
-/**
- * A JSON Schema 2020-12 validator for whole DCAT-US 3.0 documents, for tests.
- * Product validation goes through the Data.gov validator API (ADR 0010).
- */
+/** A JSON Schema 2020-12 validator for whole DCAT-US 3.0 documents, used by the fixture tests. */
 import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 import { fullFormats } from 'ajv-formats/dist/formats'
@@ -19,9 +16,8 @@ const ajv = new Ajv2020({
 // Upstream keywords that document properties rather than constrain them.
 ajv.addVocabulary(['requirementLevel', '_oldDocs'])
 addFormats(ajv, ['date', 'date-time'])
-// An IRI is a URI that may hold non-ASCII characters; percent-encode them, then check as a URI.
-// eslint-disable-next-line no-control-regex
-ajv.addFormat('iri', (value: string) => isUri(value.replace(/[^\x00-\x7f]+/g, encodeURIComponent)))
+// An IRI is a URI that may also hold non-ASCII characters: stand in an escape for each, then check as a URI.
+ajv.addFormat('iri', (value: string) => isUri(value.replace(/\P{ASCII}/gu, '%80')))
 ajv.addSchema([...classSchemas.values(), rootSchema])
 
 /** Validates a whole document against the root schema; errors are on `validateDocument.errors`. */

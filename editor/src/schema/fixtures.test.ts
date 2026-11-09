@@ -12,6 +12,7 @@ const expectedErrors: Record<string, { instancePath: string; keyword: string; sc
   'missing-dataset.json': { instancePath: '', keyword: 'required' },
   'dataset-not-an-array.json': { instancePath: '/dataset', keyword: 'type' },
   'dataset-missing-title.json': { instancePath: '/dataset/0', keyword: 'required' },
+  // contactPoint is Kind or Kind[], so Ajv also reports type and anyOf errors at contactPoint.
   'contact-email-not-mailto.json': {
     instancePath: '/dataset/0/contactPoint/hasEmail',
     keyword: 'pattern',

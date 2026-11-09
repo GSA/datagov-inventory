@@ -15,6 +15,7 @@ const files = import.meta.glob<JsonSchema>('../../schema/dcat-us/jsonschema/defi
 export const classSchemas: ReadonlyMap<string, JsonSchema> = new Map(
   Object.entries(files).map(([path, schema]) => [path.slice(path.lastIndexOf('/') + 1, -5), schema]),
 )
+if (classSchemas.size === 0) throw new Error('DCAT-US schema missing: run git submodule update --init')
 
 /** Returns the upstream schema for a DCAT-US 3.0 class, e.g. `getClassSchema('Dataset')`. */
 export function getClassSchema(name: string): JsonSchema {

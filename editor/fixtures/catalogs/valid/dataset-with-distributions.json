@@ -8,7 +8,7 @@
   },
   "dataset": [
     {
-      "@id": "https://example.gov/datasets/air-quality",
+      "@id": "https://example.gov/datasets/qualité-de-l-air",
       "@type": "Dataset",
       "title": "Air quality readings",
       "description": "Hourly readings from example monitoring stations.",
@@ -45,7 +45,7 @@
           "mediaType": "text/csv",
           "checksum": {
             "@type": "Checksum",
-            "algorithm": "sha256",
+            "algorithm": "SHA-256",
             "checksumValue": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
           }
         },
