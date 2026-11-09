@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/GSA/dcat-us",
+  "commit": "4996591483b52f4ccc0cb72c42e4ec3fe59a4b06",
+  "date": "2026-10-07T13:37:55-06:00",
+  "licence": "CC0-1.0",
+  "licenceFile": "LICENSE.md",
+  "definitions": "jsonschema/definitions"
+}
