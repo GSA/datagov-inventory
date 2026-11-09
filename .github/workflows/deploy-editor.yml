@@ -46,7 +46,7 @@ jobs:
       - name: Push to cloud.gov
         uses: cloud-gov/cg-cli-tools@8a9e968bbf7b6e798f338f90efcccfaaf4005fe5 # main
         with:
-          command: cf push --strategy rolling -f editor/manifest.yml
+          cf_manifest: editor/manifest.yml
           cf_org: gsa-datagov
           cf_space: development
           cf_username: ${{ secrets.CF_SERVICE_USER }}
@@ -63,3 +63,6 @@ jobs:
             grep -qi "^content-security-policy: .*connect-src 'none'" <<<"$headers"
             if grep -qi '^set-cookie:' <<<"$headers"; then echo "unexpected cookie"; exit 1; fi
           done
+          asset=$(curl -fsS "$APP_URL/" | grep -oE '/assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          curl -fsS -o /dev/null "$APP_URL$asset"
