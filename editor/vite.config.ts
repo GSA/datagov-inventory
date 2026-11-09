@@ -8,11 +8,11 @@ export default defineConfig({
     headers: {
       'Content-Security-Policy': [
         "default-src 'self'",
-        "script-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data:",
         "font-src 'self' data:",
-        "connect-src 'none'",
+        "connect-src 'self' ws: wss:",
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'"
