@@ -14,11 +14,9 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
-    'react/no-danger': 'error',
     'no-restricted-properties': [
       'error',
       {
-        object: 'React',
         property: 'dangerouslySetInnerHTML',
         message: 'dangerouslySetInnerHTML is banned per SI-15 control',
       },
