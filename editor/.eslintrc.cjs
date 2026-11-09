@@ -26,7 +26,7 @@ module.exports = {
     'no-restricted-syntax': [
       'error',
       {
-        selector: 'JSXAttribute[name.name="dangerouslySetInnerHTML"]',
+        selector: 'Identifier[name="dangerouslySetInnerHTML"]',
         message: 'dangerouslySetInnerHTML is banned per SI-15 control',
       },
     ],
