@@ -16,7 +16,7 @@ describe('App', () => {
   it('renders the government banner', () => {
     render(<App />)
 
-    const banner = screen.getByText(/official website/i)
+    const banner = screen.getByText(/An official website of the United States government/i)
 
     expect(banner).toBeInTheDocument()
   })
