@@ -38,6 +38,8 @@ The `build` script runs `typecheck` and `lint` before building to enforce securi
 - **SC-18 Mobile Code**: CSP with `connect-src 'none'` prevents data exfiltration
 - **SR-3 Supply Chain**: All dependencies pinned in `package-lock.json`
 
+These controls have been verified during development. Build successfully blocks dangerous code and CSP prevents network requests.
+
 ### Verify Security Controls
 
 Test CSP blocks network:
