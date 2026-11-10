@@ -31,6 +31,106 @@ App runs at http://localhost:5173
 | `npm run preview` | Preview production build at http://localhost:4173 |
 | `npm run lint` | Run ESLint |
 | `npm run typecheck` | Run TypeScript type checking |
+| `npm run test` | Run unit tests with Vitest |
+| `npm run test:ui` | Run unit tests with Vitest UI |
+| `npm run test:coverage` | Run unit tests with coverage report |
+| `npm run test:browser` | Run Playwright browser tests |
+| `npm run test:browser:ui` | Run Playwright tests with UI |
+
+## Testing
+
+### Unit Tests
+
+Unit tests verify React components and TypeScript logic in isolation using Vitest.
+
+**Run unit tests:**
+```bash
+npm run test
+```
+
+**Run tests with UI:**
+```bash
+npm run test:ui
+```
+
+**Run tests with coverage:**
+```bash
+npm run test:coverage
+```
+
+**Guidelines:**
+- Unit tests live next to source files: `src/Component.test.tsx`
+- Test component rendering and user interactions
+- Use `@testing-library/react` for component testing
+- Mock external dependencies (future: API calls, IndexedDB)
+- Keep tests fast - no real browser, no network calls
+
+**Example unit test:**
+```typescript
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { MyComponent } from './MyComponent'
+
+describe('MyComponent', () => {
+  it('renders correctly', () => {
+    render(<MyComponent />)
+    expect(screen.getByText('Expected text')).toBeInTheDocument()
+  })
+})
+```
+
+### Browser Tests
+
+Browser tests verify the application works in a real browser using Playwright.
+
+**Run browser tests:**
+```bash
+npm run test:browser
+```
+
+**Run browser tests with UI:**
+```bash
+npm run test:browser:ui
+```
+
+**Guidelines:**
+- Browser tests live in `e2e/` directory
+- Test user workflows and page interactions
+- Include accessibility scanning with @axe-core/playwright
+- Tests run against production build (`npm run build` + `npm run preview`)
+- Use page object pattern for complex workflows
+
+**Example browser test:**
+```typescript
+import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+
+test('page is accessible', async ({ page }) => {
+  await page.goto('/')
+
+  const accessibilityScanResults = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze()
+
+  expect(accessibilityScanResults.violations).toEqual([])
+})
+```
+
+### Continuous Integration
+
+GitHub Actions runs all checks on every push:
+- **lint**: ESLint checks
+- **typecheck**: TypeScript compilation
+- **test**: Vitest unit tests
+- **build**: Production build
+- **test-browser**: Playwright browser tests with accessibility
+- **audit**: npm security audit
+
+Failed browser tests upload artifacts:
+- `playwright-report`: HTML test report
+- `playwright-traces`: Execution traces for debugging
+
+**Branch protection:** The "Commit" workflow must pass before merging to `main`.
 
 ## Development Workflow
 
