@@ -7,7 +7,6 @@ const load = (files: Record<string, string>) =>
   Object.entries(files).map(([path, text]) => [path.slice(path.lastIndexOf('/') + 1), text] as const)
 const valid = load(import.meta.glob<string>('../../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }))
 const invalid = load(import.meta.glob<string>('../../fixtures/catalogs/invalid/*.json', { eager: true, query: '?raw', import: 'default' }))
-const fixture = (name: string) => [...valid, ...invalid].find(([n]) => n === name)![1]
 
 const countByClass = ({ objects }: DecomposedCatalog) => {
   const counts: Record<string, number> = {}
@@ -15,23 +14,15 @@ const countByClass = ({ objects }: DecomposedCatalog) => {
   return counts
 }
 const json = (value: unknown) => JSON.stringify(value)
-const plain = (record: object) => ({ ...record })
-
-/** Objects per class each fixture decomposes into. Schema errors never stop a fixture loading. */
-const expectedCounts: Record<string, Record<string, number>> = {
-  'dataset-with-distributions.json': {
-    Catalog: 1, Organization: 2, Dataset: 1, Kind: 1, PeriodOfTime: 1, Distribution: 2, Checksum: 1,
-  },
-  'minimal-catalog.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'nullable-optional-properties.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'contact-email-not-mailto.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'dataset-missing-title.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'dataset-not-an-array.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'distribution-download-url-not-an-iri.json': { Catalog: 1, Dataset: 1, Kind: 1, Distribution: 1 },
-  'issued-not-a-date.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'missing-dataset.json': { Catalog: 1 },
-  'modified-date-time-without-t.json': { Catalog: 1, Dataset: 1, Kind: 1 },
-  'unknown-accrual-periodicity.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+/** The code and message decompose fails with. */
+const failure = (run: () => unknown) => {
+  try {
+    run()
+  } catch (error) {
+    if (error instanceof DecomposeError) return [error.code, error.message]
+    throw error
+  }
+  return ['no error']
 }
 
 /** The plain JSON form of a decomposed catalog, as stored in fixtures/decomposed for other implementations to share. */
@@ -41,87 +32,35 @@ const plainForm = ({ rootId, objects }: DecomposedCatalog) => ({
 })
 
 describe('decompose: fixture catalogs', () => {
-  // Byte for byte, so key and link order are part of the contract. Regenerate with `npx vitest run -u`.
+  // Byte for byte, so ids, classes, scalars, link order and singleLinks are all part of the contract.
+  // Regenerate with `npx vitest run -u` and review the diff.
   it.each(valid)('%s decomposes exactly as fixtures/decomposed records', async (name, text) => {
     await expect(`${JSON.stringify(plainForm(decompose(text)), null, 2)}\n`).toMatchFileSnapshot(
       `../../fixtures/decomposed/${name}`,
     )
   })
 
-  it('has an expected count for every fixture', () => {
-    expect([...valid, ...invalid].map(([name]) => name).sort()).toEqual(Object.keys(expectedCounts).sort())
-  })
-
-  it.each([...valid, ...invalid])('%s decomposes into the expected objects', (name, text) => {
+  // Schema errors never stop a document loading.
+  const invalidCounts: Record<string, Record<string, number>> = {
+    'contact-email-not-mailto.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+    'dataset-missing-title.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+    'dataset-not-an-array.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+    'distribution-download-url-not-an-iri.json': { Catalog: 1, Dataset: 1, Kind: 1, Distribution: 1 },
+    'issued-not-a-date.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+    'missing-dataset.json': { Catalog: 1 },
+    'modified-date-time-without-t.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+    'unknown-accrual-periodicity.json': { Catalog: 1, Dataset: 1, Kind: 1 },
+  }
+  it.each(invalid)('%s, which has schema errors, still decomposes', (name, text) => {
     const catalog = decompose(text)
-    expect(catalog.rootId).toBe('#')
-    expect(catalog.objects.get('#')?.dcatClass).toBe('Catalog')
-    expect(countByClass(catalog)).toEqual(expectedCounts[name])
+    expect(catalog.objects.get(catalog.rootId)?.dcatClass).toBe('Catalog')
+    expect(countByClass(catalog)).toEqual(invalidCounts[name])
   })
 
-  it('splits a dataset into its own scalars and ordered links, by the schema', () => {
-    const { objects } = decompose(fixture('dataset-with-distributions.json'))
-    expect([...objects.keys()]).toEqual([
-      '#',
-      '#/publisher',
-      '#/dataset/0',
-      '#/dataset/0/contactPoint/0',
-      '#/dataset/0/publisher',
-      '#/dataset/0/temporal/0',
-      '#/dataset/0/distribution/0',
-      '#/dataset/0/distribution/0/checksum',
-      '#/dataset/0/distribution/1',
-    ])
-    const dataset = objects.get('#/dataset/0')!
-    expect(dataset.dcatClass).toBe('Dataset')
-    expect(plain(dataset.properties)).toEqual({
-      '@id': 'https://example.gov/datasets/qualité-de-l-air',
-      '@type': 'Dataset',
-      title: 'Air quality readings',
-      description: 'Hourly readings from example monitoring stations.',
-      identifier: 'example-air-quality',
-      keyword: ['air quality', 'monitoring'],
-      // theme holds Concepts, but a Concept may be a plain string: it stays a scalar.
-      theme: ['Environment'],
-      issued: '2024-01-15',
-      modified: '2025-06-30T12:00:00Z',
-      accrualPeriodicity: 'daily',
-      language: ['en'],
-    })
-    expect(plain(dataset.links)).toEqual({
-      contactPoint: ['#/dataset/0/contactPoint/0'],
-      publisher: ['#/dataset/0/publisher'],
-      temporal: ['#/dataset/0/temporal/0'],
-      distribution: ['#/dataset/0/distribution/0', '#/dataset/0/distribution/1'],
-    })
-    expect(dataset.singleLinks).toEqual(['publisher'])
-    expect(plain(objects.get('#/dataset/0/distribution/0')!.links)).toEqual({
-      checksum: ['#/dataset/0/distribution/0/checksum'],
-    })
-    expect(plain(objects.get('#/dataset/0/distribution/0/checksum')!.properties)).toEqual({
-      '@type': 'Checksum',
-      algorithm: 'SHA-256',
-      checksumValue: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
-    })
-  })
-
-  it('takes the class from the schema when an object has no @type', () => {
-    const { objects } = decompose(fixture('minimal-catalog.json'))
-    expect(objects.get('#/dataset/0/contactPoint')).toEqual(
-      expect.objectContaining({ dcatClass: 'Kind', singleLinks: [] }),
-    )
-    expect(objects.get('#/dataset/0')!.singleLinks).toEqual(['contactPoint'])
-  })
-
-  it('keeps null class-valued properties as properties', () => {
-    const dataset = decompose(fixture('nullable-optional-properties.json')).objects.get('#/dataset/0')!
-    expect(dataset.properties).toEqual(expect.objectContaining({ publisher: null, distribution: null, keyword: null }))
-    expect(Object.keys(dataset.links)).toEqual(['contactPoint'])
-  })
-
-  it('loads a document with schema errors: a single dataset where an array is required', () => {
-    const catalog = decompose(fixture('dataset-not-an-array.json')).objects.get('#')!
-    expect(plain(catalog.links)).toEqual({ dataset: ['#/dataset'] })
+  it('links a single dataset where the schema requires an array, and records it as single', () => {
+    const [, text] = invalid.find(([name]) => name === 'dataset-not-an-array.json')!
+    const catalog = decompose(text).objects.get('#')!
+    expect(catalog.links).toEqual({ dataset: ['#/dataset'] })
     expect(catalog.singleLinks).toEqual(['dataset'])
   })
 })
@@ -165,9 +104,7 @@ describe('decompose: shape rules', () => {
     expect(Object.keys(root.properties)).toEqual(['@type', '__proto__', 'constructor'])
     expect(root.properties['__proto__']).toEqual({ polluted: true })
     expect(root.properties['constructor']).toEqual({ prototype: { polluted: true } })
-    expect(Object.keys(objects.get('#/dataset/0')!.properties)).toEqual([
-      '@type', 'title', 'toString', 'hasOwnProperty', '__proto__',
-    ])
+    expect(Object.keys(objects.get('#/dataset/0')!.properties)).toEqual(['@type', 'title', 'toString', 'hasOwnProperty', '__proto__'])
     expect(objects.size).toBe(2)
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()
     expect((Object.prototype as Record<string, unknown>).polluted).toBeUndefined()
@@ -218,107 +155,90 @@ describe('decompose: shape rules', () => {
 })
 
 describe('decompose: bad input', () => {
+  const notJson = /^This is not valid JSON: /
+  const noClass = /^No DCAT-US 3\.0 class found: .*"@type": "Catalog"/
+  const empty = /^This document is empty\.$/
   it.each([
-    ['truncated JSON', '{"@type": "Catalog", "dataset": [', 'invalid-json'],
-    ['not JSON', 'Catalog', 'invalid-json'],
-    ['a JSON array', '[{"@type": "Catalog"}]', 'no-dcat-class'],
-    ['JSON null', 'null', 'no-dcat-class'],
-    ['a JSON number', '42', 'no-dcat-class'],
-    ['a JSON string', '"Catalog"', 'no-dcat-class'],
-    ['an empty object', '{}', 'no-dcat-class'],
-    ['an object with no DCAT properties', '{"name": "x"}', 'no-dcat-class'],
-    ['an object with only an @id', '{"@id": "https://example.gov/catalog"}', 'no-dcat-class'],
-    ['an unknown @type', '{"@type": "Spreadsheet", "dataset": []}', 'no-dcat-class'],
-    ['an inherited name as @type', '{"@type": "constructor", "dataset": []}', 'no-dcat-class'],
-    ['a non-string @type', '{"@type": ["Catalog"], "dataset": []}', 'no-dcat-class'],
-  ])('refuses %s with a clear error', (_case, text, code) => {
-    expect(() => decompose(text)).toThrow(DecomposeError)
-    expect(() => decompose(text)).toThrow(
-      code === 'invalid-json' ? /^This is not valid JSON: / : /^No DCAT-US 3\.0 class found: .*"@type": "Catalog"/,
-    )
-    try {
-      decompose(text)
-    } catch (error) {
-      expect((error as DecomposeError).code).toBe(code)
-    }
+    ['truncated JSON', '{"@type": "Catalog", "dataset": [', 'invalid-json', notJson],
+    ['not JSON', 'Catalog', 'invalid-json', notJson],
+    ['empty input', '', 'invalid-json', empty],
+    ['blank input', ' \n\t', 'invalid-json', empty],
+    ['a lone byte order mark', '\uFEFF', 'invalid-json', empty],
+    ['a JSON array', '[{"@type": "Catalog"}]', 'no-dcat-class', noClass],
+    ['JSON null', 'null', 'no-dcat-class', noClass],
+    ['a JSON number', '42', 'no-dcat-class', noClass],
+    ['a JSON string', '"Catalog"', 'no-dcat-class', noClass],
+    ['an empty object', '{}', 'no-dcat-class', noClass],
+    ['an object with no DCAT properties', '{"name": "x"}', 'no-dcat-class', noClass],
+    ['an object with only an @id', '{"@id": "https://example.gov/catalog"}', 'no-dcat-class', noClass],
+    ['an unknown @type', '{"@type": "Spreadsheet", "dataset": []}', 'no-dcat-class', noClass],
+    ['an inherited name as @type', '{"@type": "constructor", "dataset": []}', 'no-dcat-class', noClass],
+    ['a non-string @type', '{"@type": ["Catalog"], "dataset": []}', 'no-dcat-class', noClass],
+    [
+      'a DCAT-US 1.1 data.json file',
+      '{"@type": "dcat:Catalog", "conformsTo": "https://project-open-data.cio.gov/v1.1/schema", "dataset": []}',
+      'no-dcat-class',
+      /^No DCAT-US 3\.0 class found: this looks like a DCAT-US 1\.1 data\.json file\. The editor reads DCAT-US 3\.0 only\.$/,
+    ],
+  ])('refuses %s with a clear error', (_case, text, code, message) => {
+    expect(failure(() => decompose(text))).toEqual([code, expect.stringMatching(message)])
   })
-})
-
-it.each(['', ' \n\t', '\uFEFF'])('says so when the input is empty (%j)', (text) => {
-  expect(() => decompose(text)).toThrow(new DecomposeError('invalid-json', 'This document is empty.'))
-})
-
-it('names DCAT-US 1.1 when a data.json file is given', () => {
-  expect(() => decompose('{"@type": "dcat:Catalog", "conformsTo": "https://project-open-data.cio.gov/v1.1/schema", "dataset": []}')).toThrow(
-    'No DCAT-US 3.0 class found: this looks like a DCAT-US 1.1 data.json file. The editor reads DCAT-US 3.0 only.',
-  )
 })
 
 describe('decompose: limits', () => {
   const nested = (levels: number) => `{"@type":"Catalog","x":${'['.repeat(levels - 1)}${']'.repeat(levels - 1)}}`
-  const codeOf = (run: () => unknown) => {
-    try {
-      run()
-    } catch (error) {
-      return [(error as DecomposeError).code, (error as Error).message]
-    }
-    return ['none', '']
-  }
 
   it('refuses input over maxBytes, counting UTF-8 bytes, and names the limit', () => {
     const text = json({ '@type': 'Catalog', title: 'é'.repeat(60) }) // 90 characters, 150 bytes
     expect(text.length).toBeLessThan(100)
-    expect(codeOf(() => decompose(text, { maxBytes: 100 }))).toEqual([
+    expect(failure(() => decompose(text, { maxBytes: 100 }))).toEqual([
       'too-large',
       'This document is 150 bytes, over the 100 bytes size limit.',
     ])
-    expect(() => decompose(text, { maxBytes: 150 })).not.toThrow()
+    expect(failure(() => decompose(text, { maxBytes: 150 }))).toEqual(['no error'])
     // Far over the limit, it is refused by its length without being encoded.
-    expect(codeOf(() => decompose('x'.repeat(1_000), { maxBytes: 100 }))[1]).toBe(
+    expect(failure(() => decompose('x'.repeat(1_000), { maxBytes: 100 }))[1]).toBe(
       'This document is over the 100 bytes size limit.',
     )
   })
 
   it('checks a file size before it is read, naming the default limit', () => {
-    expect(codeOf(() => checkSize(30_200_000))).toEqual([
+    expect(failure(() => checkSize(30_200_000))).toEqual([
       'too-large',
       'This document is 30,200,000 bytes, over the 25 MB size limit.',
     ])
-    expect(() => checkSize(DEFAULT_LIMITS.maxBytes)).not.toThrow()
+    expect(failure(() => checkSize(DEFAULT_LIMITS.maxBytes))).toEqual(['no error'])
   })
 
   it('refuses nesting deeper than maxDepth before parsing, and names the limit', () => {
-    expect(() => decompose(nested(5), { maxDepth: 5 })).not.toThrow()
-    expect(codeOf(() => decompose(nested(6), { maxDepth: 5 }))).toEqual([
+    expect(failure(() => decompose(nested(5), { maxDepth: 5 }))).toEqual(['no error'])
+    expect(failure(() => decompose(nested(6), { maxDepth: 5 }))).toEqual([
       'too-deep',
       'This document is nested more than 5 levels deep, the limit.',
     ])
     // Checked on the raw text, so a bomb that is also invalid JSON is still refused as too deep.
-    expect(codeOf(() => decompose('['.repeat(100_000)))[0]).toBe('too-deep')
-  })
-
-  it('does not count brackets inside strings, including after escaped quotes', () => {
-    expect(() => decompose(json({ '@type': 'Catalog', title: '[[[[[[{{{{{{\\"[[[[' }), { maxDepth: 2 })).not.toThrow()
-  })
-
-  it('refuses more than maxObjects objects and names the limit', () => {
-    const text = json({ '@type': 'Catalog', dataset: [{ title: 'A' }, { title: 'B' }] })
-    expect(() => decompose(text, { maxObjects: 3 })).not.toThrow()
-    expect(codeOf(() => decompose(text, { maxObjects: 2 }))).toEqual([
-      'too-many-objects',
-      'This document has more than 2 JSON objects, the limit.',
+    expect(failure(() => decompose('['.repeat(100_000)))[0]).toBe('too-deep')
+    // Brackets inside strings, including after escaped quotes, do not count.
+    expect(failure(() => decompose(json({ '@type': 'Catalog', title: '[[[[[[{{{{{{\\"[[[[' }), { maxDepth: 2 }))).toEqual([
+      'no error',
     ])
   })
 
-  it('counts every JSON object before parsing, not only DCAT objects', () => {
+  it('refuses more than maxObjects JSON objects, DCAT or not, before parsing, and names the limit', () => {
+    const text = json({ '@type': 'Catalog', dataset: [{ title: 'A' }, { title: 'B' }] })
+    expect(failure(() => decompose(text, { maxObjects: 3 }))).toEqual(['no error'])
+    expect(failure(() => decompose(text, { maxObjects: 2 }))).toEqual([
+      'too-many-objects',
+      'This document has more than 2 JSON objects, the limit.',
+    ])
     const mixed = json({ '@type': 'Catalog', dataset: ['x', {}, {}, {}] }) // kept as a property, still counted
-    expect(codeOf(() => decompose(mixed, { maxObjects: 3 }))[0]).toBe('too-many-objects')
+    expect(failure(() => decompose(mixed, { maxObjects: 3 }))[0]).toBe('too-many-objects')
     // Refused before parsing: this is not valid JSON either.
-    expect(codeOf(() => decompose('{"a":{},'.repeat(10), { maxObjects: 5 }))[0]).toBe('too-many-objects')
+    expect(failure(() => decompose('{"a":{},'.repeat(10), { maxObjects: 5 }))[0]).toBe('too-many-objects')
   })
 
   it('fits 3,000 rich datasets within the default limits', () => {
-    const datasets = Array.from({ length: 3_000 }, (_, i) => ({
+    const dataset = (i: number) => ({
       '@type': 'Dataset',
       title: `Dataset ${i}`,
       description: 'A generated dataset with the usual recommended properties filled in. '.repeat(4),
@@ -327,8 +247,8 @@ describe('decompose: limits', () => {
       contactPoint: { '@type': 'Kind', fn: 'Data Team', hasEmail: 'mailto:data@example.gov' },
       publisher: { '@type': 'Organization', name: 'Example Agency' },
       distribution: [1, 2, 3].map((n) => ({ '@type': 'Distribution', downloadURL: `https://example.gov/${i}/${n}.csv` })),
-    }))
-    const text = json({ '@type': 'Catalog', dataset: datasets })
+    })
+    const text = json({ '@type': 'Catalog', dataset: Array.from({ length: 3_000 }, (_, i) => dataset(i)) })
     expect(decompose(text).objects.size).toBe(1 + 3_000 * 6)
   })
 })

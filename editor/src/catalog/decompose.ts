@@ -62,11 +62,9 @@ export const DEFAULT_LIMITS: DecomposeLimits = { maxBytes: 25_000_000, maxDepth:
 export type DecomposeErrorCode = 'too-large' | 'too-deep' | 'too-many-objects' | 'invalid-json' | 'no-dcat-class'
 
 export class DecomposeError extends Error {
-  readonly code: DecomposeErrorCode
-  constructor(code: DecomposeErrorCode, message: string) {
+  name = 'DecomposeError'
+  constructor(readonly code: DecomposeErrorCode, message: string) {
     super(message)
-    this.name = 'DecomposeError'
-    this.code = code
   }
 }
 
