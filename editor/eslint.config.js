@@ -64,7 +64,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [{ regex: '^(?!\\./|\\.\\./schema$)', message: 'src/catalog may import only itself and ../schema.' }] },
+        { patterns: [{ regex: '^(?!\\./(?!.*\\.\\.)|\\.\\./schema$)', message: 'src/catalog may import only itself and ../schema.' }] },
       ],
     },
   },
