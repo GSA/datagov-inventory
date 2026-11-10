@@ -1,0 +1,13 @@
+{
+  "@type": "Catalog",
+  "dataset": {
+    "@type": "Dataset",
+    "title": "A dataset that is not in a list",
+    "description": "Catalog.dataset must be an array.",
+    "contactPoint": {
+      "fn": "Data Team",
+      "hasEmail": "mailto:data@example.gov"
+    },
+    "identifier": "https://example.gov/datasets/not-in-a-list"
+  }
+}

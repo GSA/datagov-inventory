@@ -1,0 +1,16 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Dataset with a bad release date",
+      "description": "Dataset.issued must be a date, date-time, year or year-month.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/bad-date",
+      "issued": "January 15, 2024"
+    }
+  ]
+}

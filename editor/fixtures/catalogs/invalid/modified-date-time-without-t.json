@@ -1,0 +1,16 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Dataset with a space in its last-modified date-time",
+      "description": "Dataset.modified date-times need a T between date and time.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/bad-date-time",
+      "modified": "2024-01-15 12:00:00Z"
+    }
+  ]
+}

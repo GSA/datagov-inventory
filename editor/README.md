@@ -5,6 +5,7 @@ Browser-only React/TypeScript application for authoring DCAT-US 3.0 metadata cat
 ## Quick Start
 
 ```bash
+git submodule update --init   # the pinned DCAT-US 3.0 schema, see schema/README.md
 cd editor
 npm install
 npm run dev
@@ -36,6 +37,8 @@ App runs at http://localhost:5173
 | `npm run test:coverage` | Run unit tests with coverage report |
 | `npm run test:browser` | Run Playwright browser tests |
 | `npm run test:browser:ui` | Run Playwright tests with UI |
+| `npm run schema:update -- <commit>` | Move the pinned DCAT-US 3.0 schema to a GSA/dcat-us commit |
+| `npm run schema:check` | Check the schema pin matches the submodule (runs in CI) |
 
 ## Testing
 
@@ -121,7 +124,7 @@ test('page is accessible', async ({ page }) => {
 GitHub Actions runs all checks on every push:
 - **lint**: ESLint checks
 - **typecheck**: TypeScript compilation
-- **test**: Vitest unit tests
+- **test**: Vitest unit tests and the DCAT-US schema pin check (`schema:check`)
 - **build**: Production build
 - **test-browser**: Playwright browser tests with accessibility
 - **audit**: npm security audit
