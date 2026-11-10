@@ -89,10 +89,21 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(alert).toContainText('Pasted JSON could not be loaded')
   await expect(alert).toContainText('This is not valid JSON')
   await expect(alert).toContainText('The catalog already loaded (minimal-catalog.json) has not changed.')
+  await expect(alert.getByRole('heading')).toBeFocused()
+
+  // The same failure again is a new alert, so it is announced again.
+  await alert.evaluate((element) => element.setAttribute('data-old', ''))
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await expect(alert).toContainText('This is not valid JSON')
+  await expect(alert).not.toHaveAttribute('data-old')
 
   await page.getByLabel('Paste JSON').fill('{"name": "not a catalog"}')
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
   await expect(alert).toContainText('No DCAT-US 3.0 class found')
+
+  await page.getByLabel('Paste JSON').fill('  ')
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await expect(alert).toContainText('This document is empty.')
 
   // Not JSON at all, so had it been parsed the error would be "not valid JSON": the size is checked first.
   await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({

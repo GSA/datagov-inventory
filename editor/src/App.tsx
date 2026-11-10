@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Alert,
   AlertHeading,
@@ -32,30 +32,37 @@ function readFile(file: File): Promise<string> {
         reject(new Error('This file is not UTF-8 text. Save it as UTF-8 JSON and try again.'))
       }
     }
-    reader.onerror = () => reject(new Error('The browser could not read this file.'))
+    reader.onerror = () =>
+      reject(
+        new Error(
+          'The browser could not read this file. It may have moved or changed since you chose it. Choose it again.',
+        ),
+      )
     reader.readAsArrayBuffer(file)
   })
 }
 
 function App() {
   const [loaded, setLoaded] = useState<LoadedCatalog & { loadId: number }>()
-  const [error, setError] = useState<{ name: string; message: string }>()
+  const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
   const [pasted, setPasted] = useState('')
   const [sample, setSample] = useState(samples[0].name)
   const attempt = useRef(0)
   const fileInput = useRef<FileInputRef>(null)
+  // Move focus to a new error, so keyboard and screen reader users land on it.
+  useEffect(() => document.getElementById('load-error')?.focus(), [error])
 
   /** Replaces the loaded catalog only if the new one decomposes; a failed load leaves it as it was. */
   async function load(name: string, read: () => string | Promise<string>) {
     const current = ++attempt.current
+    setError(undefined)
     try {
       const catalog = decompose(await read())
       if (current !== attempt.current) return
       setLoaded({ name, catalog, loadId: current })
-      setError(undefined)
     } catch (e) {
       if (current !== attempt.current) return
-      setError({ name, message: e instanceof Error ? e.message : String(e) })
+      setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
     }
   }
 
@@ -137,8 +144,9 @@ function App() {
           </section>
 
           {error && (
-            <Alert type="error" role="alert" className="margin-top-4">
-              <AlertHeading level="h2">
+            // Keyed by attempt, so a repeated failure is a new alert and is announced again.
+            <Alert key={error.attempt} type="error" role="alert" className="margin-top-4">
+              <AlertHeading level="h2" id="load-error" tabIndex={-1} className="text-break">
                 <bdi>{error.name}</bdi> could not be loaded
               </AlertHeading>
               <AlertText>

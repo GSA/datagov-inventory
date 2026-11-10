@@ -97,7 +97,7 @@ function ObjectDetail({
       <p>
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
-      {own.length > 0 ? <PropertyTable caption="Properties" entries={own} /> : <p>No properties.</p>}
+      {own.length > 0 ? <PropertyTable caption="Properties" entries={own} /> : <p>No DCAT-US 3.0 properties.</p>}
 
       <h3>Links</h3>
       {links.length === 0 && <p>No links to other objects.</p>}
@@ -148,7 +148,7 @@ export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
   return (
     <>
       <section aria-labelledby="summary-heading" className="margin-top-4">
-        <h2 id="summary-heading" ref={heading} tabIndex={-1}>
+        <h2 id="summary-heading" ref={heading} tabIndex={-1} className="text-break">
           Loaded <bdi>{name}</bdi>
         </h2>
         <Table
