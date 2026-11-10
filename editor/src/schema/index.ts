@@ -25,7 +25,7 @@ export function getClassSchema(name: string): JsonSchema {
   return schema
 }
 
-const classNameByRef = new Map([...classSchemas].map(([name]) => [name.toLowerCase(), name]))
+const classNameByRef = new Map([...classSchemas.keys()].map((name) => [name.toLowerCase(), name]))
 const classPropertiesCache = new Map<string, ReadonlyMap<string, readonly string[]>>()
 
 /**
@@ -38,8 +38,8 @@ const classPropertiesCache = new Map<string, ReadonlyMap<string, readonly string
  * Decompose (#20) uses this to tell links from scalars; form models (#19) should reuse it.
  */
 export function getClassProperties(name: string): ReadonlyMap<string, readonly string[]> {
-  let result = classPropertiesCache.get(name)
-  if (result) return result
+  const cached = classPropertiesCache.get(name)
+  if (cached) return cached
   const schema = getClassSchema(name)
   const branches = [schema, ...(['anyOf', 'oneOf', 'allOf'] as const).flatMap((k) => (schema[k] ?? []) as JsonSchema[])]
   const map = new Map<string, readonly string[]>()
@@ -50,9 +50,8 @@ export function getClassProperties(name: string): ReadonlyMap<string, readonly s
       map.set(prop, [...classes])
     }
   }
-  result = map
-  classPropertiesCache.set(name, result)
-  return result
+  classPropertiesCache.set(name, map)
+  return map
 }
 
 function collectClassRefs(schema: unknown, self: string, into: Set<string>): void {

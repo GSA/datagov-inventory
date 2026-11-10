@@ -57,10 +57,10 @@ export default tseslint.config(
     },
   },
   {
-    // The catalog model must run in a worker and in tests: no React, no DOM (#20).
+    // The catalog model must run in a worker: no React, no DOM (#20). DOM types are kept out by
+    // src/catalog/tsconfig.json (lib WebWorker), run by `npm run typecheck`.
     files: ['src/catalog/**/*.ts'],
     ignores: ['src/catalog/**/*.test.ts'],
-    // DOM types are kept out by src/catalog/tsconfig.json (lib WebWorker), run by `npm run typecheck`.
     rules: {
       'no-restricted-imports': [
         'error',
