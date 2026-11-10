@@ -11,6 +11,7 @@ export interface LoadedCatalog {
 /** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
 const PAGE_SIZE = 500
 const LABEL_LENGTH = 200
+const VALUE_LENGTH = 2_000
 
 /**
  * A short name for an object: its title, name, contact name or label, if one has visible
@@ -56,26 +57,16 @@ function Paged<T>({ items, noun, children }: { items: T[]; noun: string; childre
   )
 }
 
-const VALUE_LENGTH = 2_000
-
 /** Values are untrusted: they are only ever rendered as React text, cut to 2,000 characters so a huge one cannot stall the page. */
 function textOf(value: unknown): string {
   const text = typeof value === 'string' ? value : JSON.stringify(value)
   return text.length > VALUE_LENGTH ? `${text.slice(0, VALUE_LENGTH)}… (${count(text.length)} characters in all)` : text
 }
 
+interface RowProps { object: CatalogObject; index: number; selected: boolean; onSelect: (id: string) => void }
+
 /** A row of the object list; memoized so selecting an object re-renders two rows, not all of them. */
-const ObjectRow = memo(function ObjectRow({
-  object,
-  index,
-  selected,
-  onSelect,
-}: {
-  object: CatalogObject
-  index: number
-  selected: boolean
-  onSelect: (id: string) => void
-}) {
+const ObjectRow = memo(function ObjectRow({ object, index, selected, onSelect }: RowProps) {
   return (
     <tr>
       <td className="text-break">
@@ -232,10 +223,7 @@ export default memo(function CatalogBrowser({ name, catalog }: LoadedCatalog) {
         <h2 id="summary-heading" ref={heading} tabIndex={-1} className="text-break">
           Loaded <bdi>{name}</bdi>
         </h2>
-        <Table
-          caption={`${objects.size.toLocaleString('en-US')} ${objects.size === 1 ? 'object' : 'objects'} by class`}
-          compact
-        >
+        <Table caption={`${count(objects.size)} ${objects.size === 1 ? 'object' : 'objects'} by class`} compact>
           <thead>
             <tr>
               <th scope="col">Class</th>
@@ -243,10 +231,10 @@ export default memo(function CatalogBrowser({ name, catalog }: LoadedCatalog) {
             </tr>
           </thead>
           <tbody>
-            {counts.map(([dcatClass, count]) => (
+            {counts.map(([dcatClass, n]) => (
               <tr key={dcatClass}>
                 <th scope="row">{dcatClass}</th>
-                <td>{count.toLocaleString('en-US')}</td>
+                <td>{count(n)}</td>
               </tr>
             ))}
           </tbody>

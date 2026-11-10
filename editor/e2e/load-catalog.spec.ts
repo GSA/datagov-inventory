@@ -10,11 +10,15 @@ test.beforeEach(async ({ page }) => {
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
 })
 
-const summaryRows = (page: Page) =>
-  page
-    .getByRole('table', { name: /objects by class/ })
-    .getByRole('row')
-    .allInnerTexts()
+const summaryRows = (page: Page) => page.getByRole('table', { name: /objects by class/ }).getByRole('row').allInnerTexts()
+const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
+  page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
+const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+
+async function paste(page: Page, text: string) {
+  await page.getByLabel('Paste JSON').fill(text)
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+}
 
 async function loadSample(page: Page, name: string) {
   await page.getByLabel('Sample catalog').selectOption(name)
@@ -59,35 +63,34 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
   await distribution.getByRole('button', { name: 'Untitled Checksum (Checksum)' }).click()
   await expect(page.getByRole('region', { name: 'Untitled Checksum' })).toContainText('SHA-256')
 
-  const axe = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze()
-  expect(axe.violations).toEqual([])
+  expect((await axe(page).analyze()).violations).toEqual([])
 })
 
 test('loads a chosen file in the browser', async ({ page }) => {
-  await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(fixture('minimal-catalog.json'))
+  await chooseFile(page, fixture('minimal-catalog.json'))
   await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
   expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
 })
 
 test('refuses bad input with an alert and keeps the loaded catalog', async ({ page }) => {
+  // Counts file reads. The good load at the end proves the count sees the app's reads.
   await page.evaluate(() => {
     const counted = window as unknown as { fileReads: number }
     counted.fileReads = 0
+    // Every read method, so the FileInput's own preview reads would count too.
     for (const method of ['readAsArrayBuffer', 'readAsText', 'readAsDataURL', 'readAsBinaryString'] as const) {
-      const read = FileReader.prototype[method] as (this: FileReader, ...args: unknown[]) => void
-      FileReader.prototype[method] = function (...args: unknown[]) {
+      const read = FileReader.prototype[method] as (this: FileReader, blob: Blob) => void
+      FileReader.prototype[method] = function (blob: Blob) {
         counted.fileReads++
-        return read.apply(this, args)
+        return read.call(this, blob)
       }
     }
   })
+  const fileReads = () => page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)
   await loadSample(page, 'minimal-catalog.json')
   const alert = page.getByRole('alert')
 
-  await page.getByLabel('Paste JSON').fill('{"@type": "Catalog", "dataset": [')
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await paste(page, '{"@type": "Catalog", "dataset": [')
   await expect(alert).toContainText('Pasted JSON could not be loaded')
   await expect(alert).toContainText('This is not valid JSON')
   await expect(alert).toContainText('The catalog already loaded (minimal-catalog.json) has not changed.')
@@ -100,25 +103,19 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(alert).toContainText('This is not valid JSON')
   await expect(alert).not.toHaveAttribute('data-old')
 
-  await page.getByLabel('Paste JSON').fill('{"name": "not a catalog"}')
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await paste(page, '{"name": "not a catalog"}')
   await expect(alert).toContainText('No DCAT-US 3.0 class found')
 
-  await page.getByLabel('Paste JSON').fill('  ')
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await paste(page, '  ')
   await expect(alert).toContainText('This document is empty.')
 
   // Not JSON at all, so had it been parsed the error would be "not valid JSON": the size is checked first.
-  await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
-    name: 'huge.json',
-    mimeType: 'application/json',
-    buffer: Buffer.alloc(25_000_001, 'x'),
-  })
+  await chooseFile(page, { name: 'huge.json', mimeType: 'application/json', buffer: Buffer.alloc(25_000_001, 'x') })
   await expect(alert).toContainText('huge.json could not be loaded')
   await expect(alert).toContainText('This document is 25,000,001 bytes, over the 25 MB size limit.')
-  expect(await page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)).toBe(0)
+  expect(await fileReads()).toBe(0)
 
-  await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
+  await chooseFile(page, {
     name: 'latin-1.json',
     mimeType: 'application/json',
     buffer: Buffer.from('{"@type": "Catalog", "title": "Caf\xe9", "dataset": []}', 'latin1'),
@@ -130,15 +127,16 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
 
   // A good load clears the alert.
-  await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(fixture('minimal-catalog.json'))
+  await chooseFile(page, fixture('minimal-catalog.json'))
   await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
   await expect(alert).toHaveCount(0)
-  expect(await page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)).toBeGreaterThan(0)
+  expect(await fileReads()).toBeGreaterThan(0)
 })
 
 test('shows unknown properties as text only', async ({ page }) => {
   const payload = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>'
-  await page.getByLabel('Paste JSON').fill(
+  await paste(
+    page,
     JSON.stringify({
       '@type': 'Catalog',
       dataset: [
@@ -152,7 +150,6 @@ test('shows unknown properties as text only', async ({ page }) => {
       ],
     }),
   )
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
   await page.getByRole('button', { name: payload }).click()
   const detail = page.getByRole('region', { name: payload })
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText('x-agency')
@@ -167,8 +164,7 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   datasets[0].title = 'Evil \u202E(Catalog)'
   datasets[1].title = ' \u200B '
   datasets[2].title = 'L'.repeat(300)
-  await page.getByLabel('Paste JSON').fill(JSON.stringify({ '@type': 'Catalog', title: 'Big', dataset: datasets }))
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await paste(page, JSON.stringify({ '@type': 'Catalog', title: 'Big', dataset: datasets }))
 
   const list = page.getByRole('region', { name: 'Objects' })
   await expect(list.getByRole('row')).toHaveCount(501) // a header and 500 rows
@@ -190,11 +186,7 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
 
   // Only the detail pane: axe over 1,000 rows is slow on a throttled runner.
-  const axe = await new AxeBuilder({ page })
-    .include('section[aria-labelledby="detail-heading"]')
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze()
-  expect(axe.violations).toEqual([])
+  expect((await axe(page).include('section[aria-labelledby="detail-heading"]').analyze()).violations).toEqual([])
 
   await detail.getByRole('button', { name: 'Back to the list' }).click()
   await expect(list.getByRole('button', { name: 'Big' })).toBeFocused()
