@@ -28,11 +28,12 @@ App runs at http://localhost:5173
 `src/catalog/decompose.ts` turns a DCAT-US 3.0 document into the object graph of
 [ADR 0005](../docs/decisions/0005-object-graph-data-model-for-dcat-us-3.md): a `Map` of
 objects (id, DCAT class, own scalar properties) whose class-valued properties are ordered
-lists of child ids. Which properties hold classes comes from the schema
-(`getClassProperties` in `src/schema`). Ids are the objects' JSON Pointers in the source
-document (`#/dataset/0`). Input is bounded by `DEFAULT_LIMITS` (25 MB, 64 levels deep,
-250,000 objects). The module imports no React or DOM, enforced by ESLint, so it can run
-in a worker.
+lists of child ids. Which properties hold classes, and so each object's class, comes from
+the schema (`getClassProperties` in `src/schema`). Ids are the objects' JSON Pointers in
+the source document (`#/dataset/0`). Input is bounded by `DEFAULT_LIMITS` (25 MB, 64
+levels deep, 250,000 JSON objects), checked before parsing. The module may import only
+`src/schema` and is type-checked without DOM types (`src/catalog/tsconfig.json`), so it
+can run in a worker.
 
 ## npm Scripts
 
