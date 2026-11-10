@@ -1,0 +1,4 @@
+/* Long untrusted values (URLs, ids) wrap instead of widening the layout. */
+.text-break {
+  overflow-wrap: anywhere;
+}

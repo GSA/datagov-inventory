@@ -1,5 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
+
+const productionCsp = /Content-Security-Policy "([^"]+)"/.exec(
+  readFileSync(new URL('cf/security-headers.conf', import.meta.url), 'utf8'),
+)![1]
 
 export default defineConfig({
   plugins: [react()],
@@ -33,18 +38,7 @@ export default defineConfig({
   },
   preview: {
     port: 4173,
-    headers: {
-      'Content-Security-Policy': [
-        "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data:",
-        "font-src 'self' data:",
-        "connect-src 'none'",
-        "frame-ancestors 'none'",
-        "base-uri 'self'",
-        "form-action 'self'"
-      ].join('; ')
-    }
-  }
+    // The production CSP, so browser tests run under the policy nginx serves.
+    headers: { 'Content-Security-Policy': productionCsp },
+  },
 })
