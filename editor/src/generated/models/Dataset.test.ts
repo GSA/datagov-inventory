@@ -36,7 +36,7 @@ describe('DatasetModel', () => {
     expect(contactField).toBeDefined()
     expect(contactField?.required).toBe(true)
     expect(contactField?.type).toBe('object')
-    expect(contactField?.allowedClasses).toContain('Agent')
+    expect(contactField?.allowedClasses).toContain('Kind')
   })
 
   it('has identifier field marked as required', () => {
@@ -44,15 +44,15 @@ describe('DatasetModel', () => {
 
     expect(idField).toBeDefined()
     expect(idField?.required).toBe(true)
-    expect(idField?.type).toBe('string')
+    expect(idField?.type).toBe('object')
+    expect(idField?.allowedClasses).toContain('Identifier')
   })
 
-  it('has keyword field with multiple cardinality', () => {
+  it('has keyword field as array type', () => {
     const keywordField = DatasetModel.fields.find((f) => f.name === 'keyword')
 
     if (keywordField) {
-      expect(keywordField.cardinality).toBe('multiple')
-      expect(keywordField.type).toBe('string')
+      expect(keywordField.type).toBe('array')
     }
   })
 

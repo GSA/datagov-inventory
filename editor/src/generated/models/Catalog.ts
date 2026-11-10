@@ -40,6 +40,7 @@ export const CatalogModel: FormModel = {
       required: true,
       cardinality: 'multiple',
       helpText: 'List of datasets included directly in the catalog. Do not include datasets that are members of a dataset series here. Dataset identifiers must be unique across all datasets in the catalog, including series members.',
+      allowedClasses: ['Dataset'],
     },
 {
       name: 'datasetSeries',

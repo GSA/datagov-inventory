@@ -45,7 +45,7 @@ function extractFieldType(propSchema) {
     }
 
     if (items.$ref) {
-      return { type: 'object', cardinality: 'multiple' }
+      return { type: 'object', cardinality: 'multiple', allowedClasses: [extractClassNameFromRef(items.$ref)] }
     }
   }
 
@@ -69,8 +69,9 @@ function extractFormModel(className, schema) {
   const required = schema.required || []
 
   const fields = Object.entries(properties).map(([name, propSchema]) => {
-    const { type, cardinality } = extractFieldType(propSchema)
-    const allowedClasses = extractAllowedClasses(propSchema)
+    const fieldType = extractFieldType(propSchema)
+    const { type, cardinality } = fieldType
+    const allowedClasses = fieldType.allowedClasses || extractAllowedClasses(propSchema)
     const allowedValues = Array.isArray(propSchema.enum) ? propSchema.enum : undefined
 
     const field = {

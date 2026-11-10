@@ -24,6 +24,7 @@ export const DataServiceModel: FormModel = {
       required: true,
       cardinality: 'multiple',
       helpText: 'Contact information for questions about the Data Service. Include an email address that is continuously monitored',
+      allowedClasses: ['Kind'],
     },
 {
       name: 'endpointDescription',
