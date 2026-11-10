@@ -1,31 +1,13 @@
-import { test, expect, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { fileURLToPath } from 'node:url'
+import { test, expect } from './fixtures'
 
 const fixture = (name: string) => fileURLToPath(new URL(`../fixtures/catalogs/valid/${name}`, import.meta.url))
 
-/** Every CSP violation, from the console and from `securitypolicyviolation` events. */
-let cspViolations: string[]
-
 test.beforeEach(async ({ page }) => {
-  cspViolations = []
-  page.on('console', (message) => {
-    if (/Content Security Policy/i.test(message.text())) cspViolations.push(message.text())
-  })
-  await page.exposeFunction('reportCspViolation', (text: string) => cspViolations.push(text))
-  await page.addInitScript(() => {
-    document.addEventListener('securitypolicyviolation', (event) =>
-      (window as unknown as { reportCspViolation: (text: string) => void }).reportCspViolation(
-        `${event.violatedDirective} ${event.blockedURI}`,
-      ),
-    )
-  })
   const response = await page.goto('/')
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
-})
-
-test.afterEach(() => {
-  expect(cspViolations).toEqual([])
 })
 
 const summaryRows = (page: Page) =>
@@ -92,10 +74,12 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await page.evaluate(() => {
     const counted = window as unknown as { fileReads: number }
     counted.fileReads = 0
-    const read = FileReader.prototype.readAsArrayBuffer
-    FileReader.prototype.readAsArrayBuffer = function (...args) {
-      counted.fileReads++
-      return read.apply(this, args)
+    for (const method of ['readAsArrayBuffer', 'readAsText', 'readAsDataURL', 'readAsBinaryString'] as const) {
+      const read = FileReader.prototype[method] as (this: FileReader, ...args: unknown[]) => void
+      FileReader.prototype[method] = function (...args: unknown[]) {
+        counted.fileReads++
+        return read.apply(this, args)
+      }
     }
   })
   await loadSample(page, 'minimal-catalog.json')

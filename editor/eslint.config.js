@@ -33,6 +33,10 @@ export default tseslint.config(
       ...reactHooksPlugin.configs.recommended.rules,
       ...jsxA11yPlugin.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
+      'react/no-danger': 'error',
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

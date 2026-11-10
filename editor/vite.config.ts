@@ -2,9 +2,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 
-const productionCsp = /Content-Security-Policy "([^"]+)"/.exec(
-  readFileSync(new URL('cf/security-headers.conf', import.meta.url), 'utf8'),
-)![1]
+// The headers nginx sends in production (cf/security-headers.conf), except HSTS, which needs HTTPS.
+const securityHeaders = readFileSync(new URL('cf/security-headers.conf', import.meta.url), 'utf8')
+const productionHeaders = Object.fromEntries(
+  Array.from(securityHeaders.matchAll(/^\s*add_header\s+(\S+)\s+"([^"]*)"/gm))
+    .map(([, name, value]) => [name, value])
+    .filter(([name]) => name !== 'Strict-Transport-Security'),
+)
+if (!productionHeaders['Content-Security-Policy']) throw new Error('No CSP found in cf/security-headers.conf')
 
 export default defineConfig({
   plugins: [react()],
@@ -38,7 +43,7 @@ export default defineConfig({
   },
   preview: {
     port: 4173,
-    // The production CSP, so browser tests run under the policy nginx serves.
-    headers: { 'Content-Security-Policy': productionCsp },
+    // Production's headers, so browser tests run under the CSP nginx serves.
+    headers: productionHeaders,
   },
 })
