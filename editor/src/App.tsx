@@ -21,13 +21,19 @@ const samples = Object.entries(
   import.meta.glob<string>('../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }),
 ).map(([path, text]) => ({ name: path.slice(path.lastIndexOf('/') + 1), text }))
 
-/** Reads a file in the browser; it is never uploaded. */
+/** Reads a file in the browser (it is never uploaded) as strict UTF-8, which JSON requires. */
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
+    reader.onload = () => {
+      try {
+        resolve(new TextDecoder('utf-8', { fatal: true }).decode(reader.result as ArrayBuffer))
+      } catch {
+        reject(new Error('This file is not UTF-8 text. Save it as UTF-8 JSON and try again.'))
+      }
+    }
     reader.onerror = () => reject(new Error('The browser could not read this file.'))
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
   })
 }
 
@@ -107,7 +113,12 @@ function App() {
               </div>
               <div className="tablet:grid-col-4">
                 <Label htmlFor="catalog-sample">Sample catalog</Label>
-                <Select id="catalog-sample" name="catalog-sample" value={sample} onChange={(e) => setSample(e.target.value)}>
+                <Select
+                  id="catalog-sample"
+                  name="catalog-sample"
+                  value={sample}
+                  onChange={(e) => setSample(e.target.value)}
+                >
                   {samples.map(({ name }) => (
                     <option key={name} value={name}>
                       {name}
@@ -127,10 +138,17 @@ function App() {
 
           {error && (
             <Alert type="error" role="alert" className="margin-top-4">
-              <AlertHeading level="h2">{error.name} could not be loaded</AlertHeading>
+              <AlertHeading level="h2">
+                <bdi>{error.name}</bdi> could not be loaded
+              </AlertHeading>
               <AlertText>
                 {error.message}
-                {loaded && ` The catalog already loaded (${loaded.name}) has not changed.`}
+                {loaded && (
+                  <>
+                    {' '}
+                    The catalog already loaded (<bdi>{loaded.name}</bdi>) has not changed.
+                  </>
+                )}
               </AlertText>
             </Alert>
           )}

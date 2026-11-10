@@ -29,7 +29,10 @@ test.afterEach(() => {
 })
 
 const summaryRows = (page: Page) =>
-  page.getByRole('table', { name: /objects by class/ }).getByRole('row').allInnerTexts()
+  page
+    .getByRole('table', { name: /objects by class/ })
+    .getByRole('row')
+    .allInnerTexts()
 
 async function loadSample(page: Page, name: string) {
   await page.getByLabel('Sample catalog').selectOption(name)
@@ -42,12 +45,13 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
   await expect(page.getByRole('table', { name: '9 objects by class' })).toBeVisible()
   expect(await summaryRows(page)).toEqual([
     'Class\tObjects',
+    'Agent\t1',
     'Catalog\t1',
     'Checksum\t1',
     'Dataset\t1',
     'Distribution\t2',
     'Kind\t1',
-    'Organization\t2',
+    'Organization\t1',
     'PeriodOfTime\t1',
   ])
 
@@ -88,10 +92,10 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await page.evaluate(() => {
     const counted = window as unknown as { fileReads: number }
     counted.fileReads = 0
-    const readAsText = FileReader.prototype.readAsText
-    FileReader.prototype.readAsText = function (...args) {
+    const read = FileReader.prototype.readAsArrayBuffer
+    FileReader.prototype.readAsArrayBuffer = function (...args) {
       counted.fileReads++
-      return readAsText.apply(this, args)
+      return read.apply(this, args)
     }
   })
   await loadSample(page, 'minimal-catalog.json')
@@ -117,6 +121,14 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(alert).toContainText('This document is 25,000,001 bytes, over the 25 MB size limit.')
   expect(await page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)).toBe(0)
 
+  await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
+    name: 'latin-1.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"@type": "Catalog", "title": "Caf\xe9", "dataset": []}', 'latin1'),
+  })
+  await expect(alert).toContainText('latin-1.json could not be loaded')
+  await expect(alert).toContainText('This file is not UTF-8 text.')
+
   await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeVisible()
   expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
 
@@ -141,4 +153,23 @@ test('shows unknown properties as text only', async ({ page }) => {
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText(payload)
   await expect(detail.locator('img, script, a')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined()
+})
+
+test('pages long lists and isolates right-to-left text', async ({ page }) => {
+  const datasets = Array.from({ length: 501 }, (_, i) => ({ '@type': 'Dataset', title: `Dataset ${i}` }))
+  datasets[0].title = 'Evil \u202E(Catalog)'
+  await page.getByLabel('Paste JSON').fill(JSON.stringify({ '@type': 'Catalog', title: 'Big', dataset: datasets }))
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+
+  const list = page.getByRole('region', { name: 'Objects' })
+  await expect(list.getByRole('row')).toHaveCount(501) // a header and 500 rows
+  await list.getByRole('button', { name: 'Show more objects (500 of 502 shown)' }).click()
+  await expect(list.getByRole('row')).toHaveCount(503)
+
+  await list.getByRole('button', { name: 'Big' }).click()
+  const detail = page.getByRole('region', { name: 'Big' })
+  await expect(detail.getByRole('listitem')).toHaveCount(500)
+  await detail.getByRole('button', { name: 'Show more dataset links (500 of 501 shown)' }).click()
+  await expect(detail.getByRole('listitem')).toHaveCount(501)
+  await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
 })
