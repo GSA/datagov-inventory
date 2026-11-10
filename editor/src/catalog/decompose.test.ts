@@ -40,6 +40,11 @@ describe('decompose: fixture catalogs', () => {
     )
   })
 
+  it('has a golden file for each valid fixture and no others', () => {
+    const golden = Object.keys(import.meta.glob('../../fixtures/decomposed/*.json')).map((path) => path.slice(path.lastIndexOf('/') + 1))
+    expect(golden.sort()).toEqual(valid.map(([name]) => name).sort())
+  })
+
   // Schema errors never stop a document loading.
   const invalidCounts: Record<string, Record<string, number>> = {
     'contact-email-not-mailto.json': { Catalog: 1, Dataset: 1, Kind: 1 },
