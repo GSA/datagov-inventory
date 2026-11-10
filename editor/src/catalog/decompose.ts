@@ -74,7 +74,7 @@ export function checkSize(bytes: number, limits: Partial<DecomposeLimits> = {}):
   if (bytes > maxBytes) {
     throw new DecomposeError(
       'too-large',
-      `This document is ${formatBytes(bytes)}, over the ${formatBytes(maxBytes)} size limit.`,
+      `This document is ${bytes.toLocaleString('en-US')} bytes, over the ${formatBytes(maxBytes)} size limit.`,
     )
   }
 }
@@ -82,8 +82,10 @@ export function checkSize(bytes: number, limits: Partial<DecomposeLimits> = {}):
 /** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
 export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
   const { maxBytes, maxDepth, maxObjects } = { ...DEFAULT_LIMITS, ...limits }
-  // UTF-8 never takes fewer bytes than UTF-16 code units, so only near the limit is it worth counting.
-  checkSize(text.length * 3 > maxBytes ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
+  // UTF-8 never takes fewer bytes than UTF-16 code units, so the length alone refuses most oversize
+  // text without encoding it, and only text near the limit is counted exactly.
+  const nearLimit = text.length <= maxBytes && text.length * 3 > maxBytes
+  checkSize(nearLimit ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
   checkDepth(text, maxDepth)
 
   let root: unknown
@@ -96,7 +98,9 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
   if (!isObject(root) || !rootClass) {
     throw new DecomposeError(
       'no-dcat-class',
-      'No DCAT-US 3.0 class found: the top level must be a JSON object with "@type": "Catalog" (or another DCAT-US 3.0 class).',
+      isObject(root) && root['@type'] === 'dcat:Catalog'
+        ? 'No DCAT-US 3.0 class found: this looks like a DCAT-US 1.1 data.json file. The editor reads DCAT-US 3.0 only.'
+        : 'No DCAT-US 3.0 class found: the top level must be a JSON object with "@type": "Catalog" (or another DCAT-US 3.0 class).',
     )
   }
 

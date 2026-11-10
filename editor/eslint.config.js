@@ -55,10 +55,13 @@ export default tseslint.config(
   {
     // The catalog model must run in a worker and in tests: no React, no DOM (#20).
     files: ['src/catalog/**/*.ts'],
-    languageOptions: { globals: globals.worker },
+    ignores: ['src/catalog/**/*.test.ts'],
+    // DOM types are kept out by src/catalog/tsconfig.json (lib WebWorker), run by `npm run typecheck`.
     rules: {
-      'no-restricted-imports': ['error', { patterns: ['react', 'react-*', 'react/*', '@trussworks/*'] }],
-      'no-restricted-globals': ['error', 'window', 'document', 'navigator', 'localStorage', 'sessionStorage'],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ regex: '^(?!\\./|\\.\\./schema$)', message: 'src/catalog may import only itself and ../schema.' }] },
+      ],
     },
   },
 )
