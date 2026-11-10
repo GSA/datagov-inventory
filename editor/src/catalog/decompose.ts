@@ -1,0 +1,175 @@
+/**
+ * Breaks a nested DCAT-US 3.0 document into objects and ordered links (#20), in the shape
+ * of ADR 0005: each object has an id, its DCAT class and its own scalar properties
+ * (`metadata_object`); each class-valued property is an ordered list of child ids
+ * (`object_reference`, where the ordinal is the list index).
+ *
+ * Pure TypeScript with no React or DOM imports, so it runs in a worker and in tests.
+ * The input is untrusted: its size, depth and object count are bounded (SI-10), and
+ * property names are copied into null-prototype records so `__proto__` cannot pollute.
+ */
+import { classSchemas, getClassProperties } from '../schema'
+
+export interface CatalogObject {
+  /**
+   * Synthetic and deterministic: the object's JSON Pointer in the source document, as a
+   * URI fragment (`#` is the root, `#/dataset/0/distribution/1` a distribution). Its
+   * `@id`, if any, stays in `properties`, because input `@id`s can repeat.
+   */
+  id: string
+  /** The DCAT-US 3.0 class: its `@type` if that names a class, else the one the schema allows. */
+  dcatClass: string
+  /** Every property that is not a link, unknown ones included, with values exactly as read. */
+  properties: Record<string, unknown>
+  /** Class-valued properties: property name → child ids, in source order. */
+  links: Record<string, string[]>
+  /** Link properties whose source value was one object rather than an array, so export can write them back the same way. */
+  singleLinks: string[]
+}
+
+export interface DecomposedCatalog {
+  rootId: string
+  /** Every object by id, in document order (each parent before its children). */
+  objects: Map<string, CatalogObject>
+}
+
+export interface DecomposeLimits {
+  /** Largest input accepted, in UTF-8 bytes. */
+  maxBytes: number
+  /** Deepest nesting of JSON objects and arrays accepted (the top-level object is depth 1). */
+  maxDepth: number
+  /** Most DCAT objects one document may decompose into. */
+  maxObjects: number
+}
+
+/**
+ * Sized for #29's 3,000+ datasets with room to spare. The DOJ catalog is about 1,800
+ * datasets in 2.4 MB, about 1.3 KB each, so 3,000 such datasets are about 4 MB and
+ * 30,000 objects (each dataset brings a publisher, contact point, distributions, ...).
+ * 25 MB and 250,000 objects allow six to eight times that for richer 3.0 records, while
+ * keeping a crafted file well short of exhausting a tab's memory. Real documents nest
+ * under about 15 levels (catalog → dataset → attribution → agent → sub-organization ...);
+ * 64 bounds the recursive walk with plenty of headroom.
+ */
+export const DEFAULT_LIMITS: DecomposeLimits = { maxBytes: 25_000_000, maxDepth: 64, maxObjects: 250_000 }
+
+export type DecomposeErrorCode = 'too-large' | 'too-deep' | 'too-many-objects' | 'invalid-json' | 'no-dcat-class'
+
+export class DecomposeError extends Error {
+  readonly code: DecomposeErrorCode
+  constructor(code: DecomposeErrorCode, message: string) {
+    super(message)
+    this.name = 'DecomposeError'
+    this.code = code
+  }
+}
+
+/** `25 MB`, or `900 bytes` under a megabyte. */
+export const formatBytes = (bytes: number) =>
+  bytes >= 1_000_000 ? `${Number((bytes / 1_000_000).toFixed(1))} MB` : `${bytes.toLocaleString('en-US')} bytes`
+
+/** Refuses an input of `bytes` UTF-8 bytes over the limit; call it on a file's size before reading it. */
+export function checkSize(bytes: number, limits: Partial<DecomposeLimits> = {}): void {
+  const { maxBytes } = { ...DEFAULT_LIMITS, ...limits }
+  if (bytes > maxBytes) {
+    throw new DecomposeError(
+      'too-large',
+      `This document is ${formatBytes(bytes)}, over the ${formatBytes(maxBytes)} size limit.`,
+    )
+  }
+}
+
+/** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
+export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
+  const { maxBytes, maxDepth, maxObjects } = { ...DEFAULT_LIMITS, ...limits }
+  // UTF-8 never takes fewer bytes than UTF-16 code units, so only near the limit is it worth counting.
+  checkSize(text.length * 3 > maxBytes ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
+  checkDepth(text, maxDepth)
+
+  let root: unknown
+  try {
+    root = JSON.parse(text.replace(/^\uFEFF/, ''))
+  } catch (error) {
+    throw new DecomposeError('invalid-json', `This is not valid JSON: ${(error as Error).message}`)
+  }
+  const rootClass = isObject(root) ? classOfRoot(root) : undefined
+  if (!isObject(root) || !rootClass) {
+    throw new DecomposeError(
+      'no-dcat-class',
+      'No DCAT-US 3.0 class found: the top level must be a JSON object with "@type": "Catalog" (or another DCAT-US 3.0 class).',
+    )
+  }
+
+  const objects = new Map<string, CatalogObject>()
+  const add = (node: Record<string, unknown>, dcatClass: string, id: string): string => {
+    if (objects.size >= maxObjects) {
+      throw new DecomposeError(
+        'too-many-objects',
+        `This document has more than ${maxObjects.toLocaleString('en-US')} objects, the limit.`,
+      )
+    }
+    const object: CatalogObject = {
+      id,
+      dcatClass,
+      properties: Object.create(null),
+      links: Object.create(null),
+      singleLinks: [],
+    }
+    objects.set(id, object)
+    const schemaProperties = getClassProperties(dcatClass)
+    for (const key of Object.keys(node)) {
+      const value = node[key]
+      const allowed = schemaProperties.get(key) ?? []
+      const children = allowed.length > 0 ? asObjects(value) : undefined
+      if (!children) {
+        object.properties[key] = value
+        continue
+      }
+      const base = `${id}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`
+      object.links[key] = children.map((child, i) =>
+        add(child, classOf(child) ?? allowed[0], Array.isArray(value) ? `${base}/${i}` : base),
+      )
+      if (!Array.isArray(value)) object.singleLinks.push(key)
+    }
+    return id
+  }
+  return { rootId: add(root, rootClass, '#'), objects }
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const classOf = (node: Record<string, unknown>) =>
+  typeof node['@type'] === 'string' && classSchemas.has(node['@type']) ? node['@type'] : undefined
+
+/** `@type` names the class; without one, Catalog is the schema's default if any Catalog property is present. */
+function classOfRoot(root: Record<string, unknown>): string | undefined {
+  if ('@type' in root) return classOf(root)
+  const catalogProperties = getClassProperties('Catalog')
+  return Object.keys(root).some((key) => key !== '@id' && catalogProperties.has(key)) ? 'Catalog' : undefined
+}
+
+/** A class-valued property becomes links only when it holds an object or a non-empty array of objects; anything else (a Concept given as a string, null, a mixed array) stays a property as written. */
+function asObjects(value: unknown): Record<string, unknown>[] | undefined {
+  if (isObject(value)) return [value]
+  if (Array.isArray(value) && value.length > 0 && value.every(isObject)) return value
+  return undefined
+}
+
+/** Measures nesting on the raw text, so a depth bomb is refused before it is parsed. */
+function checkDepth(text: string, maxDepth: number): void {
+  let depth = 0
+  let inString = false
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i)
+    if (inString) {
+      if (c === 0x5c) i++ // backslash: skip the escaped character
+      else if (c === 0x22) inString = false
+    } else if (c === 0x22) inString = true
+    else if (c === 0x7b || c === 0x5b) {
+      if (++depth > maxDepth) {
+        throw new DecomposeError('too-deep', `This document is nested more than ${maxDepth} levels deep, the limit.`)
+      }
+    } else if (c === 0x7d || c === 0x5d) depth--
+  }
+}

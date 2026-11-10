@@ -52,4 +52,13 @@ export default tseslint.config(
       },
     },
   },
+  {
+    // The catalog model must run in a worker and in tests: no React, no DOM (#20).
+    files: ['src/catalog/**/*.ts'],
+    languageOptions: { globals: globals.worker },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: ['react', 'react-*', 'react/*', '@trussworks/*'] }],
+      'no-restricted-globals': ['error', 'window', 'document', 'navigator', 'localStorage', 'sessionStorage'],
+    },
+  },
 )
