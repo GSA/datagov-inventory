@@ -19,7 +19,9 @@
     "test:browser": "playwright test",
     "test:browser:ui": "playwright test --ui",
     "schema:update": "node scripts/dcat-us-pin.mjs update",
-    "schema:check": "node scripts/dcat-us-pin.mjs check"
+    "schema:check": "node scripts/dcat-us-pin.mjs check",
+    "generate:models": "node scripts/generate-models.mjs",
+    "generate:models:check": "npm run generate:models && git diff --exit-code src/generated/models/"
   },
   "dependencies": {
     "@trussworks/react-uswds": "^13.0.0",
