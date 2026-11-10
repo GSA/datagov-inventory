@@ -1,0 +1,16 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Dataset with an unknown frequency",
+      "description": "Dataset.accrualPeriodicity must be a known frequency code.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/bad-frequency",
+      "accrualPeriodicity": "every so often"
+    }
+  ]
+}

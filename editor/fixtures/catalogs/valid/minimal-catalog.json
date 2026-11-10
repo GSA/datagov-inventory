@@ -1,0 +1,15 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Minimal dataset",
+      "description": "Only the properties DCAT-US 3.0 requires.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/minimal"
+    }
+  ]
+}

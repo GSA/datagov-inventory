@@ -1,0 +1,21 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Dataset with a bad download URL",
+      "description": "Distribution.downloadURL must be an IRI.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/bad-download-url",
+      "distribution": [
+        {
+          "@type": "Distribution",
+          "downloadURL": "not a url"
+        }
+      ]
+    }
+  ]
+}

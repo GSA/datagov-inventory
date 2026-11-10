@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:datagov-inventory:dcat-us:3.0.0:document",
+  "title": "DCAT-US 3.0 document",
+  "description": "A whole DCAT-US 3.0 document: one Catalog object at the top level. Every class is defined upstream in GSA/dcat-us jsonschema/definitions; this schema only gives them a starting point. See schema/README.md.",
+  "$ref": "https://resources.data.gov/dcat-us/3.0.0/definitions/catalog"
+}
