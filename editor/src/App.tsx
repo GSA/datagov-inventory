@@ -5,6 +5,7 @@ import {
   AlertText,
   Button,
   FileInput,
+  type FileInputRef,
   GovBanner,
   Header,
   Label,
@@ -12,7 +13,7 @@ import {
   Textarea,
   Title,
 } from '@trussworks/react-uswds'
-import { DecomposeError, checkSize, decompose } from './catalog/decompose'
+import { checkSize, decompose } from './catalog/decompose'
 import CatalogBrowser, { type LoadedCatalog } from './CatalogBrowser'
 
 /** The valid #18 fixtures, bundled as text so "Load sample" goes through the same path as a file. */
@@ -36,6 +37,7 @@ function App() {
   const [pasted, setPasted] = useState('')
   const [sample, setSample] = useState(samples[0].name)
   const attempt = useRef(0)
+  const fileInput = useRef<FileInputRef>(null)
 
   /** Replaces the loaded catalog only if the new one decomposes; a failed load leaves it as it was. */
   async function load(name: string, read: () => string | Promise<string>) {
@@ -47,7 +49,7 @@ function App() {
       setError(undefined)
     } catch (e) {
       if (current !== attempt.current) return
-      setError({ name, message: e instanceof DecomposeError || e instanceof Error ? e.message : String(e) })
+      setError({ name, message: e instanceof Error ? e.message : String(e) })
     }
   }
 
@@ -73,14 +75,17 @@ function App() {
               <div className="tablet:grid-col-4">
                 <Label htmlFor="catalog-file">Choose a DCAT-US 3.0 JSON file</Label>
                 <FileInput
+                  ref={fileInput}
                   id="catalog-file"
                   name="catalog-file"
                   accept=".json,application/json"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
+                    // Clear the input so the same file can be chosen again; the summary names the loaded file.
+                    fileInput.current?.clearFiles()
                     if (file) {
                       void load(file.name, () => {
-                        checkSize(file.size)
+                        checkSize(file.size) // before reading, so an oversize file is never read into memory
                         return readFile(file)
                       })
                     }

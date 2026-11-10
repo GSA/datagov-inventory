@@ -53,6 +53,10 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
 
   await page.getByRole('button', { name: 'Air quality readings' }).click()
   const detail = page.getByRole('region', { name: 'Air quality readings' })
+  // The list is on the left and the selected object on the right (#20, James's comment).
+  const list = await page.getByRole('region', { name: 'Objects' }).boundingBox()
+  const pane = await detail.boundingBox()
+  expect(list!.x + list!.width).toBeLessThanOrEqual(pane!.x)
   await expect(detail.getByRole('heading', { level: 2 })).toBeFocused()
   await expect(detail.getByRole('table', { name: 'Properties' })).toContainText('example-air-quality')
   await expect(detail.getByRole('listitem')).toHaveText([
@@ -81,6 +85,15 @@ test('loads a chosen file in the browser', async ({ page }) => {
 })
 
 test('refuses bad input with an alert and keeps the loaded catalog', async ({ page }) => {
+  await page.evaluate(() => {
+    const counted = window as unknown as { fileReads: number }
+    counted.fileReads = 0
+    const readAsText = FileReader.prototype.readAsText
+    FileReader.prototype.readAsText = function (...args) {
+      counted.fileReads++
+      return readAsText.apply(this, args)
+    }
+  })
   await loadSample(page, 'minimal-catalog.json')
   const alert = page.getByRole('alert')
 
@@ -101,10 +114,16 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
     buffer: Buffer.alloc(25_000_001, 'x'),
   })
   await expect(alert).toContainText('huge.json could not be loaded')
-  await expect(alert).toContainText('This document is 25 MB, over the 25 MB size limit.')
+  await expect(alert).toContainText('This document is 25,000,001 bytes, over the 25 MB size limit.')
+  expect(await page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)).toBe(0)
 
   await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeVisible()
   expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
+
+  // A good load clears the alert.
+  await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(fixture('minimal-catalog.json'))
+  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
+  await expect(alert).toHaveCount(0)
 })
 
 test('shows unknown properties as text only', async ({ page }) => {
