@@ -4,6 +4,9 @@
   "type": "module",
   "private": true,
   "description": "Local-first React editor for DCAT-US 3.0 catalog authoring",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && npm run lint && vite build",
