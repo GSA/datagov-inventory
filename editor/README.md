@@ -168,6 +168,16 @@ npm run build
 // Expected: Build fails with ESLint error
 ```
 
+## Deployment
+
+The [Deploy editor](../.github/workflows/deploy-editor.yml) workflow builds the app, copies `dist/` into `cf/public/` and pushes it to the cloud.gov `development` space as a static site served by nginx (`manifest.yml`, `cf/`). It runs on every push to `main` that touches `editor/` or the workflow, or by hand from the Actions tab. To roll back, revert the bad commit on `main`; the revert redeploys.
+
+The security headers, including the CSP, are set in [`cf/security-headers.conf`](cf/security-headers.conf). Paths outside `/assets/` that don't match a file serve `index.html`, so deep links work; missing files under `/assets/` return 404.
+
+URL: https://inventory-editor-dev-datagov.app.cloud.gov
+
+The workflow needs `CF_SERVICE_USER` and `CF_SERVICE_AUTH` secrets on the `development` GitHub environment: the credentials of a `space-deployer` [cloud.gov service account](https://cloud.gov/docs/services/cloud-gov-service-account/) in `gsa-datagov`/`development`. Limit that environment's deployment branches to `main`.
+
 ## Documentation
 
 - [Inventory v2 Architecture](../docs/architecture.md)
