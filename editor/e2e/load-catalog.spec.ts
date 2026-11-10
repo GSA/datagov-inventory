@@ -10,7 +10,11 @@ test.beforeEach(async ({ page }) => {
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
 })
 
-const summaryRows = (page: Page) => page.getByRole('table', { name: /objects by class/ }).getByRole('row').allInnerTexts()
+const summaryRows = (page: Page) =>
+  page
+    .getByRole('table', { name: /objects by class/ })
+    .getByRole('row')
+    .allInnerTexts()
 const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
   page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -40,6 +44,9 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
     'PeriodOfTime\t1',
   ])
 
+  await expect(page.getByRole('row', { name: /^Air quality readings/ })).toHaveText(
+    /^Air quality readings\s*Dataset\s*#\/dataset\/0$/,
+  )
   await page.getByRole('button', { name: 'Air quality readings' }).click()
   const detail = page.getByRole('region', { name: 'Air quality readings' })
   // The list is on the left and the selected object on the right (#20, James's comment).
@@ -145,6 +152,7 @@ test('shows unknown properties as text only', async ({ page }) => {
           title: payload,
           'x-agency': payload,
           'x-long': 'a'.repeat(5_000),
+          'x-values': [3, true, null, { a: 1 }],
           landingPage: 'javascript:window.pwned=1',
         },
       ],
@@ -154,6 +162,7 @@ test('shows unknown properties as text only', async ({ page }) => {
   const detail = page.getByRole('region', { name: payload })
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText('x-agency')
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText(payload)
+  await expect(detail.getByRole('row', { name: /^x-values/ })).toHaveText('x-values[3,true,null,{"a":1}]')
   await expect(detail.getByRole('row', { name: /^x-long/ })).toHaveText(/^x-longa{2000}… \(5,000 characters in all\)$/)
   await expect(detail.locator('img, script, a')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined()

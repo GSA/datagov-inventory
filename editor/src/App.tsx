@@ -151,15 +151,12 @@ function App() {
               <AlertHeading level="h2" className="text-break">
                 <bdi>{error.name}</bdi> could not be loaded
               </AlertHeading>
-              <AlertText className="text-break">
-                {error.message}
-                {loaded && (
-                  <>
-                    {' '}
-                    The catalog already loaded (<bdi>{loaded.name}</bdi>) has not changed.
-                  </>
-                )}
-              </AlertText>
+              <AlertText className="text-break">{error.message}</AlertText>
+              {loaded && (
+                <AlertText className="text-break">
+                  The catalog already loaded (<bdi>{loaded.name}</bdi>) has not changed.
+                </AlertText>
+              )}
             </Alert>
           )}
 
