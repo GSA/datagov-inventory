@@ -14,7 +14,7 @@ records, to preserve the audit trail.
 | [0001](0001-repository-topology-for-inventory-v2.md) | Build Inventory v2 in a new GSA/datagov-inventory repository | accepted | 2026-09-29 | yes-internal | CM-2, CM-3, CM-9, AC-3, SA-5, SA-8, SR-3, RA-5 |
 | [0002](0002-ui-rendering-architecture-for-inventory-v2.md) | Use server-rendered Flask pages with a local-first React editor for Inventory v2 | proposed | 2026-09-21 | yes-internal | SI-10, SI-15, SC-18, AU-2, AU-3, AC-12, SA-8, SA-15, SR-3 |
 | [0004](0004-jit-user-provisioning-and-catalog-rbac.md) | Provision user accounts just-in-time on first Login.gov authentication, with authorization held in per-catalog permissions | proposed | 2026-09-21 | yes-internal | AC-2, AC-2(3), AC-3, AC-6, AC-5, AU-2, AU-3, AU-10, IA-8, PS-4 |
-| [0005](0005-object-graph-data-model-for-dcat-us-3.md) | Store DCAT-US 3.0 metadata as a versioned object graph in Postgres | proposed | 2026-09-21 | yes-internal | AU-2, AU-3, AU-10, AC-3, SI-10, SI-12, CM-3, SC-28 |
+| [0005](0005-object-graph-data-model-for-dcat-us-3.md) | Store DCAT-US 3.0 metadata as a versioned object graph in Postgres | accepted | 2026-09-21 | yes-internal | AU-2, AU-3, AU-10, AC-3, SI-10, SI-12, CM-3, SC-28 |
 | [0006](0006-quarantine-then-scan-antivirus.md) | Scan uploaded data files with a quarantine-then-scan antivirus service and cap hosted files at 500 MB | proposed | 2026-09-21 | **yes-boundary** | SI-3, SI-3(1), SI-3(2), SI-7, SI-10, SC-7, AC-3, AU-2, AU-3, IR-4, IR-6 |
 | [0007](0007-retire-tabular-datastore-api.md) | Retire the tabular DataStore API in Inventory v2 | proposed | 2026-09-21 | **yes-boundary** | CM-7, SA-8, AC-3, SI-10, CM-4 |
 | [0008](0008-onboard-via-data-json-reimport.md) | Onboard agencies by importing published DCAT-US 3.0 data.json rather than migrating from CKAN | proposed | 2026-09-21 | yes-internal | CM-3, SI-10, SI-12, CP-9, CM-4, CM-7, SA-8 |
@@ -23,7 +23,7 @@ records, to preserve the audit trail.
 | [0011](0011-audit-trail-mechanism.md) | Record the audit trail with PostgreSQL-Audit rather than hand-written audit tables | proposed | 2026-09-28 | yes-internal | AU-2, AU-3, AU-9, AU-10, AU-12, SI-12, SR-3, RA-5, CM-3, SA-8, SA-15 |
 | [0012](0012-catalog-scoped-hosted-files.md) | Host data files as catalog-scoped resources with a lifecycle independent of Distribution metadata | proposed | 2026-10-01 | **yes-boundary** | AC-3, AU-2, AU-3, SI-3, SI-3(2), SI-7, SI-10, SI-12, SC-7, CM-3, CM-7, SA-8 |
 
-**By status:** 10 proposed, 1 accepted, 0 deprecated, 0 superseded.
+**By status:** 9 proposed, 2 accepted, 0 deprecated, 0 superseded.
 
 **Boundary-affecting:** ADR 0006 (new in-boundary scanner component and outbound
 signature-update flow), ADR 0007 (a brokered data store and a public API endpoint
@@ -56,7 +56,7 @@ those records describe.
 `SC-28`, `SI-3`, `SI-3(1)`, `SI-3(2)`, `SI-7`, `SI-10`, `SI-12`, `SI-15`, `SR-3`,
 `SR-4`, `SR-11`
 
-## Blockers before any record is accepted
+## Blockers
 
 Every record mentioned in the following table is `proposed`. These are verification tasks that gate acceptance,
 not follow-ups. Each should be a tracked issue (AGENTS.md §15.5).

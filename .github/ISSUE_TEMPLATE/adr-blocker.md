@@ -13,7 +13,7 @@ assignees: ''
 - **Type:** [Product / Design / Data / Compliance / Organizational / External]
 - **Decision owner(s):** [named people or role who decide — not "the team"]
 
-[Copy the blocker text from the "Blockers before any record is accepted" table in [docs/decisions/README.md](https://github.com/GSA/datagov-inventory/blob/main/docs/decisions/README.md#blockers-before-any-record-is-accepted).]
+[Copy the blocker text from the "Blockers" table in [docs/decisions/README.md](https://github.com/GSA/datagov-inventory/blob/main/docs/decisions/README.md#blockers).]
 
 ## Question to answer
 
