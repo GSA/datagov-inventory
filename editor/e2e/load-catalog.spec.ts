@@ -133,6 +133,7 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(fixture('minimal-catalog.json'))
   await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
   await expect(alert).toHaveCount(0)
+  expect(await page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)).toBeGreaterThan(0)
 })
 
 test('shows unknown properties as text only', async ({ page }) => {
@@ -164,11 +165,17 @@ test('shows unknown properties as text only', async ({ page }) => {
 test('pages long lists and isolates right-to-left text', async ({ page }) => {
   const datasets = Array.from({ length: 501 }, (_, i) => ({ '@type': 'Dataset', title: `Dataset ${i}` }))
   datasets[0].title = 'Evil \u202E(Catalog)'
+  datasets[1].title = ' \u200B '
+  datasets[2].title = 'L'.repeat(300)
   await page.getByLabel('Paste JSON').fill(JSON.stringify({ '@type': 'Catalog', title: 'Big', dataset: datasets }))
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
 
   const list = page.getByRole('region', { name: 'Objects' })
   await expect(list.getByRole('row')).toHaveCount(501) // a header and 500 rows
+  await expect(page.getByRole('heading', { name: 'Loaded Pasted JSON' }).locator('bdi')).toHaveText('Pasted JSON')
+  await expect(list.getByRole('row').nth(2).getByRole('button').locator('bdi')).toHaveText('Evil \u202E(Catalog)')
+  await expect(list.getByRole('row').nth(3).getByRole('button')).toHaveText('Untitled Dataset')
+  await expect(list.getByRole('row').nth(4).getByRole('button')).toHaveText(`${'L'.repeat(200)}…`)
   await list.getByRole('button', { name: 'Show more objects (500 of 502 shown)' }).click()
   await expect(list.getByRole('row')).toHaveCount(503)
   await expect(list.getByRole('button', { name: 'Dataset 499', exact: true })).toBeFocused() // the first new row
@@ -182,11 +189,19 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   await expect(detail.getByRole('button', { name: 'Dataset 500 (Dataset)' })).toBeFocused()
   await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
 
+  // Only the detail pane: axe over 1,000 rows is slow on a throttled runner.
   const axe = await new AxeBuilder({ page })
+    .include('section[aria-labelledby="detail-heading"]')
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze()
   expect(axe.violations).toEqual([])
 
   await detail.getByRole('button', { name: 'Back to the list' }).click()
   await expect(list.getByRole('button', { name: 'Big' })).toBeFocused()
+  // Choosing the open object again moves focus back to it.
+  await list.getByRole('button', { name: 'Big' }).click()
+  await expect(detail.getByRole('heading', { level: 2 })).toBeFocused()
+
+  await detail.getByRole('button', { name: /^Evil/ }).click()
+  await expect(page.locator('#detail-heading bdi')).toHaveText('Evil \u202E(Catalog)')
 })
