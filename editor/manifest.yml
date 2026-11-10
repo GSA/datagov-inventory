@@ -7,5 +7,6 @@ applications:
     path: cf
     memory: 64M
     health-check-type: http
+    health-check-http-endpoint: /
     routes:
       - route: inventory-editor-dev-datagov.app.cloud.gov
