@@ -49,12 +49,13 @@ export interface DecomposeLimits {
 
 /**
  * Sized for #29's 3,000+ datasets with room to spare. The DOJ catalog is about 1,800
- * datasets in 2.4 MB, about 1.3 KB each, so 3,000 such datasets are about 4 MB and
- * 30,000 objects (each dataset brings a publisher, contact point, distributions, ...).
- * 25 MB and 250,000 objects allow six to eight times that for richer 3.0 records, while
- * keeping a crafted file well short of exhausting a tab's memory. Real documents nest
- * under about 15 levels (catalog → dataset → attribution → agent → sub-organization ...);
- * 64 bounds the recursive walk with plenty of headroom.
+ * datasets in 2.4 MB (DCAT-US 1.1). A generated 3.0 catalog of 3,000 datasets, each with a
+ * publisher, contact points, 2-4 distributions, temporal and spatial coverage, measured
+ * 7.4 MB minified and 10.3 MB pretty-printed, with 37,000 JSON objects. So 25 MB is about
+ * 2.5-3.5 times that (6,000 pretty-printed datasets still fit), and 250,000 objects about
+ * 7 times. At those limits decompose took 0.2 s and kept 140 MB at most (review round 7),
+ * well short of exhausting a tab. Real documents nest under about 15 levels (catalog →
+ * dataset → attribution → agent → sub-organization ...); 64 bounds the walk with headroom.
  */
 export const DEFAULT_LIMITS: DecomposeLimits = { maxBytes: 25_000_000, maxDepth: 64, maxObjects: 250_000 }
 
