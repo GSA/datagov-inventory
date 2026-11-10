@@ -45,6 +45,6 @@ describe('fixture catalogs', () => {
     expect(validateDocument(catalog)).toBe(false)
     const errors = validateDocument.errors ?? []
     expect(errors).toContainEqual(expect.objectContaining({ instancePath, keyword }))
-    expect(errors.filter((e) => !inScope(e.instancePath))).toEqual([])
+    expect(errors.filter((e: { instancePath: string }) => !inScope(e.instancePath))).toEqual([])
   })
 })
