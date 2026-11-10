@@ -131,7 +131,7 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
         object.properties[key] = value
         continue
       }
-      const base = `${id}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`
+      const base = `${id}/${key}` // a schema property name: no "/" or "~" to escape
       object.links[key] = children.map((child, i) =>
         add(child, classIn(child, allowed), Array.isArray(value) ? `${base}/${i}` : base),
       )

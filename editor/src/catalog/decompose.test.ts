@@ -39,11 +39,13 @@ const plainForm = ({ rootId, objects }: DecomposedCatalog) => ({
   rootId,
   objects: [...objects.values()].map((o) => ({ ...o, properties: { ...o.properties }, links: { ...o.links } })),
 })
-const decomposed = import.meta.glob('../../fixtures/decomposed/*.json', { eager: true, import: 'default' })
 
 describe('decompose: fixture catalogs', () => {
-  it.each(valid)('%s decomposes exactly as fixtures/decomposed records', (name, text) => {
-    expect(JSON.parse(JSON.stringify(plainForm(decompose(text))))).toEqual(decomposed[`../../fixtures/decomposed/${name}`])
+  // Byte for byte, so key and link order are part of the contract. Regenerate with `npx vitest run -u`.
+  it.each(valid)('%s decomposes exactly as fixtures/decomposed records', async (name, text) => {
+    await expect(`${JSON.stringify(plainForm(decompose(text)), null, 2)}\n`).toMatchFileSnapshot(
+      `../../fixtures/decomposed/${name}`,
+    )
   })
 
   it('has an expected count for every fixture', () => {
@@ -199,7 +201,7 @@ describe('decompose: shape rules', () => {
     expect(objects.size).toBe(6)
   })
 
-  it('follows a class into itself ("$ref": "#") and escapes ids as JSON Pointers', () => {
+  it('follows a class into itself ("$ref": "#") and ids it by JSON Pointer', () => {
     const { objects } = decompose(json({ '@type': 'Catalog', catalog: [{ '@type': 'Catalog', dataset: [dataset('A')] }] }))
     expect([...objects.keys()]).toEqual(['#', '#/catalog/0', '#/catalog/0/dataset/0'])
   })
@@ -225,6 +227,7 @@ describe('decompose: bad input', () => {
     ['a JSON string', '"Catalog"', 'no-dcat-class'],
     ['an empty object', '{}', 'no-dcat-class'],
     ['an object with no DCAT properties', '{"name": "x"}', 'no-dcat-class'],
+    ['an object with only an @id', '{"@id": "https://example.gov/catalog"}', 'no-dcat-class'],
     ['an unknown @type', '{"@type": "Spreadsheet", "dataset": []}', 'no-dcat-class'],
     ['an inherited name as @type', '{"@type": "constructor", "dataset": []}', 'no-dcat-class'],
     ['a non-string @type', '{"@type": ["Catalog"], "dataset": []}', 'no-dcat-class'],
