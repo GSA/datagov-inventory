@@ -105,7 +105,7 @@ function extractFormModel(className, schema) {
 
 function formatFieldValue(value) {
   if (typeof value === 'string') {
-    return `'${value.replace(/'/g, "\\'")}'`
+    return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
   }
   if (typeof value === 'boolean' || typeof value === 'number') {
     return String(value)
@@ -126,7 +126,7 @@ function generateField(field, indent) {
   lines.push(`${indent}  cardinality: '${field.cardinality}',`)
 
   if (field.helpText !== undefined) {
-    const escapedHelp = field.helpText.replace(/'/g, "\\'").replace(/\n/g, ' ')
+    const escapedHelp = field.helpText.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ')
     lines.push(`${indent}  helpText: '${escapedHelp}',`)
   }
 
