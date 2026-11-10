@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, Table } from '@trussworks/react-uswds'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
@@ -56,8 +56,50 @@ function Paged<T>({ items, noun, children }: { items: T[]; noun: string; childre
   )
 }
 
-/** Values are untrusted: they are only ever rendered as React text. */
-const textOf = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value))
+const VALUE_LENGTH = 2_000
+
+/** Values are untrusted: they are only ever rendered as React text, cut to 2,000 characters so a huge one cannot stall the page. */
+function textOf(value: unknown): string {
+  const text = typeof value === 'string' ? value : JSON.stringify(value)
+  return text.length > VALUE_LENGTH ? `${text.slice(0, VALUE_LENGTH)}… (${count(text.length)} characters in all)` : text
+}
+
+/** A row of the object list; memoized so selecting an object re-renders two rows, not all of them. */
+const ObjectRow = memo(function ObjectRow({
+  object,
+  index,
+  selected,
+  onSelect,
+}: {
+  object: CatalogObject
+  index: number
+  selected: boolean
+  onSelect: (id: string) => void
+}) {
+  return (
+    <tr>
+      <td className="text-break">
+        <Button
+          type="button"
+          unstyled
+          data-paged-item
+          aria-current={selected ? 'true' : undefined}
+          aria-describedby={`object-id-${index}`}
+          className={selected ? 'text-bold' : undefined}
+          onClick={() => onSelect(object.id)}
+        >
+          <bdi>{labelOf(object)}</bdi>
+        </Button>
+      </td>
+      <td>{object.dcatClass}</td>
+      <td className="text-break">
+        <code id={`object-id-${index}`} className="font-mono-3xs">
+          {object.id}
+        </code>
+      </td>
+    </tr>
+  )
+})
 
 function PropertyTable({ caption, entries }: { caption: string; entries: [string, unknown][] }) {
   return (
@@ -155,14 +197,20 @@ function ObjectDetail({
   )
 }
 
-export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
+/** Memoized, so typing in the load form does not re-render the catalog. */
+export default memo(function CatalogBrowser({ name, catalog }: LoadedCatalog) {
   const { objects } = catalog
   const [selectedId, setSelectedId] = useState<string>()
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => heading.current?.focus(), [])
   // Choosing the open object again still moves focus to it; a new one focuses its heading as it mounts.
-  const select = (id: string) =>
-    id === selectedId ? document.getElementById('detail-heading')?.focus() : setSelectedId(id)
+  const selectedRef = useRef(selectedId)
+  selectedRef.current = selectedId
+  const select = useCallback(
+    (id: string) =>
+      id === selectedRef.current ? document.getElementById('detail-heading')?.focus() : setSelectedId(id),
+    [],
+  )
   // The selected row if it is shown, else the list's heading.
   const backToList = () =>
     (
@@ -224,27 +272,13 @@ export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
                 </thead>
                 <tbody>
                   {shown.map((object, i) => (
-                    <tr key={object.id}>
-                      <td className="text-break">
-                        <Button
-                          type="button"
-                          unstyled
-                          data-paged-item
-                          aria-current={object.id === selectedId ? 'true' : undefined}
-                          aria-describedby={`object-id-${i}`}
-                          className={object.id === selectedId ? 'text-bold' : undefined}
-                          onClick={() => select(object.id)}
-                        >
-                          <bdi>{labelOf(object)}</bdi>
-                        </Button>
-                      </td>
-                      <td>{object.dcatClass}</td>
-                      <td className="text-break">
-                        <code id={`object-id-${i}`} className="font-mono-3xs">
-                          {object.id}
-                        </code>
-                      </td>
-                    </tr>
+                    <ObjectRow
+                      key={object.id}
+                      object={object}
+                      index={i}
+                      selected={object.id === selectedId}
+                      onSelect={select}
+                    />
                   ))}
                 </tbody>
               </Table>
@@ -262,4 +296,4 @@ export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
       </div>
     </>
   )
-}
+})

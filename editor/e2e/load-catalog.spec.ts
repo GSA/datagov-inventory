@@ -59,7 +59,9 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
   await distribution.getByRole('button', { name: 'Untitled Checksum (Checksum)' }).click()
   await expect(page.getByRole('region', { name: 'Untitled Checksum' })).toContainText('SHA-256')
 
-  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
+  const axe = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze()
   expect(axe.violations).toEqual([])
 })
 
@@ -138,7 +140,15 @@ test('shows unknown properties as text only', async ({ page }) => {
   await page.getByLabel('Paste JSON').fill(
     JSON.stringify({
       '@type': 'Catalog',
-      dataset: [{ '@type': 'Dataset', title: payload, 'x-agency': payload, landingPage: 'javascript:window.pwned=1' }],
+      dataset: [
+        {
+          '@type': 'Dataset',
+          title: payload,
+          'x-agency': payload,
+          'x-long': 'a'.repeat(5_000),
+          landingPage: 'javascript:window.pwned=1',
+        },
+      ],
     }),
   )
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
@@ -146,6 +156,7 @@ test('shows unknown properties as text only', async ({ page }) => {
   const detail = page.getByRole('region', { name: payload })
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText('x-agency')
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText(payload)
+  await expect(detail.getByRole('row', { name: /^x-long/ })).toHaveText(/^x-longa{2000}… \(5,000 characters in all\)$/)
   await expect(detail.locator('img, script, a')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined()
 })
@@ -171,7 +182,9 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   await expect(detail.getByRole('button', { name: 'Dataset 500 (Dataset)' })).toBeFocused()
   await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
 
-  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
+  const axe = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze()
   expect(axe.violations).toEqual([])
 
   await detail.getByRole('button', { name: 'Back to the list' }).click()
