@@ -203,7 +203,6 @@ describe('decompose: bad input', () => {
     ['an empty object', '{}', 'no-dcat-class'],
     ['an object with no DCAT properties', '{"name": "x"}', 'no-dcat-class'],
     ['an unknown @type', '{"@type": "Spreadsheet", "dataset": []}', 'no-dcat-class'],
-    ['a prefixed @type', '{"@type": "dcat:Catalog", "dataset": []}', 'no-dcat-class'],
     ['an inherited name as @type', '{"@type": "constructor", "dataset": []}', 'no-dcat-class'],
     ['a non-string @type', '{"@type": ["Catalog"], "dataset": []}', 'no-dcat-class'],
   ])('refuses %s with a clear error', (_case, text, code) => {
@@ -217,6 +216,12 @@ describe('decompose: bad input', () => {
       expect((error as DecomposeError).code).toBe(code)
     }
   })
+})
+
+it('names DCAT-US 1.1 when a data.json file is given', () => {
+  expect(() => decompose('{"@type": "dcat:Catalog", "conformsTo": "https://project-open-data.cio.gov/v1.1/schema", "dataset": []}')).toThrow(
+    'No DCAT-US 3.0 class found: this looks like a DCAT-US 1.1 data.json file. The editor reads DCAT-US 3.0 only.',
+  )
 })
 
 describe('decompose: limits', () => {
@@ -238,12 +243,16 @@ describe('decompose: limits', () => {
       'This document is 150 bytes, over the 100 bytes size limit.',
     ])
     expect(() => decompose(text, { maxBytes: 150 })).not.toThrow()
+    // Far over the limit, it is refused by its length without being encoded.
+    expect(codeOf(() => decompose('x'.repeat(1_000), { maxBytes: 100 }))[1]).toBe(
+      'This document is 1,000 bytes, over the 100 bytes size limit.',
+    )
   })
 
   it('checks a file size before it is read, naming the default limit', () => {
     expect(codeOf(() => checkSize(30_200_000))).toEqual([
       'too-large',
-      'This document is 30.2 MB, over the 25 MB size limit.',
+      'This document is 30,200,000 bytes, over the 25 MB size limit.',
     ])
     expect(() => checkSize(DEFAULT_LIMITS.maxBytes)).not.toThrow()
   })
