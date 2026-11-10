@@ -217,7 +217,6 @@ describe('decompose: shape rules', () => {
 
 describe('decompose: bad input', () => {
   it.each([
-    ['empty input', '', 'invalid-json'],
     ['truncated JSON', '{"@type": "Catalog", "dataset": [', 'invalid-json'],
     ['not JSON', 'Catalog', 'invalid-json'],
     ['a JSON array', '[{"@type": "Catalog"}]', 'no-dcat-class'],
@@ -240,6 +239,10 @@ describe('decompose: bad input', () => {
       expect((error as DecomposeError).code).toBe(code)
     }
   })
+})
+
+it.each(['', ' \n\t', '\uFEFF'])('says so when the input is empty (%j)', (text) => {
+  expect(() => decompose(text)).toThrow(new DecomposeError('invalid-json', 'This document is empty.'))
 })
 
 it('names DCAT-US 1.1 when a data.json file is given', () => {
@@ -269,7 +272,7 @@ describe('decompose: limits', () => {
     expect(() => decompose(text, { maxBytes: 150 })).not.toThrow()
     // Far over the limit, it is refused by its length without being encoded.
     expect(codeOf(() => decompose('x'.repeat(1_000), { maxBytes: 100 }))[1]).toBe(
-      'This document is 1,000 bytes, over the 100 bytes size limit.',
+      'This document is over the 100 bytes size limit.',
     )
   })
 
@@ -300,7 +303,7 @@ describe('decompose: limits', () => {
     expect(() => decompose(text, { maxObjects: 3 })).not.toThrow()
     expect(codeOf(() => decompose(text, { maxObjects: 2 }))).toEqual([
       'too-many-objects',
-      'This document has more than 2 objects, the limit.',
+      'This document has more than 2 JSON objects, the limit.',
     ])
   })
 

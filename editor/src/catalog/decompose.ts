@@ -76,22 +76,24 @@ export const formatBytes = (bytes: number) =>
 /** Refuses an input of `bytes` UTF-8 bytes over the limit; call it on a file's size before reading it. */
 export function checkSize(bytes: number, limits: Partial<DecomposeLimits> = {}): void {
   const { maxBytes } = { ...DEFAULT_LIMITS, ...limits }
-  if (bytes > maxBytes) {
-    throw new DecomposeError(
-      'too-large',
-      `This document is ${bytes.toLocaleString('en-US')} bytes, over the ${formatBytes(maxBytes)} size limit.`,
-    )
-  }
+  if (bytes > maxBytes) throw tooLarge(maxBytes, bytes)
 }
+
+const tooLarge = (maxBytes: number, bytes?: number) =>
+  new DecomposeError(
+    'too-large',
+    `This document is ${bytes === undefined ? '' : `${bytes.toLocaleString('en-US')} bytes, `}over the ${formatBytes(maxBytes)} size limit.`,
+  )
 
 /** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
 export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
   const { maxBytes, maxDepth, maxObjects } = { ...DEFAULT_LIMITS, ...limits }
   // UTF-8 never takes fewer bytes than UTF-16 code units, so the length alone refuses most oversize
   // text without encoding it, and only text near the limit is counted exactly.
-  const nearLimit = text.length <= maxBytes && text.length * 3 > maxBytes
-  checkSize(nearLimit ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
+  if (text.length > maxBytes) throw tooLarge(maxBytes)
+  checkSize(text.length * 3 > maxBytes ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
   scan(text, maxDepth, maxObjects)
+  if (!text.trim()) throw new DecomposeError('invalid-json', 'This document is empty.')
 
   let root: unknown
   try {
@@ -182,7 +184,7 @@ function scan(text: string, maxDepth: number, maxObjects: number): void {
       if (c === 0x7b && ++objectCount > maxObjects) {
         throw new DecomposeError(
           'too-many-objects',
-          `This document has more than ${maxObjects.toLocaleString('en-US')} objects, the limit.`,
+          `This document has more than ${maxObjects.toLocaleString('en-US')} JSON objects, the limit.`,
         )
       }
       if (++depth > maxDepth) {
