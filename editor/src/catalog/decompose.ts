@@ -17,7 +17,7 @@ export interface CatalogObject {
    * `@id`, if any, stays in `properties`, because input `@id`s can repeat.
    */
   id: string
-  /** The DCAT-US 3.0 class: its `@type` if that names a class, else the one the schema allows. */
+  /** The DCAT-US 3.0 class the schema allows where the object sits (`@type` only chooses among several); the top level's from its `@type`. */
   dcatClass: string
   /** Every property that is not a link, unknown ones included, with values exactly as read. */
   properties: Record<string, unknown>
@@ -38,7 +38,7 @@ export interface DecomposeLimits {
   maxBytes: number
   /** Deepest nesting of JSON objects and arrays accepted (the top-level object is depth 1). */
   maxDepth: number
-  /** Most DCAT objects one document may decompose into. */
+  /** Most JSON objects (`{...}`) a document may contain, counted before it is parsed; DCAT objects are a subset. */
   maxObjects: number
 }
 
@@ -86,7 +86,7 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
   // text without encoding it, and only text near the limit is counted exactly.
   const nearLimit = text.length <= maxBytes && text.length * 3 > maxBytes
   checkSize(nearLimit ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
-  checkDepth(text, maxDepth)
+  scan(text, maxDepth, maxObjects)
 
   let root: unknown
   try {
@@ -106,12 +106,6 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
 
   const objects = new Map<string, CatalogObject>()
   const add = (node: Record<string, unknown>, dcatClass: string, id: string): string => {
-    if (objects.size >= maxObjects) {
-      throw new DecomposeError(
-        'too-many-objects',
-        `This document has more than ${maxObjects.toLocaleString('en-US')} objects, the limit.`,
-      )
-    }
     const object: CatalogObject = {
       id,
       dcatClass,
@@ -131,7 +125,7 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
       }
       const base = `${id}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`
       object.links[key] = children.map((child, i) =>
-        add(child, classOf(child) ?? allowed[0], Array.isArray(value) ? `${base}/${i}` : base),
+        add(child, allowed.find((name) => name === child['@type']) ?? allowed[0], Array.isArray(value) ? `${base}/${i}` : base),
       )
       if (!Array.isArray(value)) object.singleLinks.push(key)
     }
@@ -143,12 +137,10 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const classOf = (node: Record<string, unknown>) =>
-  typeof node['@type'] === 'string' && classSchemas.has(node['@type']) ? node['@type'] : undefined
-
 /** `@type` names the class; without one, Catalog is the schema's default if any Catalog property is present. */
 function classOfRoot(root: Record<string, unknown>): string | undefined {
-  if ('@type' in root) return classOf(root)
+  const type = root['@type']
+  if (type !== undefined) return typeof type === 'string' && classSchemas.has(type) ? type : undefined
   const catalogProperties = getClassProperties('Catalog')
   return Object.keys(root).some((key) => key !== '@id' && catalogProperties.has(key)) ? 'Catalog' : undefined
 }
@@ -160,9 +152,10 @@ function asObjects(value: unknown): Record<string, unknown>[] | undefined {
   return undefined
 }
 
-/** Measures nesting on the raw text, so a depth bomb is refused before it is parsed. */
-function checkDepth(text: string, maxDepth: number): void {
+/** Measures nesting and counts objects on the raw text, so depth and object bombs are refused before parsing. */
+function scan(text: string, maxDepth: number, maxObjects: number): void {
   let depth = 0
+  let objectCount = 0
   let inString = false
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i)
@@ -171,6 +164,12 @@ function checkDepth(text: string, maxDepth: number): void {
       else if (c === 0x22) inString = false
     } else if (c === 0x22) inString = true
     else if (c === 0x7b || c === 0x5b) {
+      if (c === 0x7b && ++objectCount > maxObjects) {
+        throw new DecomposeError(
+          'too-many-objects',
+          `This document has more than ${maxObjects.toLocaleString('en-US')} objects, the limit.`,
+        )
+      }
       if (++depth > maxDepth) {
         throw new DecomposeError('too-deep', `This document is nested more than ${maxDepth} levels deep, the limit.`)
       }

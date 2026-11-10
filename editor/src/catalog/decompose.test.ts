@@ -20,7 +20,8 @@ const plain = (record: object) => ({ ...record })
 /** Objects per class each fixture decomposes into. Schema errors never stop a fixture loading. */
 const expectedCounts: Record<string, Record<string, number>> = {
   'dataset-with-distributions.json': {
-    Catalog: 1, Organization: 2, Dataset: 1, Kind: 1, PeriodOfTime: 1, Distribution: 2, Checksum: 1,
+    // The catalog's publisher is an Agent by the schema, though its @type says Organization.
+    Catalog: 1, Agent: 1, Organization: 1, Dataset: 1, Kind: 1, PeriodOfTime: 1, Distribution: 2, Checksum: 1,
   },
   'minimal-catalog.json': { Catalog: 1, Dataset: 1, Kind: 1 },
   'nullable-optional-properties.json': { Catalog: 1, Dataset: 1, Kind: 1 },
@@ -167,12 +168,23 @@ describe('decompose: shape rules', () => {
     expect(Object.keys(dataset0.links)).toEqual([])
   })
 
-  it('uses a recognised @type over the schema, and the schema for an unknown @type', () => {
+  it('takes the class from the schema, whatever a nested @type says, and keeps the @type', () => {
     const { objects } = decompose(
-      json({ '@type': 'Catalog', publisher: { '@type': 'Organization', name: 'A' }, contactPoint: [{ '@type': 'vcard:Kind' }] }),
+      json({
+        '@type': 'Catalog',
+        publisher: { '@type': 'Organization', name: 'A' },
+        contactPoint: [{ '@type': 'vcard:Kind' }],
+        dataset: [{ '@type': 'Catalog', dataset: [{}] }],
+      }),
     )
-    expect(objects.get('#/publisher')!.dcatClass).toBe('Organization') // the schema says Agent
+    expect(objects.get('#/publisher')).toEqual(
+      expect.objectContaining({ dcatClass: 'Agent', properties: expect.objectContaining({ '@type': 'Organization' }) }),
+    )
     expect(objects.get('#/contactPoint/0')!.dcatClass).toBe('Kind')
+    // A Catalog in a dataset slot is decomposed as the Dataset the schema expects: its "dataset" is unknown to Dataset.
+    expect(objects.get('#/dataset/0')!.dcatClass).toBe('Dataset')
+    expect(objects.get('#/dataset/0')!.properties.dataset).toEqual([{}])
+    expect(objects.size).toBe(4)
   })
 
   it('follows a class into itself ("$ref": "#") and escapes ids as JSON Pointers', () => {
@@ -278,6 +290,13 @@ describe('decompose: limits', () => {
       'too-many-objects',
       'This document has more than 2 objects, the limit.',
     ])
+  })
+
+  it('counts every JSON object before parsing, not only DCAT objects', () => {
+    const mixed = json({ '@type': 'Catalog', dataset: ['x', {}, {}, {}] }) // kept as a property, still counted
+    expect(codeOf(() => decompose(mixed, { maxObjects: 3 }))[0]).toBe('too-many-objects')
+    // Refused before parsing: this is not valid JSON either.
+    expect(codeOf(() => decompose('{"a":{},'.repeat(10), { maxObjects: 5 }))[0]).toBe('too-many-objects')
   })
 
   it('fits 3,000 rich datasets within the default limits', () => {
