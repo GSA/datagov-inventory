@@ -2,3 +2,13 @@
 .text-break {
   overflow-wrap: anywhere;
 }
+
+/* Column widths come from the header, so long values cannot squeeze the other columns. */
+.table-fixed {
+  table-layout: fixed;
+}
+
+/* WCAG 2.5.8: unstyled buttons stacked in lists need a 24px target. */
+.target-size {
+  min-height: 24px;
+}

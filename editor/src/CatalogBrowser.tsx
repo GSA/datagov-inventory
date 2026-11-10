@@ -27,18 +27,32 @@ function labelOf({ properties, dcatClass }: CatalogObject): string {
   return `Untitled ${dcatClass}`
 }
 
-/** Shows the first PAGE_SIZE items, and more on request. */
+const count = (n: number) => n.toLocaleString('en-US')
+
+/**
+ * Shows the first PAGE_SIZE items, and more on request. After "Show more", focus moves to
+ * the first new item (the element children mark `data-paged-item`) and the new total is announced.
+ */
 function Paged<T>({ items, noun, children }: { items: T[]; noun: string; children: (shown: T[]) => ReactNode }) {
   const [shown, setShown] = useState(PAGE_SIZE)
+  const container = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (shown > PAGE_SIZE) {
+      container.current?.querySelectorAll<HTMLElement>('[data-paged-item]')[shown - PAGE_SIZE]?.focus()
+    }
+  }, [shown])
   return (
-    <>
+    <div ref={container}>
       {children(items.slice(0, shown))}
+      <p className="usa-sr-only" role="status">
+        {shown > PAGE_SIZE && `Showing ${count(Math.min(shown, items.length))} of ${count(items.length)} ${noun}.`}
+      </p>
       {shown < items.length && (
         <Button type="button" outline onClick={() => setShown(shown + PAGE_SIZE)}>
-          Show more {noun} ({shown.toLocaleString('en-US')} of {items.length.toLocaleString('en-US')} shown)
+          Show more {noun} ({count(shown)} of {count(items.length)} shown)
         </Button>
       )}
-    </>
+    </div>
   )
 }
 
@@ -59,7 +73,7 @@ function PropertyTable({ caption, entries }: { caption: string; entries: [string
           <tbody>
             {shown.map(([key, value]) => (
               <tr key={key}>
-                <th scope="row" className="text-break">
+                <th scope="row" className="text-break" tabIndex={-1} data-paged-item>
                   {key}
                 </th>
                 <td className="text-break">{textOf(value)}</td>
@@ -76,13 +90,14 @@ function ObjectDetail({
   object,
   objects,
   onSelect,
+  onBack,
 }: {
   object: CatalogObject
   objects: DecomposedCatalog['objects']
   onSelect: (id: string) => void
+  onBack: () => void
 }) {
-  const heading = useRef<HTMLHeadingElement>(null)
-  useEffect(() => heading.current?.focus(), [object])
+  useEffect(() => document.getElementById('detail-heading')?.focus(), [])
   const known = getClassProperties(object.dcatClass)
   const entries = Object.entries(object.properties)
   const own = entries.filter(([key]) => known.has(key))
@@ -91,12 +106,15 @@ function ObjectDetail({
 
   return (
     <section aria-labelledby="detail-heading">
-      <h2 id="detail-heading" ref={heading} tabIndex={-1} className="margin-top-0">
+      <h2 id="detail-heading" tabIndex={-1} aria-describedby="detail-class" className="margin-top-0 text-break">
         <bdi>{labelOf(object)}</bdi>
       </h2>
-      <p>
+      <p id="detail-class">
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
+      <Button type="button" unstyled className="target-size" onClick={onBack}>
+        Back to the list
+      </Button>
       {own.length > 0 ? <PropertyTable caption="Properties" entries={own} /> : <p>No DCAT-US 3.0 properties.</p>}
 
       <h3>Links</h3>
@@ -109,7 +127,13 @@ function ObjectDetail({
               <ol className="margin-top-05">
                 {shown.map((id) => (
                   <li key={id}>
-                    <Button type="button" unstyled onClick={() => onSelect(id)}>
+                    <Button
+                      type="button"
+                      unstyled
+                      className="target-size text-break"
+                      data-paged-item
+                      onClick={() => onSelect(id)}
+                    >
                       <bdi>{labelOf(objects.get(id)!)}</bdi> ({objects.get(id)!.dcatClass})
                     </Button>
                   </li>
@@ -136,6 +160,15 @@ export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
   const [selectedId, setSelectedId] = useState<string>()
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => heading.current?.focus(), [])
+  // Choosing the open object again still moves focus to it; a new one focuses its heading as it mounts.
+  const select = (id: string) =>
+    id === selectedId ? document.getElementById('detail-heading')?.focus() : setSelectedId(id)
+  // The selected row if it is shown, else the list's heading.
+  const backToList = () =>
+    (
+      document.querySelector<HTMLElement>('#objects [aria-current="true"]') ??
+      document.getElementById('objects-heading')
+    )?.focus()
 
   const all = useMemo(() => [...objects.values()], [objects])
   const counts = useMemo(() => {
@@ -173,37 +206,43 @@ export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
       </section>
 
       <div className="grid-row grid-gap margin-top-4">
-        <section aria-labelledby="objects-heading" className="tablet:grid-col-5">
-          <h2 id="objects-heading" className="margin-top-0">
+        <section id="objects" aria-labelledby="objects-heading" className="tablet:grid-col-5">
+          <h2 id="objects-heading" tabIndex={-1} className="margin-top-0">
             Objects
           </h2>
           <Paged items={all} noun="objects">
             {(shown) => (
-              <Table fullWidth compact>
+              <Table caption={<span className="usa-sr-only">Objects</span>} className="table-fixed" fullWidth compact>
                 <thead>
                   <tr>
-                    <th scope="col">Title or name</th>
+                    <th scope="col" className="width-card">
+                      Title or name
+                    </th>
                     <th scope="col">Class</th>
                     <th scope="col">Id</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {shown.map((object) => (
+                  {shown.map((object, i) => (
                     <tr key={object.id}>
                       <td className="text-break">
                         <Button
                           type="button"
                           unstyled
+                          data-paged-item
                           aria-current={object.id === selectedId ? 'true' : undefined}
+                          aria-describedby={`object-id-${i}`}
                           className={object.id === selectedId ? 'text-bold' : undefined}
-                          onClick={() => setSelectedId(object.id)}
+                          onClick={() => select(object.id)}
                         >
                           <bdi>{labelOf(object)}</bdi>
                         </Button>
                       </td>
                       <td>{object.dcatClass}</td>
                       <td className="text-break">
-                        <code className="font-mono-3xs">{object.id}</code>
+                        <code id={`object-id-${i}`} className="font-mono-3xs">
+                          {object.id}
+                        </code>
                       </td>
                     </tr>
                   ))}
@@ -215,7 +254,7 @@ export default function CatalogBrowser({ name, catalog }: LoadedCatalog) {
 
         <div className="tablet:grid-col-7">
           {selected ? (
-            <ObjectDetail key={selected.id} object={selected} objects={objects} onSelect={setSelectedId} />
+            <ObjectDetail key={selected.id} object={selected} objects={objects} onSelect={select} onBack={backToList} />
           ) : (
             <p className="margin-top-0">Select an object to see its properties and links.</p>
           )}

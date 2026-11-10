@@ -59,7 +59,7 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
   await distribution.getByRole('button', { name: 'Untitled Checksum (Checksum)' }).click()
   await expect(page.getByRole('region', { name: 'Untitled Checksum' })).toContainText('SHA-256')
 
-  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
   expect(axe.violations).toEqual([])
 })
 
@@ -89,7 +89,8 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(alert).toContainText('Pasted JSON could not be loaded')
   await expect(alert).toContainText('This is not valid JSON')
   await expect(alert).toContainText('The catalog already loaded (minimal-catalog.json) has not changed.')
-  await expect(alert.getByRole('heading')).toBeFocused()
+  // role=alert announces it; focus stays where the user was, so they can fix the input and retry.
+  await expect(page.getByRole('button', { name: 'Load pasted JSON' })).toBeFocused()
 
   // The same failure again is a new alert, so it is announced again.
   await alert.evaluate((element) => element.setAttribute('data-old', ''))
@@ -159,11 +160,20 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   await expect(list.getByRole('row')).toHaveCount(501) // a header and 500 rows
   await list.getByRole('button', { name: 'Show more objects (500 of 502 shown)' }).click()
   await expect(list.getByRole('row')).toHaveCount(503)
+  await expect(list.getByRole('button', { name: 'Dataset 499', exact: true })).toBeFocused() // the first new row
+  await expect(list.getByRole('status')).toHaveText('Showing 502 of 502 objects.')
 
   await list.getByRole('button', { name: 'Big' }).click()
   const detail = page.getByRole('region', { name: 'Big' })
   await expect(detail.getByRole('listitem')).toHaveCount(500)
   await detail.getByRole('button', { name: 'Show more dataset links (500 of 501 shown)' }).click()
   await expect(detail.getByRole('listitem')).toHaveCount(501)
+  await expect(detail.getByRole('button', { name: 'Dataset 500 (Dataset)' })).toBeFocused()
   await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
+
+  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
+  expect(axe.violations).toEqual([])
+
+  await detail.getByRole('button', { name: 'Back to the list' }).click()
+  await expect(list.getByRole('button', { name: 'Big' })).toBeFocused()
 })

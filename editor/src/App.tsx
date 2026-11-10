@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Alert,
   AlertHeading,
@@ -49,8 +49,6 @@ function App() {
   const [sample, setSample] = useState(samples[0].name)
   const attempt = useRef(0)
   const fileInput = useRef<FileInputRef>(null)
-  // Move focus to a new error, so keyboard and screen reader users land on it.
-  useEffect(() => document.getElementById('load-error')?.focus(), [error])
 
   /** Replaces the loaded catalog only if the new one decomposes; a failed load leaves it as it was. */
   async function load(name: string, read: () => string | Promise<string>) {
@@ -87,10 +85,14 @@ function App() {
             <div className="grid-row grid-gap">
               <div className="tablet:grid-col-4">
                 <Label htmlFor="catalog-file">Choose a DCAT-US 3.0 JSON file</Label>
+                <span id="catalog-file-hint" className="usa-hint">
+                  It loads as soon as you choose it.
+                </span>
                 <FileInput
                   ref={fileInput}
                   id="catalog-file"
                   name="catalog-file"
+                  aria-describedby="catalog-file-hint"
                   accept=".json,application/json"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -146,10 +148,10 @@ function App() {
           {error && (
             // Keyed by attempt, so a repeated failure is a new alert and is announced again.
             <Alert key={error.attempt} type="error" role="alert" className="margin-top-4">
-              <AlertHeading level="h2" id="load-error" tabIndex={-1} className="text-break">
+              <AlertHeading level="h2" className="text-break">
                 <bdi>{error.name}</bdi> could not be loaded
               </AlertHeading>
-              <AlertText>
+              <AlertText className="text-break">
                 {error.message}
                 {loaded && (
                   <>
