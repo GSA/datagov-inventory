@@ -1,0 +1,85 @@
+import type { FormModel } from '../types'
+
+export const KindModel: FormModel = {
+  className: 'Kind',
+  fields: [
+{
+      name: '@id',
+      label: '@id',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+    },
+{
+      name: '@type',
+      label: '@type',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+    },
+{
+      name: 'address',
+      label: 'Address',
+      type: 'array',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The address of the contact',
+    },
+{
+      name: 'hasEmail',
+      label: 'Has Email',
+      type: 'string',
+      required: true,
+      cardinality: 'single',
+      helpText: 'Email address for the contact in mailto: format (for example, mailto:support@example.gov)',
+    },
+{
+      name: 'family-name',
+      label: 'Family-name',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The family name of the contact',
+    },
+{
+      name: 'fn',
+      label: 'Fn',
+      type: 'string',
+      required: true,
+      cardinality: 'single',
+      helpText: 'The formatted text of the name of the contact',
+    },
+{
+      name: 'given-name',
+      label: 'Given-name',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The given name of the contact',
+    },
+{
+      name: 'organization-name',
+      label: 'Organization-name',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The name of the organization to contact',
+    },
+{
+      name: 'tel',
+      label: 'Tel',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The telephone number for the contact',
+    },
+{
+      name: 'title',
+      label: 'Title',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The position role of the person to contact',
+    }
+  ],
+}
