@@ -26,3 +26,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Cloud Foundry deploy: filled from dist/ by CI
+cf/public

@@ -1,0 +1,74 @@
+name: Deploy editor
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - editor/**
+      - .github/workflows/deploy-editor.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-editor-development
+
+env:
+  APP_URL: https://inventory-editor-dev-datagov.app.cloud.gov
+
+jobs:
+  deploy-development:
+    name: deploy (development)
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+      url: ${{ env.APP_URL }}
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+
+      - name: Build
+        working-directory: editor
+        run: |
+          npm ci
+          npm run build
+          cp -R dist cf/public
+
+      - name: Push to cloud.gov
+        uses: cloud-gov/cg-cli-tools@8a9e968bbf7b6e798f338f90efcccfaaf4005fe5 # main
+        with:
+          cf_manifest: editor/manifest.yml
+          cf_org: gsa-datagov
+          cf_space: development
+          cf_username: ${{ secrets.CF_SERVICE_USER }}
+          cf_password: ${{ secrets.CF_SERVICE_AUTH }}
+
+      - name: Smoke test
+        run: |
+          check() { # url, then header patterns that must all be present
+            headers=$(curl -fsS --compressed --retry 3 --retry-all-errors -o /dev/null -D - "$1")
+            echo "== $1"; echo "$headers"
+            shift
+            for h in "$@"; do grep -qi "^$h" <<<"$headers" || { echo "missing: $h"; exit 1; }; done
+            if grep -qi '^set-cookie:' <<<"$headers"; then echo "unexpected cookie"; exit 1; fi
+          }
+          for path in / /smoke-test/deep/link; do
+            check "$APP_URL$path" 'HTTP/[0-9.]* 200' 'content-type: text/html' \
+              "content-security-policy: .*connect-src 'none'" 'strict-transport-security:' \
+              'x-content-type-options: nosniff' 'referrer-policy: no-referrer' 'x-frame-options: deny'
+          done
+          asset=$(curl -fsS "$APP_URL/" | grep -oE '/assets/[^"]+\.js' | head -1)
+          test -n "$asset"
+          check "$APP_URL$asset" 'content-type: text/javascript' 'cache-control: .*immutable' \
+            'content-encoding: gzip' 'vary: accept-encoding'
