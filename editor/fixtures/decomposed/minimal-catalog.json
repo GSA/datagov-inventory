@@ -1,0 +1,46 @@
+{
+  "rootId": "#",
+  "objects": [
+    {
+      "id": "#",
+      "dcatClass": "Catalog",
+      "properties": {
+        "@type": "Catalog"
+      },
+      "links": {
+        "dataset": [
+          "#/dataset/0"
+        ]
+      },
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0",
+      "dcatClass": "Dataset",
+      "properties": {
+        "@type": "Dataset",
+        "title": "Minimal dataset",
+        "description": "Only the properties DCAT-US 3.0 requires.",
+        "identifier": "https://example.gov/datasets/minimal"
+      },
+      "links": {
+        "contactPoint": [
+          "#/dataset/0/contactPoint"
+        ]
+      },
+      "singleLinks": [
+        "contactPoint"
+      ]
+    },
+    {
+      "id": "#/dataset/0/contactPoint",
+      "dcatClass": "Kind",
+      "properties": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "links": {},
+      "singleLinks": []
+    }
+  ]
+}

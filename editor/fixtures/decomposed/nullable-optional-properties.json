@@ -1,0 +1,51 @@
+{
+  "rootId": "#",
+  "objects": [
+    {
+      "id": "#",
+      "dcatClass": "Catalog",
+      "properties": {
+        "@type": "Catalog"
+      },
+      "links": {
+        "dataset": [
+          "#/dataset/0"
+        ]
+      },
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0",
+      "dcatClass": "Dataset",
+      "properties": {
+        "@type": "Dataset",
+        "title": "Dataset with empty optional properties",
+        "description": "Optional properties may be null.",
+        "identifier": "https://example.gov/datasets/nullable",
+        "keyword": null,
+        "issued": null,
+        "publisher": null,
+        "distribution": null,
+        "accrualPeriodicity": null
+      },
+      "links": {
+        "contactPoint": [
+          "#/dataset/0/contactPoint"
+        ]
+      },
+      "singleLinks": [
+        "contactPoint"
+      ]
+    },
+    {
+      "id": "#/dataset/0/contactPoint",
+      "dcatClass": "Kind",
+      "properties": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "links": {},
+      "singleLinks": []
+    }
+  ]
+}

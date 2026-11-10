@@ -20,8 +20,7 @@ const plain = (record: object) => ({ ...record })
 /** Objects per class each fixture decomposes into. Schema errors never stop a fixture loading. */
 const expectedCounts: Record<string, Record<string, number>> = {
   'dataset-with-distributions.json': {
-    // The catalog's publisher is an Agent by the schema, though its @type says Organization.
-    Catalog: 1, Agent: 1, Organization: 1, Dataset: 1, Kind: 1, PeriodOfTime: 1, Distribution: 2, Checksum: 1,
+    Catalog: 1, Organization: 2, Dataset: 1, Kind: 1, PeriodOfTime: 1, Distribution: 2, Checksum: 1,
   },
   'minimal-catalog.json': { Catalog: 1, Dataset: 1, Kind: 1 },
   'nullable-optional-properties.json': { Catalog: 1, Dataset: 1, Kind: 1 },
@@ -35,7 +34,18 @@ const expectedCounts: Record<string, Record<string, number>> = {
   'unknown-accrual-periodicity.json': { Catalog: 1, Dataset: 1, Kind: 1 },
 }
 
+/** The plain JSON form of a decomposed catalog, as stored in fixtures/decomposed for other implementations to share. */
+const plainForm = ({ rootId, objects }: DecomposedCatalog) => ({
+  rootId,
+  objects: [...objects.values()].map((o) => ({ ...o, properties: { ...o.properties }, links: { ...o.links } })),
+})
+const decomposed = import.meta.glob('../../fixtures/decomposed/*.json', { eager: true, import: 'default' })
+
 describe('decompose: fixture catalogs', () => {
+  it.each(valid)('%s decomposes exactly as fixtures/decomposed records', (name, text) => {
+    expect(JSON.parse(JSON.stringify(plainForm(decompose(text))))).toEqual(decomposed[`../../fixtures/decomposed/${name}`])
+  })
+
   it('has an expected count for every fixture', () => {
     expect([...valid, ...invalid].map(([name]) => name).sort()).toEqual(Object.keys(expectedCounts).sort())
   })
@@ -168,23 +178,25 @@ describe('decompose: shape rules', () => {
     expect(Object.keys(dataset0.links)).toEqual([])
   })
 
-  it('takes the class from the schema, whatever a nested @type says, and keeps the @type', () => {
+  it('takes the class from the schema, or a subclass @type, and keeps the @type', () => {
     const { objects } = decompose(
       json({
         '@type': 'Catalog',
-        publisher: { '@type': 'Organization', name: 'A' },
+        publisher: { '@type': 'Organization', name: 'A', subOrganizationOf: [{ name: 'Parent' }] },
+        creator: { name: 'An agent' },
         contactPoint: [{ '@type': 'vcard:Kind' }],
         dataset: [{ '@type': 'Catalog', dataset: [{}] }],
       }),
     )
-    expect(objects.get('#/publisher')).toEqual(
-      expect.objectContaining({ dcatClass: 'Agent', properties: expect.objectContaining({ '@type': 'Organization' }) }),
-    )
+    // The schema allows an Agent; an Organization is one, so its own links are followed.
+    expect(objects.get('#/publisher')!.dcatClass).toBe('Organization')
+    expect(objects.get('#/publisher/subOrganizationOf/0')!.dcatClass).toBe('Organization')
+    expect(objects.get('#/creator')!.dcatClass).toBe('Agent')
     expect(objects.get('#/contactPoint/0')!.dcatClass).toBe('Kind')
     // A Catalog in a dataset slot is decomposed as the Dataset the schema expects: its "dataset" is unknown to Dataset.
     expect(objects.get('#/dataset/0')!.dcatClass).toBe('Dataset')
     expect(objects.get('#/dataset/0')!.properties.dataset).toEqual([{}])
-    expect(objects.size).toBe(4)
+    expect(objects.size).toBe(6)
   })
 
   it('follows a class into itself ("$ref": "#") and escapes ids as JSON Pointers', () => {

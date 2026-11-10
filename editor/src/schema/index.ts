@@ -32,19 +32,20 @@ const classPropertiesCache = new Map<string, ReadonlyMap<string, readonly string
  * The properties the schema defines for a class, each mapped to the classes its value can
  * hold, in schema order (`[]` for a property that holds only scalars). A property holds a
  * class when its schema `$ref`s one, directly or through `items`/`anyOf`/`oneOf`/`allOf`;
- * `"$ref": "#"` is the class itself. For Concept and Identifier, which may be a plain
- * string or an object, the object form's properties are used.
+ * `"$ref": "#"` is the class itself. Properties of `anyOf`/`oneOf`/`allOf` branches are
+ * included, so Concept and Identifier, which may be a plain string or an object, get their
+ * object form's properties.
  * Decompose (#20) uses this to tell links from scalars; form models (#19) should reuse it.
  */
 export function getClassProperties(name: string): ReadonlyMap<string, readonly string[]> {
   let result = classPropertiesCache.get(name)
   if (result) return result
   const schema = getClassSchema(name)
-  const branches = [schema, ...((schema.anyOf ?? schema.oneOf ?? []) as JsonSchema[])]
+  const branches = [schema, ...(['anyOf', 'oneOf', 'allOf'] as const).flatMap((k) => (schema[k] ?? []) as JsonSchema[])]
   const map = new Map<string, readonly string[]>()
   for (const branch of branches) {
     for (const [prop, propSchema] of Object.entries((branch.properties ?? {}) as Record<string, JsonSchema>)) {
-      const classes = new Set<string>()
+      const classes = new Set(map.get(prop))
       collectClassRefs(propSchema, name, classes)
       map.set(prop, [...classes])
     }

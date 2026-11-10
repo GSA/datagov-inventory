@@ -14,10 +14,15 @@ export interface CatalogObject {
   /**
    * Synthetic and deterministic: the object's JSON Pointer in the source document, as a
    * URI fragment (`#` is the root, `#/dataset/0/distribution/1` a distribution). Its
-   * `@id`, if any, stays in `properties`, because input `@id`s can repeat.
+   * `@id`, if any, stays in `properties`, because input `@id`s can repeat. Treat it as
+   * opaque: it names where the object was loaded from, not where it is after edits.
    */
   id: string
-  /** The DCAT-US 3.0 class the schema allows where the object sits (`@type` only chooses among several); the top level's from its `@type`. */
+  /**
+   * The DCAT-US 3.0 class the schema allows where the object sits. Its `@type` only
+   * chooses among several, or names a subclass (an Organization where an Agent is
+   * allowed). The top level's class comes from its `@type`.
+   */
   dcatClass: string
   /** Every property that is not a link, unknown ones included, with values exactly as read. */
   properties: Record<string, unknown>
@@ -125,7 +130,7 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
       }
       const base = `${id}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`
       object.links[key] = children.map((child, i) =>
-        add(child, allowed.find((name) => name === child['@type']) ?? allowed[0], Array.isArray(value) ? `${base}/${i}` : base),
+        add(child, classIn(child, allowed), Array.isArray(value) ? `${base}/${i}` : base),
       )
       if (!Array.isArray(value)) object.singleLinks.push(key)
     }
@@ -136,6 +141,16 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** In FOAF, which DCAT-US 3.0 uses, an Organization is an Agent: the only subclass pair among its classes. */
+const subclasses = new Map([['Agent', ['Organization']]])
+
+/** The class for an object where `allowed` classes may stand: its `@type` if that fits, else the first allowed. */
+function classIn(node: Record<string, unknown>, allowed: readonly string[]): string {
+  const type = node['@type']
+  const fits = (name: string) => name === type || (subclasses.get(name) ?? []).some((sub) => sub === type)
+  return typeof type === 'string' && allowed.some(fits) ? type : allowed[0]
+}
 
 /** `@type` names the class; without one, Catalog is the schema's default if any Catalog property is present. */
 function classOfRoot(root: Record<string, unknown>): string | undefined {
