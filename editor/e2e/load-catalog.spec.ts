@@ -27,13 +27,12 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
   await expect(page.getByRole('table', { name: '9 objects by class' })).toBeVisible()
   expect(await summaryRows(page)).toEqual([
     'Class\tObjects',
-    'Agent\t1',
     'Catalog\t1',
     'Checksum\t1',
     'Dataset\t1',
     'Distribution\t2',
     'Kind\t1',
-    'Organization\t1',
+    'Organization\t2',
     'PeriodOfTime\t1',
   ])
 
