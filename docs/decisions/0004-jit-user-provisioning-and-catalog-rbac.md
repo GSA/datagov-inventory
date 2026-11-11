@@ -12,6 +12,15 @@ risk_treatment: "mitigate"
 
 # Provision user accounts just-in-time on first Login.gov authentication, with authorization held in per-catalog permissions
 
+> **Phase applicability, 2026-10-30:** This decision applies from phase 2 onward
+> under [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1 has no
+> application accounts, authorization, server sessions, or permission enforcement;
+> its IndexedDB catalogs belong solely to the browser user. When an authenticated
+> user first saves a local catalog as a new phase 2 server catalog, the backend
+> treats the graph as untrusted input and grants that user the initial `admin`
+> permission in the same transaction. All other decisions in this record remain
+> unchanged.
+
 ## Context and Problem Statement
 
 Inventory v1 requires accounts to be created **before** a user can authenticate:
@@ -105,8 +114,8 @@ drafts of this record said `write`; that was this document's invention and is
 corrected here so the schema, the ticket, and the wiki share one word.
 
 A principal is **either a user or another catalog** — catalog-to-catalog sharing
-is MVP scope, and the same three levels apply. Two consequences for the
-authorization check, both MVP-blocking:
+is phase 2 scope, and the same three levels apply. Two consequences for the
+authorization check, both blocking phase 2 completion:
 
 - Resolution must handle a **catalog** principal, and grants may arrive
   **transitively** through an embedded catalog. The transitive case is the harder
