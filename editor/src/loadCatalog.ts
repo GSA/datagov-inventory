@@ -1,11 +1,12 @@
-import { checkSize, type CatalogObject, type DecomposedCatalog } from './catalog/decompose'
+import { checkSize, DecomposeError, type CatalogObject, type DecomposedCatalog } from './catalog/decompose'
 import type { ParseMessage } from './catalog/parse'
 
 /**
  * Loads a catalog from a file (read in this browser, never uploaded) or from text, such as pasted JSON or a copy
  * restored from browser storage (#28). A file's size is checked before it is read. The text is parsed and decomposed
  * in a worker, so a big file does not freeze the page. Aborting `signal` stops the read or the worker and rejects with
- * the abort reason; any other failure rejects with a message for the user.
+ * the abort reason. Any other failure rejects with a message for the user: a {@link DecomposeError} if the input is
+ * refused.
  */
 export async function loadCatalog(source: File | string, signal: AbortSignal): Promise<DecomposedCatalog> {
   if (typeof source !== 'string') checkSize(source.size) // so an oversize file is never read into memory
@@ -63,10 +64,10 @@ function parseInWorker(input: string | ArrayBuffer, signal: AbortSignal): Promis
           objects.set(object.id, object)
         }
       } else if ('rootId' in data) settle(() => resolve({ rootId: data.rootId, objects }))
-      else settle(() => reject(new Error(data.error)))
+      else settle(() => reject(data.code ? new DecomposeError(data.code, data.error) : new Error(data.error)))
     }
     worker.onerror = worker.onmessageerror = () =>
-      settle(() => reject(new Error('The editor could not start reading this catalog. Reload the page and try again.')))
+      settle(() => reject(new Error('Something went wrong while reading this catalog. Reload the page and try again.')))
     // The file's bytes are moved to the worker, not copied.
     worker.postMessage(input, typeof input === 'string' ? [] : [input])
   })

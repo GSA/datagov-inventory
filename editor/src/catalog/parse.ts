@@ -1,7 +1,7 @@
-import { decompose, type CatalogObject } from './decompose'
+import { decompose, DecomposeError, type CatalogObject, type DecomposeErrorCode } from './decompose'
 
-/** What the parse worker posts: the objects in batches, then the root's id; or else one error. */
-export type ParseMessage = { objects: CatalogObject[] } | { rootId: string } | { error: string }
+/** What the parse worker posts: the objects in batches, then the root's id; or else one error (with its code, if any). */
+export type ParseMessage = { objects: CatalogObject[] } | { rootId: string } | { error: string; code?: DecomposeErrorCode }
 
 /**
  * Objects per message. The page deserializes each message in one task, so a whole 25 MB catalog in one message
@@ -21,7 +21,12 @@ export function parse(input: string | ArrayBuffer): ParseMessage[] {
     for (let i = 0; i < objects.length; i += BATCH_SIZE) messages.push({ objects: objects.slice(i, i + BATCH_SIZE) })
     return [...messages, { rootId: catalog.rootId }]
   } catch (error) {
-    return [{ error: error instanceof Error ? error.message : String(error) }]
+    return [
+      {
+        error: error instanceof Error ? error.message : String(error),
+        code: error instanceof DecomposeError ? error.code : undefined,
+      },
+    ]
   }
 }
 

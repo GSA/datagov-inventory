@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { DecomposeError } from './catalog/decompose'
 import { BATCH_SIZE, parse } from './catalog/parse'
 import { loadCatalog } from './loadCatalog'
 
@@ -95,12 +96,14 @@ describe('loadCatalog', () => {
   })
 
   it.each([
-    ['invalid JSON', '{"@type": "Catalog",', 'This is not valid JSON'],
-    ['an empty object', '{}', 'No DCAT-US 3.0 class found'],
-    ['no DCAT class', '{"foo": 1}', 'No DCAT-US 3.0 class found'],
-    ['an empty document', ' ', 'This document is empty.'],
-  ])('refuses %s with the reason', async (_, text, message) => {
-    await expect(load(text)).rejects.toThrow(message)
+    ['invalid JSON', '{"@type": "Catalog",', 'invalid-json', 'This is not valid JSON'],
+    ['an empty object', '{}', 'no-dcat-class', 'No DCAT-US 3.0 class found'],
+    ['no DCAT class', '{"foo": 1}', 'no-dcat-class', 'No DCAT-US 3.0 class found'],
+    ['an empty document', ' ', 'invalid-json', 'This document is empty.'],
+  ])('refuses %s with the reason', async (_, text, code, message) => {
+    const error = await load(text).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(DecomposeError)
+    expect(error).toMatchObject({ code, message: expect.stringContaining(message) })
   })
 
   it('loads a catalog with schema errors', async () => {
@@ -126,7 +129,7 @@ describe('loadCatalog', () => {
 
   it('reports a worker that fails to run', async () => {
     FakeWorker.fail = true
-    await expect(load('{"@type": "Catalog"}')).rejects.toThrow('The editor could not start reading this catalog.')
+    await expect(load('{"@type": "Catalog"}')).rejects.toThrow('Something went wrong while reading this catalog.')
     expect(FakeWorker.created[0].terminated).toBe(true)
   })
 })

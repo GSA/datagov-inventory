@@ -26,11 +26,11 @@ const samples = Object.entries(
 ).map(([path, text]) => ({ name: path.slice(path.lastIndexOf('/') + 1), text }))
 
 type Load = LoadedCatalog & { loadId: number }
+const keepOpen = ({ loaded }: { loaded?: Load }) => ({ loaded })
 
 function App() {
-  const [loaded, setLoaded] = useState<Load>()
-  /** A catalog that loaded while another was open, waiting for the user to confirm it replaces that one. */
-  const [pending, setPending] = useState<Load>()
+  /** The open catalog, and one that loaded while it was open, waiting for the user to confirm it replaces it. */
+  const [{ loaded, pending }, setCatalogs] = useState<{ loaded?: Load; pending?: Load }>({})
   const [loading, setLoading] = useState<string>()
   const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
   const [pasted, setPasted] = useState('')
@@ -52,13 +52,11 @@ function App() {
     const controller = (active.current = new AbortController())
     const current = ++attempt.current
     setError(undefined)
-    setPending(undefined)
+    setCatalogs(keepOpen)
     setLoading(name)
     try {
       const next = { name, catalog: await loadCatalog(source, controller.signal), loadId: current }
-      // `loaded` cannot change while this load runs: only a load, which would have aborted this one, sets it.
-      if (loaded) setPending(next)
-      else setLoaded(next)
+      setCatalogs(({ loaded }) => (loaded ? { loaded, pending: next } : { loaded: next }))
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
@@ -181,14 +179,14 @@ function App() {
                 <bdi>{loaded.name}</bdi> open.
               </AlertText>
               <ButtonGroup>
-                <Button type="button" onClick={() => (setLoaded(pending), setPending(undefined))}>
+                <Button type="button" onClick={() => setCatalogs(({ pending }) => ({ loaded: pending }))}>
                   Replace
                 </Button>
                 <Button
                   type="button"
                   outline
                   onClick={() => {
-                    setPending(undefined)
+                    setCatalogs(keepOpen)
                     document.getElementById('summary-heading')?.focus()
                   }}
                 >
