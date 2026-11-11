@@ -8,7 +8,7 @@ const json = (value: unknown) => JSON.stringify(value)
 const catalog = (datasets: unknown[]) => ({ '@type': 'Catalog', dataset: datasets })
 const dataset = (title: string, extra: object = {}) => ({ '@type': 'Dataset', title, ...extra })
 
-const failure = (run: () => unknown): [AssembleErrorCode, string] => {
+const failure = (run: () => unknown): [AssembleErrorCode | 'no-error', string] => {
   try {
     run()
     return ['no-error', '']
@@ -41,9 +41,11 @@ describe('assemble: basic structure', () => {
     const decomposed = decompose(text)
     const result = assemble(decomposed)
 
-    expect(result.output.dataset[0].title).toBe('Dataset C')
-    expect(result.output.dataset[1].title).toBe('Dataset A')
-    expect(result.output.dataset[2].title).toBe('Dataset B')
+    const output = result.output as Record<string, unknown>
+    const datasets = output.dataset as Array<Record<string, unknown>>
+    expect(datasets[0].title).toBe('Dataset C')
+    expect(datasets[1].title).toBe('Dataset A')
+    expect(datasets[2].title).toBe('Dataset B')
   })
 
   it('preserves unknown properties', () => {
@@ -55,8 +57,10 @@ describe('assemble: basic structure', () => {
     const decomposed = decompose(text)
     const result = assemble(decomposed)
 
-    expect(result.output['x-custom']).toBe('preserved')
-    expect(result.output.dataset[0]['x-agency']).toEqual({ nested: true })
+    const output = result.output as Record<string, unknown>
+    const datasets = output.dataset as Array<Record<string, unknown>>
+    expect(output['x-custom']).toBe('preserved')
+    expect(datasets[0]['x-agency']).toEqual({ nested: true })
   })
 
   it('uses singleLinks to output scalar vs array', () => {
@@ -71,8 +75,10 @@ describe('assemble: basic structure', () => {
     const decomposed = decompose(text)
     const result = assemble(decomposed)
 
-    expect(Array.isArray(result.output.dataset[0].contactPoint)).toBe(false)
-    expect(result.output.dataset[0].contactPoint).toEqual({ fn: 'John' })
+    const output = result.output as Record<string, unknown>
+    const datasets = output.dataset as Array<Record<string, unknown>>
+    expect(Array.isArray(datasets[0].contactPoint)).toBe(false)
+    expect(datasets[0].contactPoint).toEqual({ fn: 'John' })
   })
 
   it('outputs arrays for multi-valued links', () => {
@@ -90,8 +96,11 @@ describe('assemble: basic structure', () => {
     const decomposed = decompose(text)
     const result = assemble(decomposed)
 
-    expect(Array.isArray(result.output.dataset[0].distribution)).toBe(true)
-    expect(result.output.dataset[0].distribution.length).toBe(2)
+    const output = result.output as Record<string, unknown>
+    const datasets = output.dataset as Array<Record<string, unknown>>
+    const distributions = datasets[0].distribution as Array<Record<string, unknown>>
+    expect(Array.isArray(distributions)).toBe(true)
+    expect(distributions.length).toBe(2)
   })
 })
 
@@ -112,8 +121,12 @@ describe('assemble: nested objects', () => {
     const decomposed = decompose(text)
     const result = assemble(decomposed)
 
-    expect(result.output.dataset[0].publisher.name).toBe('EPA')
-    expect(result.output.dataset[0].publisher.subOrganizationOf[0].name).toBe('Federal Gov')
+    const output = result.output as Record<string, unknown>
+    const datasets = output.dataset as Array<Record<string, unknown>>
+    const publisher = datasets[0].publisher as Record<string, unknown>
+    const subOrgs = publisher.subOrganizationOf as Array<Record<string, unknown>>
+    expect(publisher.name).toBe('EPA')
+    expect(subOrgs[0].name).toBe('Federal Gov')
   })
 })
 
@@ -130,11 +143,16 @@ describe('assemble: shared objects', () => {
     const decomposed = decompose(text)
     const result = assemble(decomposed)
 
-    expect(result.output.dataset[0].publisher).toEqual({ '@type': 'Organization', name: 'Shared Agency' })
-    expect(result.output.dataset[1].publisher).toEqual({ '@type': 'Organization', name: 'Shared Agency' })
+    const output = result.output as Record<string, unknown>
+    const datasets = output.dataset as Array<Record<string, unknown>>
+    const publisher1 = datasets[0].publisher as Record<string, unknown>
+    const publisher2 = datasets[1].publisher as Record<string, unknown>
 
-    result.output.dataset[0].publisher.name = 'Modified'
-    expect(result.output.dataset[1].publisher.name).toBe('Shared Agency')
+    expect(publisher1).toEqual({ '@type': 'Organization', name: 'Shared Agency' })
+    expect(publisher2).toEqual({ '@type': 'Organization', name: 'Shared Agency' })
+
+    publisher1.name = 'Modified'
+    expect(publisher2.name).toBe('Shared Agency')
   })
 
   it('reports shared object IDs', () => {
@@ -237,7 +255,7 @@ describe('assemble: round-trip validation', () => {
 
   const valid = load(import.meta.glob<string>('../../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }))
 
-  it.each(valid)('%s round-trips identically', (name, text) => {
+  it.each(valid)('%s round-trips identically', (_name, text) => {
     const original = decompose(text)
     const result = assemble(original)
     const roundTripped = decompose(json(result.output))
