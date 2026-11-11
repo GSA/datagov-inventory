@@ -3,7 +3,8 @@ import AxeBuilder from '@axe-core/playwright'
 import { fileURLToPath } from 'node:url'
 import { test, expect } from './fixtures'
 
-const fixture = (name: string) => fileURLToPath(new URL(`../fixtures/catalogs/valid/${name}`, import.meta.url))
+const fixture = (name: string, folder = 'valid') =>
+  fileURLToPath(new URL(`../fixtures/catalogs/${folder}/${name}`, import.meta.url))
 
 test.beforeEach(async ({ page }) => {
   const response = await page.goto('/')
@@ -12,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 const summaryRows = (page: Page) =>
   page
-    .getByRole('table', { name: /objects by class/ })
+    .getByRole('table', { name: /by class/ })
     .getByRole('row')
     .allInnerTexts()
 const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
@@ -24,10 +25,22 @@ async function paste(page: Page, text: string) {
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
 }
 
-async function loadSample(page: Page, name: string) {
+async function loadSample(page: Page, name: string, { replacing = false } = {}) {
   await page.getByLabel('Sample catalog').selectOption(name)
   await page.getByRole('button', { name: 'Load sample' }).click()
+  if (replacing) await page.getByRole('button', { name: 'Replace', exact: true }).click()
   await expect(page.getByRole('heading', { name: `Loaded ${name}` })).toBeFocused()
+}
+
+/** Holds the parse worker's script until the returned function is called, so a load stays in progress. */
+async function holdWorker(page: Page) {
+  let release!: () => void
+  const released = new Promise<void>((resolve) => (release = resolve))
+  await page.route('**/parse.worker-*.js', async (route) => {
+    await released
+    await route.continue()
+  })
+  return release
 }
 
 test('loads a sample, shows counts by class, opens a dataset and follows its links', async ({ page }) => {
@@ -104,6 +117,79 @@ test('a newer load cancels a file still being read', async ({ page }) => {
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
+test('starts a blank catalog', async ({ page }) => {
+  await page.getByRole('button', { name: 'Start a blank catalog' }).click()
+  await expect(page.getByRole('heading', { name: 'Loaded Blank catalog' })).toBeFocused()
+  expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1'])
+  await expect(page.getByRole('row', { name: /^Untitled Catalog/ })).toHaveText(/^Untitled Catalog\s*Catalog\s*#$/)
+})
+
+test('loads a dropped file', async ({ page }) => {
+  // A trusted drop from the browser itself, as when a user drags a file from their desktop onto the input.
+  const target = await page.getByTestId('file-input-droptarget').boundingBox()
+  const cdp = await page.context().newCDPSession(page)
+  const data = { items: [], files: [fixture('minimal-catalog.json')], dragOperationsMask: 1 }
+  for (const type of ['dragEnter', 'dragOver', 'drop']) {
+    await cdp.send('Input.dispatchDragEvent', { type, x: target!.x + 10, y: target!.y + 10, data })
+  }
+  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
+})
+
+test('loads a catalog with schema errors', async ({ page }) => {
+  await chooseFile(page, fixture('dataset-missing-title.json', 'invalid'))
+  await expect(page.getByRole('heading', { name: 'Loaded dataset-missing-title.json' })).toBeFocused()
+  await expect(page.getByRole('row', { name: /^Untitled Dataset/ })).toBeVisible()
+})
+
+test('asks before replacing a loaded catalog', async ({ page }) => {
+  await loadSample(page, 'minimal-catalog.json')
+  const confirm = page.getByRole('heading', { name: 'Replace the open catalog?' })
+
+  // Cancel keeps the open catalog, and returns focus to it.
+  await page.getByRole('button', { name: 'Start a blank catalog' }).click()
+  await expect(confirm).toBeFocused()
+  await expect(page.getByText('Blank catalog is ready. Replace minimal-catalog.json with it')).toBeVisible()
+  expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(confirm).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
+
+  // Input that fails is refused without asking.
+  await paste(page, '{}')
+  await expect(page.getByRole('alert')).toContainText('No DCAT-US 3.0 class found')
+  await expect(confirm).toHaveCount(0)
+
+  // A newer load drops a replacement still waiting to be confirmed.
+  await chooseFile(page, fixture('minimal-catalog.json'))
+  await expect(confirm).toBeFocused()
+  await loadSample(page, 'dataset-with-distributions.json', { replacing: true })
+  await expect(confirm).toHaveCount(0)
+  await expect(page.getByRole('table', { name: '9 objects by class' })).toBeVisible()
+  expect((await axe(page).analyze()).violations).toEqual([])
+})
+
+test('shows progress while loading, and the load can be cancelled', async ({ page }) => {
+  const release = await holdWorker(page)
+  await page.getByRole('button', { name: 'Start a blank catalog' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Loading Blank catalog…' })).toBeVisible()
+  await expect(page.getByRole('progressbar', { name: 'Loading Blank catalog…' })).toBeVisible()
+  // The page stays usable while it loads.
+  await page.getByLabel('Paste JSON').fill('{"@type": "Catalog"}')
+  expect((await axe(page).analyze()).violations).toEqual([])
+
+  await page.getByRole('button', { name: 'Cancel loading' }).click()
+  await expect(page.getByRole('heading', { name: 'Load a catalog' })).toBeFocused()
+  await expect(page.getByText('Loading Blank catalog…')).toHaveCount(0)
+  release()
+  await page.waitForTimeout(500) // the cancelled load must not finish later
+  await expect(page.getByRole('heading', { name: /^Loaded/ })).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await expect(page.getByRole('heading', { name: 'Loaded Pasted JSON' })).toBeFocused()
+  await expect(page.getByRole('progressbar')).toHaveCount(0)
+})
+
 test('refuses bad input with an alert and keeps the loaded catalog', async ({ page }) => {
   // Counts file reads. The good load at the end proves the count sees the app's reads.
   await page.evaluate(() => {
@@ -158,10 +244,11 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeVisible()
   expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
 
-  // A good load clears the alert.
+  // A good load clears the alert, and asks before replacing the catalog.
   await chooseFile(page, fixture('minimal-catalog.json'))
-  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
   await expect(alert).toHaveCount(0)
+  await page.getByRole('button', { name: 'Replace', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
   expect(await fileReads()).toBeGreaterThan(0)
 })
 

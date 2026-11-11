@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Alert,
   AlertHeading,
   AlertText,
   Button,
+  ButtonGroup,
   FileInput,
   type FileInputRef,
   GovBanner,
@@ -13,75 +14,63 @@ import {
   Textarea,
   Title,
 } from '@trussworks/react-uswds'
-import { checkSize, decompose } from './catalog/decompose'
 import CatalogBrowser, { type LoadedCatalog } from './CatalogBrowser'
+import { loadCatalog } from './loadCatalog'
+
+/** The smallest document that decomposes: one Catalog for the user to fill in. */
+const BLANK_CATALOG = '{"@type": "Catalog"}'
 
 /** The valid #18 fixtures, bundled as text so "Load sample" goes through the same path as a file. */
 const samples = Object.entries(
   import.meta.glob<string>('../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }),
 ).map(([path, text]) => ({ name: path.slice(path.lastIndexOf('/') + 1), text }))
 
-/**
- * Reads a file in the browser (it is never uploaded) as strict UTF-8, which JSON requires. Aborting `signal` stops
- * the read. The handlers are detached once it settles, so nothing keeps the reader or its buffer alive.
- */
-function readFile(file: File, signal: AbortSignal): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    const abort = () => reader.abort()
-    const settle = (finish: () => void) => {
-      reader.onload = reader.onerror = reader.onabort = null
-      signal.removeEventListener('abort', abort)
-      finish()
-    }
-    reader.onload = () =>
-      settle(() => {
-        try {
-          resolve(new TextDecoder('utf-8', { fatal: true }).decode(reader.result as ArrayBuffer))
-        } catch {
-          reject(new Error('This file is not UTF-8 text. Save it as UTF-8 JSON and try again.'))
-        }
-      })
-    reader.onerror = () =>
-      settle(() =>
-        reject(
-          new Error(
-            'The browser could not read this file. It may have moved or changed since you chose it. Choose it again.',
-          ),
-        ),
-      )
-    reader.onabort = () => settle(() => reject(new DOMException('A newer load replaced this one.', 'AbortError')))
-    signal.addEventListener('abort', abort)
-    reader.readAsArrayBuffer(file)
-  })
-}
+type Load = LoadedCatalog & { loadId: number }
 
 function App() {
-  const [loaded, setLoaded] = useState<LoadedCatalog & { loadId: number }>()
+  const [loaded, setLoaded] = useState<Load>()
+  /** A catalog that loaded while another was open, waiting for the user to confirm it replaces that one. */
+  const [pending, setPending] = useState<Load>()
+  const [loading, setLoading] = useState<string>()
   const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
   const [pasted, setPasted] = useState('')
   const [sample, setSample] = useState(samples[0].name)
   const attempt = useRef(0)
   const active = useRef<AbortController>(null)
   const fileInput = useRef<FileInputRef>(null)
+  useEffect(() => {
+    if (pending) document.getElementById('replace-heading')?.focus()
+  }, [pending])
 
   /**
-   * Replaces the loaded catalog only if the new one decomposes; a failed load leaves it as it was. Starting a load
-   * cancels the one in progress: its file read is aborted, and its text is never decomposed.
+   * Loads a catalog; if one is already open, it replaces it only once the user confirms. Confirmation comes after
+   * parsing, so input that fails is refused without asking, and a failed or cancelled load changes nothing. Starting
+   * a load cancels the one in progress (its file read or worker is stopped) and any replacement waiting to be confirmed.
    */
-  async function load(name: string, read: (signal: AbortSignal) => string | Promise<string>) {
+  async function load(name: string, source: File | string) {
     active.current?.abort()
     const controller = (active.current = new AbortController())
     const current = ++attempt.current
     setError(undefined)
+    setPending(undefined)
+    setLoading(name)
     try {
-      const text = await read(controller.signal)
-      if (controller.signal.aborted) return
-      setLoaded({ name, catalog: decompose(text), loadId: current })
+      const next = { name, catalog: await loadCatalog(source, controller.signal), loadId: current }
+      // `loaded` cannot change while this load runs: only a load, which would have aborted this one, sets it.
+      if (loaded) setPending(next)
+      else setLoaded(next)
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
+    } finally {
+      if (!controller.signal.aborted) setLoading(undefined)
     }
+  }
+
+  function cancelLoading() {
+    active.current?.abort()
+    setLoading(undefined)
+    document.getElementById('load-heading')?.focus()
   }
 
   return (
@@ -100,7 +89,9 @@ function App() {
           <p>This is the browser-only editor for authoring federal metadata catalogs.</p>
 
           <section aria-labelledby="load-heading">
-            <h2 id="load-heading">Load a catalog</h2>
+            <h2 id="load-heading" tabIndex={-1}>
+              Load a catalog
+            </h2>
             <p>Files and pasted JSON are read in this browser. Nothing is uploaded.</p>
             <div className="grid-row grid-gap">
               <div className="tablet:grid-col-4">
@@ -118,12 +109,7 @@ function App() {
                     const file = e.target.files?.[0]
                     // Clear the input so the same file can be chosen again; the summary names the loaded file.
                     fileInput.current?.clearFiles()
-                    if (file) {
-                      void load(file.name, (signal) => {
-                        checkSize(file.size) // before reading, so an oversize file is never read into memory
-                        return readFile(file, signal)
-                      })
-                    }
+                    if (file) void load(file.name, file)
                   }}
                 />
               </div>
@@ -136,7 +122,7 @@ function App() {
                   value={pasted}
                   onChange={(e) => setPasted(e.target.value)}
                 />
-                <Button type="button" className="margin-top-1" onClick={() => void load('Pasted JSON', () => pasted)}>
+                <Button type="button" className="margin-top-1" onClick={() => void load('Pasted JSON', pasted)}>
                   Load pasted JSON
                 </Button>
               </div>
@@ -157,19 +143,60 @@ function App() {
                 <Button
                   type="button"
                   className="margin-top-1"
-                  onClick={() =>
-                    void load(sample, () => {
-                      const found = samples.find(({ name }) => name === sample)
-                      if (!found) throw new Error(`There is no sample named ${sample}.`)
-                      return found.text
-                    })
-                  }
+                  onClick={() => void load(sample, samples.find(({ name }) => name === sample)!.text)}
                 >
                   Load sample
                 </Button>
               </div>
             </div>
+            <Button
+              type="button"
+              outline
+              className="margin-top-3"
+              onClick={() => void load('Blank catalog', BLANK_CATALOG)}
+            >
+              Start a blank catalog
+            </Button>
           </section>
+
+          {loading && (
+            <div className="margin-top-4">
+              <p role="status" id="loading-status" className="margin-bottom-1">
+                Loading <bdi>{loading}</bdi>…
+              </p>
+              <progress aria-labelledby="loading-status" className="display-block" />
+              <Button type="button" outline className="margin-top-1" onClick={cancelLoading}>
+                Cancel loading
+              </Button>
+            </div>
+          )}
+
+          {pending && loaded && (
+            <Alert type="warning" className="margin-top-4">
+              <AlertHeading level="h2" id="replace-heading" tabIndex={-1} className="text-break">
+                Replace the open catalog?
+              </AlertHeading>
+              <AlertText className="text-break">
+                <bdi>{pending.name}</bdi> is ready. Replace <bdi>{loaded.name}</bdi> with it, or cancel to keep{' '}
+                <bdi>{loaded.name}</bdi> open.
+              </AlertText>
+              <ButtonGroup>
+                <Button type="button" onClick={() => (setLoaded(pending), setPending(undefined))}>
+                  Replace
+                </Button>
+                <Button
+                  type="button"
+                  outline
+                  onClick={() => {
+                    setPending(undefined)
+                    document.getElementById('summary-heading')?.focus()
+                  }}
+                >
+                  Cancel
+                </Button>
+              </ButtonGroup>
+            </Alert>
+          )}
 
           {error && (
             // Keyed by attempt, so a repeated failure is a new alert and is announced again.

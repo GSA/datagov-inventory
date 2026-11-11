@@ -37,6 +37,12 @@ the expected output for each valid fixture catalog as plain JSON, for other impl
 `src/schema` and is type-checked without DOM types (`src/catalog/tsconfig.json`), so it
 can run in a worker.
 
+`src/loadCatalog.ts` is the one way a catalog loads (a file, pasted JSON, a sample, a blank catalog, and the
+restore from browser storage in #28). It checks a file's size before reading it, then parses and decomposes in a
+worker (`src/catalog/parse.worker.ts`, a same-origin file, which the CSP's `script-src 'self'` allows). The worker
+posts the objects in batches, so even a 25 MB catalog never blocks the page for long. A newer load, or "Cancel
+loading", stops the read or the worker.
+
 ## npm Scripts
 
 | Script | Description |
