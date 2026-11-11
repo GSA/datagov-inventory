@@ -37,6 +37,22 @@ the expected output for each valid fixture catalog as plain JSON, for other impl
 `src/schema` and is type-checked without DOM types (`src/catalog/tsconfig.json`), so it
 can run in a worker.
 
+## Pages and addresses
+
+TanStack Router, with real paths (HTML5 history), so any page can be bookmarked; nginx serves `index.html`
+for every path (`cf/nginx.conf`), and `vite preview` does the same.
+
+| Path | Page |
+|---|---|
+| `/` | Start: what the editor is for, and Import |
+| `/import` | Import a file (chosen or dropped), pasted JSON, a sample, or a blank catalog. `?next=` is where to go once it opens. |
+| `/editor` | The open catalog: objects by class on the left, the catalog on the right |
+| `/editor/dataset/0/distribution/1?type=Distribution` | An object: its path is its id without the `#`. `type` is the class listed on the left. |
+
+The catalog is held in memory only until #28 stores it, so after a reload an editor address says "No catalog open"
+and links to Import, which returns to that address once the catalog is imported again. When the path changes, focus
+moves to the new page's `h1` (or, within the editor, to the object's heading) and the tab title changes.
+
 `src/loadCatalog.ts` is the one way a catalog loads (a file, pasted JSON, a sample, a blank catalog, and the
 restore from browser storage in #28). It checks a file's size before reading it, then parses and decomposes in a
 worker (`src/catalog/parse.worker.ts`, a same-origin file, which the CSP's `script-src 'self'` allows). The worker

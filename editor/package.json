@@ -24,6 +24,7 @@
     "generate:models:check": "npm run generate:models && git diff --exit-code src/generated/models/"
   },
   "dependencies": {
+    "@tanstack/react-router": "^1.170.46",
     "@trussworks/react-uswds": "^13.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

@@ -7,18 +7,26 @@ const fixture = (name: string, folder = 'valid') =>
   fileURLToPath(new URL(`../fixtures/catalogs/${folder}/${name}`, import.meta.url))
 
 test.beforeEach(async ({ page }) => {
-  const response = await page.goto('/')
+  const response = await page.goto('/import')
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
 })
 
-const summaryRows = (page: Page) =>
-  page
-    .getByRole('table', { name: /by class/ })
-    .getByRole('row')
-    .allInnerTexts()
+/** The class list in the editor: "Dataset (1)" and so on. */
+const classCounts = (page: Page) =>
+  page.getByRole('navigation', { name: 'Catalog contents' }).locator('.usa-sidenav a').allInnerTexts()
+const objectList = (page: Page) => page.getByRole('region', { name: /^\w+ \(/ })
 const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
   page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+/** Goes back to the import page the way a user would, keeping the open catalog (a reload would close it). */
+const toImport = (page: Page) => page.getByRole('link', { name: 'Import', exact: true }).click()
+
+/** The editor has opened `name`, with focus on the catalog's heading. */
+async function expectOpened(page: Page, name: string) {
+  await expect(page).toHaveURL(/\/editor/)
+  await expect(page.getByText(`From ${name} ·`)).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
+}
 
 async function paste(page: Page, text: string) {
   await page.getByLabel('Paste JSON').fill(text)
@@ -29,7 +37,7 @@ async function loadSample(page: Page, name: string, { replacing = false } = {}) 
   await page.getByLabel('Sample catalog').selectOption(name)
   await page.getByRole('button', { name: 'Load sample' }).click()
   if (replacing) await page.getByRole('button', { name: 'Replace', exact: true }).click()
-  await expect(page.getByRole('heading', { name: `Loaded ${name}` })).toBeFocused()
+  await expectOpened(page, name)
 }
 
 /** Holds the parse worker's script until the returned function is called, so a load stays in progress. */
@@ -43,32 +51,39 @@ async function holdWorker(page: Page) {
   return release
 }
 
-test('loads a sample, shows counts by class, opens a dataset and follows its links', async ({ page }) => {
+test('imports a sample, lists objects by class, and opens each object at its own address', async ({ page }) => {
   await loadSample(page, 'dataset-with-distributions.json')
-  await expect(page.getByRole('table', { name: '9 objects by class' })).toBeVisible()
-  expect(await summaryRows(page)).toEqual([
-    'Class\tObjects',
-    'Catalog\t1',
-    'Checksum\t1',
-    'Dataset\t1',
-    'Distribution\t2',
-    'Kind\t1',
-    'Organization\t2',
-    'PeriodOfTime\t1',
+  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveTitle('Example Agency Catalog (Catalog) | Inventory Editor')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Example Agency Catalog')
+  expect(await classCounts(page)).toEqual([
+    'Catalog (1)',
+    'Checksum (1)',
+    'Dataset (1)',
+    'Distribution (2)',
+    'Kind (1)',
+    'Organization (2)',
+    'PeriodOfTime (1)',
   ])
+  // The catalog is open on the right; datasets are listed on the left.
+  await expect(page.locator('#detail-heading')).toHaveText('Example Agency Catalog')
+  await expect(objectList(page).getByRole('heading')).toHaveText('Dataset (1)')
 
-  await expect(page.getByRole('row', { name: /^Air quality readings/ })).toHaveText(
-    /^Air quality readings\s*Dataset\s*#\/dataset\/0$/,
-  )
-  await page.getByRole('button', { name: 'Air quality readings' }).click()
+  await objectList(page).getByRole('link', { name: 'Air quality readings' }).click()
+  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+  await expect(page).toHaveTitle('Air quality readings (Dataset) | Inventory Editor')
   const detail = page.getByRole('region', { name: 'Air quality readings' })
+  await expect(detail.getByRole('heading', { level: 2 })).toBeFocused()
+  await expect(objectList(page).getByRole('link', { name: 'Air quality readings' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
   // The list is on the left and the selected object on the right (#20, James's comment).
-  const list = await page.getByRole('region', { name: 'Objects' }).boundingBox()
+  const list = await page.getByRole('navigation', { name: 'Catalog contents' }).boundingBox()
   const pane = await detail.boundingBox()
   expect(list!.x + list!.width).toBeLessThanOrEqual(pane!.x)
-  await expect(detail.getByRole('heading', { level: 2 })).toBeFocused()
   await expect(detail.getByRole('table', { name: 'Properties' })).toContainText('example-air-quality')
-  await expect(detail.getByRole('listitem')).toHaveText([
+  await expect(detail.getByRole('region', { name: 'Links' }).getByRole('listitem')).toHaveText([
     'Air Quality Team (Kind)',
     'Example Agency (Organization)',
     'Untitled PeriodOfTime (PeriodOfTime)',
@@ -76,20 +91,65 @@ test('loads a sample, shows counts by class, opens a dataset and follows its lin
     'Readings API (Distribution)',
   ])
 
-  await detail.getByRole('button', { name: 'Readings as CSV (Distribution)' }).click()
+  // Following a link opens that object and lists its class, with the path to it in a breadcrumb.
+  await detail.getByRole('link', { name: 'Readings as CSV (Distribution)' }).click()
+  await expect(page).toHaveURL('/editor/dataset/0/distribution/0?type=Distribution')
   const distribution = page.getByRole('region', { name: 'Readings as CSV' })
   await expect(distribution.getByRole('heading', { level: 2 })).toBeFocused()
-  await expect(distribution).toContainText('#/dataset/0/distribution/0')
-  await distribution.getByRole('button', { name: 'Untitled Checksum (Checksum)' }).click()
+  await expect(distribution.getByRole('navigation', { name: 'Where this object is' })).toHaveText(
+    /Example Agency Catalog\s*Air quality readings\s*Readings as CSV/,
+  )
+  await expect(objectList(page).getByRole('heading')).toHaveText('Distribution (2)')
+  await distribution.getByRole('link', { name: 'Untitled Checksum (Checksum)' }).click()
   await expect(page.getByRole('region', { name: 'Untitled Checksum' })).toContainText('SHA-256')
-
   expect((await axe(page).analyze()).violations).toEqual([])
+
+  // Back and forward work like any site.
+  await page.goBack()
+  await expect(page).toHaveURL('/editor/dataset/0/distribution/0?type=Distribution')
+  await page
+    .getByRole('navigation', { name: 'Where this object is' })
+    .getByRole('link', { name: 'Air quality readings' })
+    .click()
+  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+
+  // A reload closes the catalog (it is not stored yet); importing it again returns to the same address.
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
+  await page.getByRole('link', { name: 'Import a catalog' }).click()
+  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
+  await page.getByRole('button', { name: 'Load sample' }).click()
+  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+  await expect(page.getByRole('region', { name: 'Air quality readings' })).toBeVisible()
+
+  // Choosing a class lists its objects and keeps the open object.
+  await page.getByRole('link', { name: 'Organization (2)' }).click()
+  await expect(page).toHaveURL('/editor/dataset/0?type=Organization')
+  // Copies of one publisher share a name; each shows where it is.
+  await expect(objectList(page).getByRole('link')).toHaveText(['Example Agency', 'Example Agency'])
+  await expect(objectList(page).getByRole('link').last()).toHaveAccessibleDescription('#/dataset/0/publisher')
+  await objectList(page).getByLabel('Filter by title or name').fill('agen')
+  await expect(objectList(page).getByText('2 of 2 match.')).toBeAttached()
+  await objectList(page).getByLabel('Filter by title or name').fill('nothing')
+  await expect(objectList(page).getByRole('link')).toHaveCount(0)
+  await expect(objectList(page).getByText('0 of 2 match.')).toBeAttached()
+})
+
+test('shows an address with nothing at it in the open catalog', async ({ page }) => {
+  await loadSample(page, 'minimal-catalog.json')
+  await page.evaluate(() => {
+    history.pushState({}, '', '/editor/dataset/9')
+    dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page.getByRole('heading', { name: 'Nothing at this address' })).toBeVisible()
+  await page.getByRole('link', { name: 'Open the catalog' }).click()
+  await expect(page).toHaveURL('/editor')
 })
 
 test('loads a chosen file in the browser', async ({ page }) => {
   await chooseFile(page, fixture('minimal-catalog.json'))
-  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
-  expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
+  await expectOpened(page, 'minimal-catalog.json')
+  expect(await classCounts(page)).toEqual(['Catalog (1)', 'Dataset (1)', 'Kind (1)'])
 })
 
 test('a newer load cancels a file still being read', async ({ page }) => {
@@ -113,15 +173,16 @@ test('a newer load cancels a file still being read', async ({ page }) => {
   await loadSample(page, 'dataset-with-distributions.json')
   expect(await page.evaluate(() => (window as unknown as { aborts: number }).aborts)).toBe(1)
   await page.waitForTimeout(1_500) // past the held read: the cancelled file must not replace the sample
-  await expect(page.getByRole('heading', { name: 'Loaded dataset-with-distributions.json' })).toBeVisible()
+  await expect(page.getByText('From dataset-with-distributions.json ·')).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
 test('starts a blank catalog', async ({ page }) => {
   await page.getByRole('button', { name: 'Start a blank catalog' }).click()
-  await expect(page.getByRole('heading', { name: 'Loaded Blank catalog' })).toBeFocused()
-  expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1'])
-  await expect(page.getByRole('row', { name: /^Untitled Catalog/ })).toHaveText(/^Untitled Catalog\s*Catalog\s*#$/)
+  await expectOpened(page, 'Blank catalog')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Untitled Catalog')
+  expect(await classCounts(page)).toEqual(['Catalog (1)'])
+  await expect(page.getByRole('region', { name: 'Untitled Catalog' })).toContainText('No links to other objects.')
 })
 
 test('loads a dropped file', async ({ page }) => {
@@ -132,27 +193,30 @@ test('loads a dropped file', async ({ page }) => {
   for (const type of ['dragEnter', 'dragOver', 'drop']) {
     await cdp.send('Input.dispatchDragEvent', { type, x: target!.x + 10, y: target!.y + 10, data })
   }
-  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
+  await expectOpened(page, 'minimal-catalog.json')
 })
 
 test('loads a catalog with schema errors', async ({ page }) => {
   await chooseFile(page, fixture('dataset-missing-title.json', 'invalid'))
-  await expect(page.getByRole('heading', { name: 'Loaded dataset-missing-title.json' })).toBeFocused()
-  await expect(page.getByRole('row', { name: /^Untitled Dataset/ })).toBeVisible()
+  await expectOpened(page, 'dataset-missing-title.json')
+  await expect(objectList(page).getByRole('link', { name: 'Untitled Dataset' })).toBeVisible()
 })
 
 test('asks before replacing a loaded catalog', async ({ page }) => {
   await loadSample(page, 'minimal-catalog.json')
+  await toImport(page)
+  await expect(page.getByText('minimal-catalog.json is open. Importing another catalog replaces it')).toBeVisible()
   const confirm = page.getByRole('heading', { name: 'Replace the open catalog?' })
 
-  // Cancel keeps the open catalog, and returns focus to it.
+  // Cancel keeps the open catalog.
   await page.getByRole('button', { name: 'Start a blank catalog' }).click()
   await expect(confirm).toBeFocused()
   await expect(page.getByText('Blank catalog is ready. Replace minimal-catalog.json with it')).toBeVisible()
-  expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(confirm).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
+  await page.getByRole('link', { name: 'Back to the editor' }).click()
+  await expectOpened(page, 'minimal-catalog.json')
+  await toImport(page)
 
   // Input that fails is refused without asking.
   await paste(page, '{}')
@@ -162,10 +226,13 @@ test('asks before replacing a loaded catalog', async ({ page }) => {
   // A newer load drops a replacement still waiting to be confirmed.
   await chooseFile(page, fixture('minimal-catalog.json'))
   await expect(confirm).toBeFocused()
-  await loadSample(page, 'dataset-with-distributions.json', { replacing: true })
-  await expect(confirm).toHaveCount(0)
-  await expect(page.getByRole('table', { name: '9 objects by class' })).toBeVisible()
+  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
+  await page.getByRole('button', { name: 'Load sample' }).click()
+  await expect(page.getByText('dataset-with-distributions.json is ready.')).toBeVisible()
   expect((await axe(page).analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'Replace', exact: true }).click()
+  await expectOpened(page, 'dataset-with-distributions.json')
+  expect(await classCounts(page)).toHaveLength(7)
 })
 
 test('shows progress while loading, and the load can be cancelled', async ({ page }) => {
@@ -178,16 +245,26 @@ test('shows progress while loading, and the load can be cancelled', async ({ pag
   expect((await axe(page).analyze()).violations).toEqual([])
 
   await page.getByRole('button', { name: 'Cancel loading' }).click()
-  await expect(page.getByRole('heading', { name: 'Load a catalog' })).toBeFocused()
+  await expect(page.getByRole('heading', { level: 1, name: 'Import a catalog' })).toBeFocused()
   await expect(page.getByText('Loading Blank catalog…')).toHaveCount(0)
   release()
   await page.waitForTimeout(500) // the cancelled load must not finish later
-  await expect(page.getByRole('heading', { name: /^Loaded/ })).toHaveCount(0)
+  await expect(page).toHaveURL('/import')
   await expect(page.getByRole('alert')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
-  await expect(page.getByRole('heading', { name: 'Loaded Pasted JSON' })).toBeFocused()
+  await expectOpened(page, 'Pasted JSON')
   await expect(page.getByRole('progressbar')).toHaveCount(0)
+})
+
+test('leaving the import page cancels a load in progress', async ({ page }) => {
+  const release = await holdWorker(page)
+  await page.getByRole('button', { name: 'Start a blank catalog' }).click()
+  await expect(page.getByText('Loading Blank catalog…')).toBeVisible()
+  await page.getByRole('link', { name: 'Editor', exact: true }).click()
+  release()
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
 })
 
 test('a load that ends while "Cancel loading" has focus moves focus to the load heading', async ({ page }) => {
@@ -196,7 +273,7 @@ test('a load that ends while "Cancel loading" has focus moves focus to the load 
   await page.getByRole('button', { name: 'Cancel loading' }).focus()
   release()
   await expect(page.getByRole('alert')).toContainText('No DCAT-US 3.0 class found')
-  await expect(page.getByRole('heading', { name: 'Load a catalog' })).toBeFocused()
+  await expect(page.getByRole('heading', { level: 1, name: 'Import a catalog' })).toBeFocused()
 })
 
 test('refuses bad input with an alert and keeps the loaded catalog', async ({ page }) => {
@@ -215,12 +292,13 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   })
   const fileReads = () => page.evaluate(() => (window as unknown as { fileReads: number }).fileReads)
   await loadSample(page, 'minimal-catalog.json')
+  await toImport(page)
   const alert = page.getByRole('alert')
 
   await paste(page, '{"@type": "Catalog", "dataset": [')
   await expect(alert).toContainText('Pasted JSON could not be loaded')
   await expect(alert).toContainText('This is not valid JSON')
-  await expect(alert).toContainText('The catalog already loaded (minimal-catalog.json) has not changed.')
+  await expect(alert).toContainText('The catalog already open (minimal-catalog.json) has not changed.')
   // role=alert announces it; focus stays where the user was, so they can fix the input and retry.
   await expect(page.getByRole('button', { name: 'Load pasted JSON' })).toBeFocused()
 
@@ -250,14 +328,14 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(alert).toContainText('latin-1.json could not be loaded')
   await expect(alert).toContainText('This file is not UTF-8 text.')
 
-  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeVisible()
-  expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
+  await expect(page).toHaveURL('/import')
 
   // A good load clears the alert, and asks before replacing the catalog.
   await chooseFile(page, fixture('minimal-catalog.json'))
   await expect(alert).toHaveCount(0)
   await page.getByRole('button', { name: 'Replace', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Loaded minimal-catalog.json' })).toBeFocused()
+  await expectOpened(page, 'minimal-catalog.json')
+  expect(await classCounts(page)).toEqual(['Catalog (1)', 'Dataset (1)', 'Kind (1)'])
   expect(await fileReads()).toBeGreaterThan(0)
 })
 
@@ -279,13 +357,13 @@ test('shows unknown properties as text only', async ({ page }) => {
       ],
     }),
   )
-  await page.getByRole('button', { name: payload }).click()
+  await objectList(page).getByRole('link', { name: payload }).click()
   const detail = page.getByRole('region', { name: payload })
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText('x-agency')
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText(payload)
   await expect(detail.getByRole('row', { name: /^x-values/ })).toHaveText('x-values[3,true,null,{"a":1}]')
   await expect(detail.getByRole('row', { name: /^x-long/ })).toHaveText(/^x-longa{2000}… \(5,000 characters in all\)$/)
-  await expect(detail.locator('img, script, a')).toHaveCount(0)
+  await expect(detail.getByRole('table').locator('img, script, a')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined()
 })
 
@@ -296,34 +374,32 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   datasets[2].title = 'L'.repeat(300)
   await paste(page, JSON.stringify({ '@type': 'Catalog', title: 'Big', dataset: datasets }))
 
-  const list = page.getByRole('region', { name: 'Objects' })
-  await expect(list.getByRole('row')).toHaveCount(501) // a header and 500 rows
-  await expect(page.getByRole('heading', { name: 'Loaded Pasted JSON' }).locator('bdi')).toHaveText('Pasted JSON')
-  await expect(list.getByRole('row').nth(2).getByRole('button').locator('bdi')).toHaveText('Evil \u202E(Catalog)')
-  await expect(list.getByRole('row').nth(3).getByRole('button')).toHaveText('Untitled Dataset')
-  await expect(list.getByRole('row').nth(4).getByRole('button')).toHaveText(`${'L'.repeat(200)}…`)
-  await list.getByRole('button', { name: 'Show more objects (500 of 502 shown)' }).click()
-  await expect(list.getByRole('row')).toHaveCount(503)
-  await expect(list.getByRole('button', { name: 'Dataset 499', exact: true })).toBeFocused() // the first new row
-  await expect(list.getByRole('status')).toHaveText('Showing 502 of 502 objects.')
+  await expectOpened(page, 'Pasted JSON')
+  await expect(page.getByText('From Pasted JSON ·').locator('bdi')).toHaveText('Pasted JSON')
 
-  await list.getByRole('button', { name: 'Big' }).click()
+  const list = objectList(page)
+  await expect(list.getByRole('heading')).toHaveText('Dataset (501)')
+  await expect(list.getByRole('listitem')).toHaveCount(500)
+  await expect(list.getByRole('listitem').nth(0).locator('bdi')).toHaveText('Evil \u202E(Catalog)')
+  await expect(list.getByRole('listitem').nth(1)).toHaveText('Untitled Dataset#/dataset/1')
+  await expect(list.getByRole('listitem').nth(2).locator('bdi')).toHaveText(`${'L'.repeat(200)}…`)
+  await list.getByRole('button', { name: 'Show more objects (500 of 501 shown)' }).click()
+  await expect(list.getByRole('listitem')).toHaveCount(501)
+  await expect(list.getByRole('link', { name: 'Dataset 500', exact: true })).toBeFocused() // the first new item
+  await expect(list.getByRole('status').filter({ hasText: 'Showing' })).toHaveText('Showing 501 of 501 objects.')
+
+  // The catalog is open on the right, with its 501 dataset links paged too.
   const detail = page.getByRole('region', { name: 'Big' })
   await expect(detail.getByRole('listitem')).toHaveCount(500)
   await detail.getByRole('button', { name: 'Show more dataset links (500 of 501 shown)' }).click()
   await expect(detail.getByRole('listitem')).toHaveCount(501)
-  await expect(detail.getByRole('button', { name: 'Dataset 500 (Dataset)' })).toBeFocused()
+  await expect(detail.getByRole('link', { name: 'Dataset 500 (Dataset)' })).toBeFocused()
   await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
 
   // Only the detail pane: axe over 1,000 rows is slow on a throttled runner.
   expect((await axe(page).include('section[aria-labelledby="detail-heading"]').analyze()).violations).toEqual([])
 
-  await detail.getByRole('button', { name: 'Back to the list' }).click()
-  await expect(list.getByRole('button', { name: 'Big' })).toBeFocused()
-  // Choosing the open object again moves focus back to it.
-  await list.getByRole('button', { name: 'Big' }).click()
-  await expect(detail.getByRole('heading', { level: 2 })).toBeFocused()
-
-  await detail.getByRole('button', { name: /^Evil/ }).click()
+  await detail.getByRole('link', { name: /^Evil/ }).click()
+  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
   await expect(page.locator('#detail-heading bdi')).toHaveText('Evil \u202E(Catalog)')
 })
