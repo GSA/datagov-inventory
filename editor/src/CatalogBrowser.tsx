@@ -4,7 +4,9 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
 
 export interface LoadedCatalog {
+  /** The file name, sample name or "Pasted JSON", shown in the summary. */
   name: string
+  /** The decomposed catalog (#20). */
   catalog: DecomposedCatalog
 }
 
@@ -13,19 +15,29 @@ const PAGE_SIZE = 500
 const LABEL_LENGTH = 200
 const VALUE_LENGTH = 2_000
 
+/** Labels by object, computed once: objects don't change after loading, and rows re-render. */
+const labels = new WeakMap<CatalogObject, string>()
+
 /**
  * A short name for an object: its title, name, contact name or label, if one has visible
  * characters, cut to 200 characters. Render it in <bdi> so right-to-left overrides in it
  * cannot reorder the text around it.
  */
-function labelOf({ properties, dcatClass }: CatalogObject): string {
-  for (const key of ['title', 'name', 'fn', 'prefLabel', 'label']) {
-    const value = properties[key]
-    if (typeof value === 'string' && /[^\p{Cf}\p{Z}\s]/u.test(value)) {
-      return value.length > LABEL_LENGTH ? `${value.slice(0, LABEL_LENGTH).replace(/[\uD800-\uDBFF]$/, '')}…` : value
-    }
+function labelOf(object: CatalogObject): string {
+  let label = labels.get(object)
+  if (label === undefined) {
+    const value = ['title', 'name', 'fn', 'prefLabel', 'label']
+      .map((key) => object.properties[key])
+      .find((value): value is string => typeof value === 'string' && /[^\p{Cf}\p{Z}\s]/u.test(value))
+    label =
+      value === undefined
+        ? `Untitled ${object.dcatClass}`
+        : value.length > LABEL_LENGTH
+          ? `${value.slice(0, LABEL_LENGTH).replace(/[\uD800-\uDBFF]$/, '')}…`
+          : value
+    labels.set(object, label)
   }
-  return `Untitled ${dcatClass}`
+  return label
 }
 
 const count = (n: number) => n.toLocaleString('en-US')
@@ -63,7 +75,16 @@ function textOf(value: unknown): string {
   return text.length > VALUE_LENGTH ? `${text.slice(0, VALUE_LENGTH)}… (${count(text.length)} characters in all)` : text
 }
 
-interface RowProps { object: CatalogObject; index: number; selected: boolean; onSelect: (id: string) => void }
+interface RowProps {
+  /** The object this row lists. */
+  object: CatalogObject
+  /** Its position in the list, used to give its id cell a unique DOM id. */
+  index: number
+  /** Whether it is the object open in the detail pane. */
+  selected: boolean
+  /** Opens an object by id; stable across renders, so unchanged rows are not re-rendered. */
+  onSelect: (id: string) => void
+}
 
 /** A row of the object list; memoized so selecting an object re-renders two rows, not all of them. */
 const ObjectRow = memo(function ObjectRow({ object, index, selected, onSelect }: RowProps) {
@@ -155,19 +176,19 @@ function ObjectDetail({
       {links.map(([property, ids]) => (
         <div key={property}>
           <h4 className="margin-bottom-0">{property}</h4>
-          <Paged items={ids} noun={`${property} links`}>
+          <Paged items={ids.map((id) => objects.get(id)!)} noun={`${property} links`}>
             {(shown) => (
               <ol className="margin-top-05">
-                {shown.map((id) => (
-                  <li key={id}>
+                {shown.map((child) => (
+                  <li key={child.id}>
                     <Button
                       type="button"
                       unstyled
                       className="target-size text-break"
                       data-paged-item
-                      onClick={() => onSelect(id)}
+                      onClick={() => onSelect(child.id)}
                     >
-                      <bdi>{labelOf(objects.get(id)!)}</bdi> ({objects.get(id)!.dcatClass})
+                      <bdi>{labelOf(child)}</bdi> ({child.dcatClass})
                     </Button>
                   </li>
                 ))}

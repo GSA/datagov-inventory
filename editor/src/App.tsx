@@ -21,23 +21,37 @@ const samples = Object.entries(
   import.meta.glob<string>('../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }),
 ).map(([path, text]) => ({ name: path.slice(path.lastIndexOf('/') + 1), text }))
 
-/** Reads a file in the browser (it is never uploaded) as strict UTF-8, which JSON requires. */
-function readFile(file: File): Promise<string> {
+/**
+ * Reads a file in the browser (it is never uploaded) as strict UTF-8, which JSON requires. Aborting `signal` stops
+ * the read. The handlers are detached once it settles, so nothing keeps the reader or its buffer alive.
+ */
+function readFile(file: File, signal: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        resolve(new TextDecoder('utf-8', { fatal: true }).decode(reader.result as ArrayBuffer))
-      } catch {
-        reject(new Error('This file is not UTF-8 text. Save it as UTF-8 JSON and try again.'))
-      }
+    const abort = () => reader.abort()
+    const settle = (finish: () => void) => {
+      reader.onload = reader.onerror = reader.onabort = null
+      signal.removeEventListener('abort', abort)
+      finish()
     }
+    reader.onload = () =>
+      settle(() => {
+        try {
+          resolve(new TextDecoder('utf-8', { fatal: true }).decode(reader.result as ArrayBuffer))
+        } catch {
+          reject(new Error('This file is not UTF-8 text. Save it as UTF-8 JSON and try again.'))
+        }
+      })
     reader.onerror = () =>
-      reject(
-        new Error(
-          'The browser could not read this file. It may have moved or changed since you chose it. Choose it again.',
+      settle(() =>
+        reject(
+          new Error(
+            'The browser could not read this file. It may have moved or changed since you chose it. Choose it again.',
+          ),
         ),
       )
+    reader.onabort = () => settle(() => reject(new DOMException('A newer load replaced this one.', 'AbortError')))
+    signal.addEventListener('abort', abort)
     reader.readAsArrayBuffer(file)
   })
 }
@@ -48,18 +62,24 @@ function App() {
   const [pasted, setPasted] = useState('')
   const [sample, setSample] = useState(samples[0].name)
   const attempt = useRef(0)
+  const active = useRef<AbortController>(null)
   const fileInput = useRef<FileInputRef>(null)
 
-  /** Replaces the loaded catalog only if the new one decomposes; a failed load leaves it as it was. */
-  async function load(name: string, read: () => string | Promise<string>) {
+  /**
+   * Replaces the loaded catalog only if the new one decomposes; a failed load leaves it as it was. Starting a load
+   * cancels the one in progress: its file read is aborted, and its text is never decomposed.
+   */
+  async function load(name: string, read: (signal: AbortSignal) => string | Promise<string>) {
+    active.current?.abort()
+    const controller = (active.current = new AbortController())
     const current = ++attempt.current
     setError(undefined)
     try {
-      const catalog = decompose(await read())
-      if (current !== attempt.current) return
-      setLoaded({ name, catalog, loadId: current })
+      const text = await read(controller.signal)
+      if (controller.signal.aborted) return
+      setLoaded({ name, catalog: decompose(text), loadId: current })
     } catch (e) {
-      if (current !== attempt.current) return
+      if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
     }
   }
@@ -99,9 +119,9 @@ function App() {
                     // Clear the input so the same file can be chosen again; the summary names the loaded file.
                     fileInput.current?.clearFiles()
                     if (file) {
-                      void load(file.name, () => {
+                      void load(file.name, (signal) => {
                         checkSize(file.size) // before reading, so an oversize file is never read into memory
-                        return readFile(file)
+                        return readFile(file, signal)
                       })
                     }
                   }}
@@ -137,7 +157,13 @@ function App() {
                 <Button
                   type="button"
                   className="margin-top-1"
-                  onClick={() => void load(sample, () => samples.find(({ name }) => name === sample)!.text)}
+                  onClick={() =>
+                    void load(sample, () => {
+                      const found = samples.find(({ name }) => name === sample)
+                      if (!found) throw new Error(`There is no sample named ${sample}.`)
+                      return found.text
+                    })
+                  }
                 >
                   Load sample
                 </Button>

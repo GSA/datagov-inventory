@@ -79,6 +79,31 @@ test('loads a chosen file in the browser', async ({ page }) => {
   expect(await summaryRows(page)).toEqual(['Class\tObjects', 'Catalog\t1', 'Dataset\t1', 'Kind\t1'])
 })
 
+test('a newer load cancels a file still being read', async ({ page }) => {
+  // Hold every file read for a second and count aborts, so the newer load starts while the file is still reading.
+  await page.evaluate(() => {
+    const counted = window as unknown as { aborts: number }
+    counted.aborts = 0
+    const read = FileReader.prototype.readAsArrayBuffer
+    FileReader.prototype.readAsArrayBuffer = function (blob: Blob) {
+      const timer = setTimeout(() => read.call(this, blob), 1_000)
+      this.addEventListener('abort', () => clearTimeout(timer))
+    }
+    const abort = FileReader.prototype.abort
+    FileReader.prototype.abort = function () {
+      counted.aborts++
+      abort.call(this)
+      this.dispatchEvent(new ProgressEvent('abort')) // the held read has not started, so dispatch it ourselves
+    }
+  })
+  await chooseFile(page, fixture('minimal-catalog.json'))
+  await loadSample(page, 'dataset-with-distributions.json')
+  expect(await page.evaluate(() => (window as unknown as { aborts: number }).aborts)).toBe(1)
+  await page.waitForTimeout(1_500) // past the held read: the cancelled file must not replace the sample
+  await expect(page.getByRole('heading', { name: 'Loaded dataset-with-distributions.json' })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
 test('refuses bad input with an alert and keeps the loaded catalog', async ({ page }) => {
   // Counts file reads. The good load at the end proves the count sees the app's reads.
   await page.evaluate(() => {
@@ -119,7 +144,7 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   // Not JSON at all, so had it been parsed the error would be "not valid JSON": the size is checked first.
   await chooseFile(page, { name: 'huge.json', mimeType: 'application/json', buffer: Buffer.alloc(25_000_001, 'x') })
   await expect(alert).toContainText('huge.json could not be loaded')
-  await expect(alert).toContainText('This document is 25,000,001 bytes, over the 25 MB size limit.')
+  await expect(alert).toContainText('This document is over the size limit of 25 MB (it is 25,000,001 bytes).')
   expect(await fileReads()).toBe(0)
 
   await chooseFile(page, {
