@@ -66,6 +66,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 1
+          submodules: true
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -76,6 +77,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check the DCAT-US schema pin
+        run: npm run schema:check
+
+      - name: Check model generation is current
+        run: npm run generate:models:check
 
       - name: Run unit tests
         run: npm run test -- --run
@@ -91,6 +98,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 1
+          submodules: true
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -124,6 +132,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 1
+          submodules: true
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020

@@ -1,0 +1,20 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "title": "Dataset with empty optional properties",
+      "description": "Optional properties may be null.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/nullable",
+      "keyword": null,
+      "issued": null,
+      "publisher": null,
+      "distribution": null,
+      "accrualPeriodicity": null
+    }
+  ]
+}

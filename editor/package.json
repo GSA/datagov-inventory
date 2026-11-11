@@ -17,7 +17,11 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:browser": "playwright test",
-    "test:browser:ui": "playwright test --ui"
+    "test:browser:ui": "playwright test --ui",
+    "schema:update": "node scripts/dcat-us-pin.mjs update",
+    "schema:check": "node scripts/dcat-us-pin.mjs check",
+    "generate:models": "node scripts/generate-models.mjs",
+    "generate:models:check": "npm run generate:models && git diff --exit-code src/generated/models/"
   },
   "dependencies": {
     "@trussworks/react-uswds": "^13.0.0",
@@ -35,6 +39,8 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/ui": "^5.1.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "eslint": "^9.39.5",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",

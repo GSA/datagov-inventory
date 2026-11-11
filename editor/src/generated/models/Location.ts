@@ -1,0 +1,87 @@
+import type { FormModel } from '../types'
+
+export const LocationModel: FormModel = {
+  className: 'Location',
+  fields: [
+{
+      name: '@id',
+      label: '@id',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+    },
+{
+      name: '@type',
+      label: '@type',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+    },
+{
+      name: 'bbox',
+      label: 'Bbox',
+      type: 'object',
+      required: false,
+      cardinality: 'single',
+      helpText: 'Bounding box for the location, described in WKT, GeoJSON, or GML format',
+    },
+{
+      name: 'centroid',
+      label: 'Centroid',
+      type: 'object',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The geographic center (centroid) of a location described in WKT, GeoJSON, or GML format',
+    },
+{
+      name: 'identifier',
+      label: 'Identifier',
+      type: 'object',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The unique geographic identifier for the Location, e.g., the URI or other unique identifier in the context of the relevant gazetteer',
+      allowedClasses: ['Identifier'],
+    },
+{
+      name: 'otherIdentifier',
+      label: 'Other Identifier',
+      type: 'array',
+      required: false,
+      cardinality: 'single',
+      helpText: 'A list of geographic identifiers for the Location besides the main identifier, e.g. the URI or other unique identifiers in the context of the relevant gazetteer',
+    },
+{
+      name: 'geometry',
+      label: 'Geometry',
+      type: 'object',
+      required: false,
+      cardinality: 'single',
+      helpText: 'Associates a location with a corresponding geometry described in WKT, GeoJSON, or GML format',
+    },
+{
+      name: 'inScheme',
+      label: 'In Scheme',
+      type: 'object',
+      required: false,
+      cardinality: 'single',
+      helpText: 'The gazetteer to which the location belongs',
+      allowedClasses: ['Conceptscheme'],
+    },
+{
+      name: 'altLabel',
+      label: 'Alt Label',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'An alternative label or name for a location',
+    },
+{
+      name: 'prefLabel',
+      label: 'Pref Label',
+      type: 'string',
+      required: false,
+      cardinality: 'single',
+      helpText: 'Preferred label or name of the Location',
+    }
+  ],
+}

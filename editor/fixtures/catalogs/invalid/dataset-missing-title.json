@@ -1,0 +1,14 @@
+{
+  "@type": "Catalog",
+  "dataset": [
+    {
+      "@type": "Dataset",
+      "description": "Dataset.title is required.",
+      "contactPoint": {
+        "fn": "Data Team",
+        "hasEmail": "mailto:data@example.gov"
+      },
+      "identifier": "https://example.gov/datasets/no-title"
+    }
+  ]
+}
