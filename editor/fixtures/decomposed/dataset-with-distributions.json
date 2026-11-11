@@ -1,0 +1,149 @@
+{
+  "rootId": "#",
+  "objects": [
+    {
+      "id": "#",
+      "dcatClass": "Catalog",
+      "properties": {
+        "@type": "Catalog",
+        "title": "Example Agency Catalog",
+        "description": "A catalog with one dataset that has recommended properties and distributions."
+      },
+      "links": {
+        "publisher": [
+          "#/publisher"
+        ],
+        "dataset": [
+          "#/dataset/0"
+        ]
+      },
+      "singleLinks": [
+        "publisher"
+      ]
+    },
+    {
+      "id": "#/publisher",
+      "dcatClass": "Organization",
+      "properties": {
+        "@type": "Organization",
+        "name": "Example Agency"
+      },
+      "links": {},
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0",
+      "dcatClass": "Dataset",
+      "properties": {
+        "@id": "https://example.gov/datasets/qualité-de-l-air",
+        "@type": "Dataset",
+        "title": "Air quality readings",
+        "description": "Hourly readings from example monitoring stations.",
+        "identifier": "example-air-quality",
+        "keyword": [
+          "air quality",
+          "monitoring"
+        ],
+        "theme": [
+          "Environment"
+        ],
+        "issued": "2024-01-15",
+        "modified": "2025-06-30T12:00:00Z",
+        "accrualPeriodicity": "daily",
+        "language": [
+          "en"
+        ]
+      },
+      "links": {
+        "contactPoint": [
+          "#/dataset/0/contactPoint/0"
+        ],
+        "publisher": [
+          "#/dataset/0/publisher"
+        ],
+        "temporal": [
+          "#/dataset/0/temporal/0"
+        ],
+        "distribution": [
+          "#/dataset/0/distribution/0",
+          "#/dataset/0/distribution/1"
+        ]
+      },
+      "singleLinks": [
+        "publisher"
+      ]
+    },
+    {
+      "id": "#/dataset/0/contactPoint/0",
+      "dcatClass": "Kind",
+      "properties": {
+        "@type": "Kind",
+        "fn": "Air Quality Team",
+        "hasEmail": "mailto:air@example.gov"
+      },
+      "links": {},
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0/publisher",
+      "dcatClass": "Organization",
+      "properties": {
+        "@type": "Organization",
+        "name": "Example Agency"
+      },
+      "links": {},
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0/temporal/0",
+      "dcatClass": "PeriodOfTime",
+      "properties": {
+        "@type": "PeriodOfTime",
+        "startDate": "2020",
+        "endDate": "2025-06"
+      },
+      "links": {},
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0/distribution/0",
+      "dcatClass": "Distribution",
+      "properties": {
+        "@type": "Distribution",
+        "title": "Readings as CSV",
+        "downloadURL": "https://example.gov/data/air-quality.csv",
+        "mediaType": "text/csv"
+      },
+      "links": {
+        "checksum": [
+          "#/dataset/0/distribution/0/checksum"
+        ]
+      },
+      "singleLinks": [
+        "checksum"
+      ]
+    },
+    {
+      "id": "#/dataset/0/distribution/0/checksum",
+      "dcatClass": "Checksum",
+      "properties": {
+        "@type": "Checksum",
+        "algorithm": "SHA-256",
+        "checksumValue": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+      },
+      "links": {},
+      "singleLinks": []
+    },
+    {
+      "id": "#/dataset/0/distribution/1",
+      "dcatClass": "Distribution",
+      "properties": {
+        "@type": "Distribution",
+        "title": "Readings API",
+        "accessURL": "https://example.gov/api/air-quality"
+      },
+      "links": {},
+      "singleLinks": []
+    }
+  ]
+}

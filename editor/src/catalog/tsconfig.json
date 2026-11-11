@@ -1,0 +1,10 @@
+{
+  // Type-checks the catalog model without DOM types, so it cannot use the DOM (#20).
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "WebWorker"],
+    "types": ["vite/client"]
+  },
+  "include": ["**/*.ts", "../schema/index.ts"],
+  "exclude": ["**/*.test.ts"]
+}
