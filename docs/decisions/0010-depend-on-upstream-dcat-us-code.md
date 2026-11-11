@@ -12,9 +12,17 @@ risk_treatment: "mitigate"
 
 # Validate DCAT-US 3.0 through the Data.gov validator API and consume only the schema definitions from the pinned GSA/dcat-us submodule
 
+> **Phase applicability, 2026-10-30:** This decision applies in every phase under
+> [ADR 0013](0013-deliver-inventory-in-three-phases.md). Phase 1 bundles the pinned
+> schema definitions into the static application and calls the public validator
+> API directly from the browser using non-credentialed CORS requests. Phase 2 and
+> later call the same API from the backend for authoritative server operations;
+> browser results are not trusted by the server. The single-validator and schema
+> version-agreement decisions remain unchanged.
+
 ## Context and Problem Statement
 
-[ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md),
+[ADR 0014](0014-browser-only-metadata-editor.md),
 [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md), and
 [ADR 0008](0008-onboard-via-data-json-reimport.md) all depend on DCAT-US 3.0
 validation and on legible error reporting. This record first proposed importing that
@@ -105,7 +113,7 @@ that Inventory's validation features depend on:
 
 - **Validate a whole catalog and a fragment of one class.** Import flags each object
   ([ADR 0008](0008-onboard-via-data-json-reimport.md)), and the editor validates one
-  object at a time ([ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md)). A
+  object at a time ([ADR 0014](0014-browser-only-metadata-editor.md)). A
   3,000-dataset catalog may be tens of MB, so a batch or streaming form is needed.
 - **A structured response** that separates **errors** (blocking) from **warnings**
   (informational), each with a path to the offending value and a readable message.
@@ -127,13 +135,14 @@ that Inventory's validation features depend on:
   than one that fails closed.
 - **The validator and schema versions are recorded** on each import and each
   `export_run`, so a result is reproducible against the version that produced it.
-- **The API is a fourth egress destination**, added to the egress allowlist
+- **The API is called directly by the browser in phase 1** and must allow the
+  deployed Inventory origin through CORS. From phase 2 onward it is an egress
+  destination added to the backend allowlist
   ([ADR 0009](0009-terraform-cloudgov-for-infrastructure.md)).
-- **CI does not call the live API.** Tests validate fixtures directly against the
-  schema definitions in the submodule, with `jsonschema` as a **test-only**
-  dependency, pinned explicitly to Draft 2020-12. That covers schema errors but not
-  warnings or the API's message format, so a periodic contract test against the real
-  service covers the difference.
+- **CI does not depend on the live API.** Phase-appropriate test tooling validates
+  fixtures directly against the schema definitions in the submodule. That covers
+  schema errors but not warnings or the API's message format, so a periodic
+  contract test against the real service covers the difference.
 
 ### The schema definitions
 
@@ -154,8 +163,8 @@ that Inventory's validation features depend on:
 - The code dependency on the submodule, its packaging problem, the 3.13 versus 3.12 floor, the
   import-time side effects, and the dependency-scanning gap all disappear.
 - Warnings come for free.
-- Anonymous editing in 2.1 can validate by calling the same API, without running Python
-  in the browser ([ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md)).
+- Phase 1 anonymous editing validates by calling the same API, without running Python
+  in the browser ([ADR 0014](0014-browser-only-metadata-editor.md)).
 
 ### Negative Consequences
 
@@ -212,7 +221,7 @@ Work that must finish before validation features ship, not before acceptance.
 
 - [`GSA/dcat-us`](https://github.com/GSA/dcat-us/tree/main/jsonschema) — the in-boundary, Data.gov/GSA-owned source of the 3.0 schema definitions Inventory reads
 - [ADR 0001](0001-repository-topology-for-inventory-v2.md) — deferred this question
-- [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) — where validation is called from
+- [ADR 0014](0014-browser-only-metadata-editor.md) — where phase 1 validation is called from
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) — the graph layer Inventory owns
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) — import flags invalid objects using this validation
 - [ADR 0009](0009-terraform-cloudgov-for-infrastructure.md) — the egress allowlist
