@@ -1,6 +1,7 @@
 ---
 title: "Use server-rendered Flask pages with a local-first React editor for Inventory v2"
-status: "proposed"
+status: "superseded"
+superseded_by: "ADR 0014"
 date: "2026-09-21"
 decision_makers: ["Data.gov engineering team"]
 category: "Input Validation and Output Handling"
@@ -12,11 +13,15 @@ risk_treatment: "mitigate"
 
 # Use server-rendered Flask pages with a local-first React editor for Inventory v2
 
-> **Status note:** This record is `proposed`. The product questions are now
-> answered (see [Decided requirements](#decided-requirements)), which **reverses
-> this record's earlier recommendation** of server-rendered Jinja and HTMX for the
-> editor. The direction below is a proposal that must be proven by a
-> [spike](#blockers-before-acceptance) before it is accepted.
+> **Superseded 2026-10-30 by [ADR 0014](0014-browser-only-metadata-editor.md).**
+> When this record was written, the plan was to build the server-backed,
+> authenticated editor first and add the anonymous public editor later. The
+> delivery order has since been reversed: the anonymous browser-only editor comes
+> first, followed by authenticated backend persistence and collaboration. This
+> record focuses heavily on the server-backed editor architecture and says little
+> about what the anonymous public editor requires. ADR 0014 replaces it by
+> focusing on the implementation architecture for that first browser-only phase,
+> while intentionally deferring later server and rendering choices.
 
 ## Context and Problem Statement
 
@@ -116,8 +121,7 @@ Commitments, which are part of the decision and not implementation detail:
   form-model). It is exposed through a stateless APIFlask API:
   `POST /api/validate`, `POST /api/export`, `GET /api/schema/{class}/form`
   returning the form model as **JSON**, plus object CRUD and sync endpoints for the
-  editor. There is no `POST /api/convert`
-  ([`architecture.md` §3](../architecture.md#v2-does-not-convert-dcat-us-11)).
+  editor. There is no `POST /api/convert`.
 - **Validation is the shared Data.gov validator API**, called by the server, which is authoritative. Client checks are advisory only.
 - **Local store with sync.** The editor works against a copy in browser storage and
   syncs to the database. The proposed default is **per-object version numbers with
