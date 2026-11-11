@@ -78,19 +78,27 @@ export function checkSize(bytes: number, limits: Partial<DecomposeLimits> = {}):
   if (bytes > maxBytes) throw tooLarge(maxBytes, bytes)
 }
 
+/** One message whether or not the exact size is known: "This document is over the size limit of 25 MB (it is …)." */
 const tooLarge = (maxBytes: number, bytes?: number) =>
   new DecomposeError(
     'too-large',
-    `This document is ${bytes === undefined ? '' : `${bytes.toLocaleString('en-US')} bytes, `}over the ${formatBytes(maxBytes)} size limit.`,
+    `This document is over the size limit of ${formatBytes(maxBytes)}${bytes === undefined ? '' : ` (it is ${bytes.toLocaleString('en-US')} bytes)`}.`,
   )
+
+/**
+ * A UTF-16 code unit (one unit of `text.length`) encodes to 1-3 UTF-8 bytes; a surrogate pair is 2 units and 4
+ * bytes. So a text's UTF-8 size is between `text.length` and 3 × `text.length`.
+ */
+const MAX_UTF8_BYTES_PER_UNIT = 3
 
 /** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
 export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
   const { maxBytes, maxDepth, maxObjects } = { ...DEFAULT_LIMITS, ...limits }
-  // UTF-8 never takes fewer bytes than UTF-16 code units, so the length alone refuses most oversize
-  // text without encoding it, and only text near the limit is counted exactly.
+  // The length alone refuses text that is surely too large, and accepts text that surely fits, without
+  // encoding it; only text in between is encoded to count its bytes exactly.
   if (text.length > maxBytes) throw tooLarge(maxBytes)
-  checkSize(text.length * 3 > maxBytes ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
+  const mayExceed = text.length > maxBytes / MAX_UTF8_BYTES_PER_UNIT
+  checkSize(mayExceed ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
   scan(text, maxDepth, maxObjects)
   if (!text.trim()) throw new DecomposeError('invalid-json', 'This document is empty.')
 
@@ -169,6 +177,14 @@ function asObjects(value: unknown): Record<string, unknown>[] | undefined {
 }
 
 /** Measures nesting and counts objects on the raw text, so depth and object bombs are refused before parsing. */
+// Character codes the scan looks for (JSON's structural characters are all ASCII).
+const QUOTE = 0x22 // "
+const BACKSLASH = 0x5c // \
+const OPEN_BRACE = 0x7b // {
+const CLOSE_BRACE = 0x7d // }
+const OPEN_BRACKET = 0x5b // [
+const CLOSE_BRACKET = 0x5d // ]
+
 function scan(text: string, maxDepth: number, maxObjects: number): void {
   let depth = 0
   let objectCount = 0
@@ -176,11 +192,11 @@ function scan(text: string, maxDepth: number, maxObjects: number): void {
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i)
     if (inString) {
-      if (c === 0x5c) i++ // backslash: skip the escaped character
-      else if (c === 0x22) inString = false
-    } else if (c === 0x22) inString = true
-    else if (c === 0x7b || c === 0x5b) {
-      if (c === 0x7b && ++objectCount > maxObjects) {
+      if (c === BACKSLASH) i++ // skip the escaped character
+      else if (c === QUOTE) inString = false
+    } else if (c === QUOTE) inString = true
+    else if (c === OPEN_BRACE || c === OPEN_BRACKET) {
+      if (c === OPEN_BRACE && ++objectCount > maxObjects) {
         throw new DecomposeError(
           'too-many-objects',
           `This document has more than ${maxObjects.toLocaleString('en-US')} JSON objects, the limit.`,
@@ -189,6 +205,6 @@ function scan(text: string, maxDepth: number, maxObjects: number): void {
       if (++depth > maxDepth) {
         throw new DecomposeError('too-deep', `This document is nested more than ${maxDepth} levels deep, the limit.`)
       }
-    } else if (c === 0x7d || c === 0x5d) depth--
+    } else if (c === CLOSE_BRACE || c === CLOSE_BRACKET) depth--
   }
 }

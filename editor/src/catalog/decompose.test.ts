@@ -198,19 +198,19 @@ describe('decompose: limits', () => {
     expect(text.length).toBeLessThan(100)
     expect(failure(() => decompose(text, { maxBytes: 100 }))).toEqual([
       'too-large',
-      'This document is 150 bytes, over the 100 bytes size limit.',
+      'This document is over the size limit of 100 bytes (it is 150 bytes).',
     ])
     expect(failure(() => decompose(text, { maxBytes: 150 }))).toEqual(['no error'])
     // Far over the limit, it is refused by its length without being encoded.
     expect(failure(() => decompose('x'.repeat(1_000), { maxBytes: 100 }))[1]).toBe(
-      'This document is over the 100 bytes size limit.',
+      'This document is over the size limit of 100 bytes.',
     )
   })
 
   it('checks a file size before it is read, naming the default limit', () => {
     expect(failure(() => checkSize(30_200_000))).toEqual([
       'too-large',
-      'This document is 30,200,000 bytes, over the 25 MB size limit.',
+      'This document is over the size limit of 25 MB (it is 30,200,000 bytes).',
     ])
     expect(failure(() => checkSize(DEFAULT_LIMITS.maxBytes))).toEqual(['no error'])
   })
