@@ -43,23 +43,27 @@ export interface DecomposeLimits {
   maxBytes: number
   /** Deepest nesting of JSON objects and arrays accepted (the top-level object is depth 1). */
   maxDepth: number
-  /** Most JSON objects (`{...}`) a document may contain, counted before it is parsed; DCAT objects are a subset. */
-  maxObjects: number
+  /**
+   * Most JSON objects and arrays (`{...}`, `[...]`) a document may contain, counted before it is parsed. DCAT
+   * objects are a subset. Arrays count too, so a file of empty arrays cannot parse into a heap far larger than its
+   * size suggests.
+   */
+  maxContainers: number
 }
 
 /**
  * Sized for #29's 3,000+ datasets with room to spare. The DOJ catalog is about 1,800
  * datasets in 2.4 MB (DCAT-US 1.1). A generated 3.0 catalog of 3,000 datasets, each with a
  * publisher, contact points, 2-4 distributions, temporal and spatial coverage, measured
- * 7.4 MB minified and 10.3 MB pretty-printed, with 37,000 JSON objects. So 25 MB is about
- * 2.5-3.5 times that (6,000 pretty-printed datasets still fit), and 250,000 objects about
- * 7 times. At those limits decompose took 0.2 s and kept 140 MB at most (review round 7),
+ * 7.4 MB minified and 10.3 MB pretty-printed, with 37,000 JSON objects and 27,000 arrays. So
+ * 25 MB is about 2.5-3.5 times that (6,000 pretty-printed datasets still fit), and 250,000
+ * objects and arrays about 4 times. At those limits decompose took 0.2 s and kept 140 MB at most,
  * well short of exhausting a tab. Real documents nest under about 15 levels (catalog →
  * dataset → attribution → agent → sub-organization ...); 64 bounds the walk with headroom.
  */
-export const DEFAULT_LIMITS: DecomposeLimits = { maxBytes: 25_000_000, maxDepth: 64, maxObjects: 250_000 }
+export const DEFAULT_LIMITS: DecomposeLimits = { maxBytes: 25_000_000, maxDepth: 64, maxContainers: 250_000 }
 
-export type DecomposeErrorCode = 'too-large' | 'too-deep' | 'too-many-objects' | 'invalid-json' | 'no-dcat-class'
+export type DecomposeErrorCode = 'too-large' | 'too-deep' | 'too-many-containers' | 'invalid-json' | 'no-dcat-class'
 
 export class DecomposeError extends Error {
   name = 'DecomposeError'
@@ -93,13 +97,13 @@ const MAX_UTF8_BYTES_PER_UNIT = 3
 
 /** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
 export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
-  const { maxBytes, maxDepth, maxObjects } = { ...DEFAULT_LIMITS, ...limits }
+  const { maxBytes, maxDepth, maxContainers } = { ...DEFAULT_LIMITS, ...limits }
   // The length alone refuses text that is surely too large, and accepts text that surely fits, without
   // encoding it; only text in between is encoded to count its bytes exactly.
   if (text.length > maxBytes) throw tooLarge(maxBytes)
   const mayExceed = text.length > maxBytes / MAX_UTF8_BYTES_PER_UNIT
   checkSize(mayExceed ? new TextEncoder().encode(text).byteLength : text.length, { maxBytes })
-  scan(text, maxDepth, maxObjects)
+  scan(text, maxDepth, maxContainers)
   if (!text.trim()) throw new DecomposeError('invalid-json', 'This document is empty.')
 
   let root: unknown
@@ -108,13 +112,17 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
   } catch (error) {
     throw new DecomposeError('invalid-json', `This is not valid JSON: ${(error as Error).message}`)
   }
+  if (isObject(root) && isDcatUs11(root)) {
+    throw new DecomposeError(
+      'no-dcat-class',
+      'No DCAT-US 3.0 class found: this looks like a DCAT-US 1.1 data.json file. The editor reads DCAT-US 3.0 only.',
+    )
+  }
   const rootClass = isObject(root) ? classOfRoot(root) : undefined
   if (!isObject(root) || !rootClass) {
     throw new DecomposeError(
       'no-dcat-class',
-      isObject(root) && root['@type'] === 'dcat:Catalog'
-        ? 'No DCAT-US 3.0 class found: this looks like a DCAT-US 1.1 data.json file. The editor reads DCAT-US 3.0 only.'
-        : 'No DCAT-US 3.0 class found: the top level must be a JSON object with "@type": "Catalog" (or another DCAT-US 3.0 class).',
+      'No DCAT-US 3.0 class found: the top level must be a JSON object with "@type": "Catalog" (or another DCAT-US 3.0 class).',
     )
   }
 
@@ -161,6 +169,15 @@ function classIn(node: Record<string, unknown>, allowed: readonly string[]): str
   return typeof type === 'string' && allowed.some(fits) ? type : allowed[0]
 }
 
+/**
+ * A DCAT-US 1.1 data.json: its `@type` is `dcat:Catalog`, or its `conformsTo` is the 1.1 schema. 1.1 requires only
+ * `conformsTo` and `dataset`, so without this check a file with no `@type` would load as a 3.0 Catalog. (A 3.0
+ * Catalog's `conformsTo` holds Standard objects, never this URL.)
+ */
+const isDcatUs11 = (root: Record<string, unknown>) =>
+  root['@type'] === 'dcat:Catalog' ||
+  (typeof root.conformsTo === 'string' && /^https?:\/\/project-open-data\.cio\.gov\/v1\.1\/schema\/?$/.test(root.conformsTo))
+
 /** `@type` names the class; without one, Catalog is the schema's default if any Catalog property is present. */
 function classOfRoot(root: Record<string, unknown>): string | undefined {
   const type = root['@type']
@@ -185,9 +202,9 @@ const CLOSE_BRACE = 0x7d // }
 const OPEN_BRACKET = 0x5b // [
 const CLOSE_BRACKET = 0x5d // ]
 
-function scan(text: string, maxDepth: number, maxObjects: number): void {
+function scan(text: string, maxDepth: number, maxContainers: number): void {
   let depth = 0
-  let objectCount = 0
+  let containers = 0
   let inString = false
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i)
@@ -196,10 +213,10 @@ function scan(text: string, maxDepth: number, maxObjects: number): void {
       else if (c === QUOTE) inString = false
     } else if (c === QUOTE) inString = true
     else if (c === OPEN_BRACE || c === OPEN_BRACKET) {
-      if (c === OPEN_BRACE && ++objectCount > maxObjects) {
+      if (++containers > maxContainers) {
         throw new DecomposeError(
-          'too-many-objects',
-          `This document has more than ${maxObjects.toLocaleString('en-US')} JSON objects, the limit.`,
+          'too-many-containers',
+          `This document has more than ${maxContainers.toLocaleString('en-US')} JSON objects and arrays, the limit.`,
         )
       }
       if (++depth > maxDepth) {

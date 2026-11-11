@@ -31,7 +31,7 @@ objects (id, DCAT class, own scalar properties) whose class-valued properties ar
 lists of child ids. Which properties hold classes, and so each object's class, comes from
 the schema (`getClassProperties` in `src/schema`). Ids are the objects' JSON Pointers in
 the source document (`#/dataset/0`). Input is bounded by `DEFAULT_LIMITS` (25 MB, 64
-levels deep, 250,000 JSON objects), checked before parsing. `fixtures/decomposed/` holds
+levels deep, 250,000 JSON objects and arrays), checked before parsing. `fixtures/decomposed/` holds
 the expected output for each valid fixture catalog as plain JSON, for other implementations
 (the Python one, E04-02) to test against. The module may import only
 `src/schema` and is type-checked without DOM types (`src/catalog/tsconfig.json`), so it

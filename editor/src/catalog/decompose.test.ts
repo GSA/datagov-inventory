@@ -163,6 +163,7 @@ describe('decompose: bad input', () => {
   const notJson = /^This is not valid JSON: /
   const noClass = /^No DCAT-US 3\.0 class found: .*"@type": "Catalog"/
   const empty = /^This document is empty\.$/
+  const v11 = /^No DCAT-US 3\.0 class found: this looks like a DCAT-US 1\.1 data\.json file\. The editor reads DCAT-US 3\.0 only\.$/
   it.each([
     ['truncated JSON', '{"@type": "Catalog", "dataset": [', 'invalid-json', notJson],
     ['not JSON', 'Catalog', 'invalid-json', notJson],
@@ -183,7 +184,14 @@ describe('decompose: bad input', () => {
       'a DCAT-US 1.1 data.json file',
       '{"@type": "dcat:Catalog", "conformsTo": "https://project-open-data.cio.gov/v1.1/schema", "dataset": []}',
       'no-dcat-class',
-      /^No DCAT-US 3\.0 class found: this looks like a DCAT-US 1\.1 data\.json file\. The editor reads DCAT-US 3\.0 only\.$/,
+      v11,
+    ],
+    // 1.1 requires only conformsTo and dataset: with no @type it must not load as a 3.0 Catalog.
+    [
+      'a DCAT-US 1.1 data.json file with no @type',
+      '{"conformsTo": "https://project-open-data.cio.gov/v1.1/schema", "dataset": [{"title": "A"}]}',
+      'no-dcat-class',
+      v11,
     ],
   ])('refuses %s with a clear error', (_case, text, code, message) => {
     expect(failure(() => decompose(text))).toEqual([code, expect.stringMatching(message)])
@@ -229,17 +237,19 @@ describe('decompose: limits', () => {
     ])
   })
 
-  it('refuses more than maxObjects JSON objects, DCAT or not, before parsing, and names the limit', () => {
-    const text = json({ '@type': 'Catalog', dataset: [{ title: 'A' }, { title: 'B' }] })
-    expect(failure(() => decompose(text, { maxObjects: 3 }))).toEqual(['no error'])
-    expect(failure(() => decompose(text, { maxObjects: 2 }))).toEqual([
-      'too-many-objects',
-      'This document has more than 2 JSON objects, the limit.',
+  it('refuses more than maxContainers JSON objects and arrays, DCAT or not, before parsing, and names the limit', () => {
+    const text = json({ '@type': 'Catalog', dataset: [{ title: 'A' }, { title: 'B' }] }) // 3 objects, 1 array
+    expect(failure(() => decompose(text, { maxContainers: 4 }))).toEqual(['no error'])
+    expect(failure(() => decompose(text, { maxContainers: 3 }))).toEqual([
+      'too-many-containers',
+      'This document has more than 3 JSON objects and arrays, the limit.',
     ])
-    const mixed = json({ '@type': 'Catalog', dataset: ['x', {}, {}, {}] }) // kept as a property, still counted
-    expect(failure(() => decompose(mixed, { maxObjects: 3 }))[0]).toBe('too-many-objects')
+    const mixed = json({ '@type': 'Catalog', dataset: ['x', {}, {}] }) // kept as a property, still counted
+    expect(failure(() => decompose(mixed, { maxContainers: 3 }))[0]).toBe('too-many-containers')
+    // Empty arrays count too: a file of them would otherwise parse into a heap many times its size.
+    expect(failure(() => decompose(`{"x":[${'[],'.repeat(9)}[]]}`, { maxContainers: 10 }))[0]).toBe('too-many-containers')
     // Refused before parsing: this is not valid JSON either.
-    expect(failure(() => decompose('{"a":{},'.repeat(10), { maxObjects: 5 }))[0]).toBe('too-many-objects')
+    expect(failure(() => decompose('{"a":{},'.repeat(10), { maxContainers: 5 }))[0]).toBe('too-many-containers')
   })
 
   it('fits 3,000 rich datasets within the default limits', () => {
