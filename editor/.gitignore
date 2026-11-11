@@ -27,5 +27,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Playwright output
+test-results
+playwright-report
+
 # Cloud Foundry deploy: filled from dist/ by CI
 cf/public

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 
 test.describe('App page frame', () => {
@@ -44,4 +44,10 @@ test.describe('App page frame', () => {
 
     expect(accessibilityScanResults.violations).toEqual([])
   })
+})
+
+// Proves the CSP fixture can fail: a blocked request must fail the test.
+test.fail('a CSP violation fails the test', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => fetch('/blocked').catch(() => undefined))
 })
