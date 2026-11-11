@@ -53,6 +53,8 @@ can run in a worker.
 | `npm run test:browser:ui` | Run Playwright tests with UI |
 | `npm run schema:update -- <commit>` | Move the pinned DCAT-US 3.0 schema to a GSA/dcat-us commit |
 | `npm run schema:check` | Check the schema pin matches the submodule (runs in CI) |
+| `npm run generate:models` | Generate TypeScript form models from DCAT-US 3.0 JSON Schema |
+| `npm run generate:models:check` | Verify committed models match current schema (runs in CI) |
 
 ## Testing
 
@@ -138,7 +140,7 @@ test('page is accessible', async ({ page }) => {
 GitHub Actions runs all checks on every push:
 - **lint**: ESLint checks
 - **typecheck**: TypeScript compilation
-- **test**: Vitest unit tests and the DCAT-US schema pin check (`schema:check`)
+- **test**: Vitest unit tests, DCAT-US schema pin check (`schema:check`), and model generation check (`generate:models:check`)
 - **build**: Production build
 - **test-browser**: Playwright browser tests with accessibility
 - **audit**: npm security audit
@@ -184,6 +186,55 @@ Test dangerouslySetInnerHTML ban:
 npm run build
 // Expected: Build fails with ESLint error
 ```
+
+## Form Model Generation
+
+The editor generates TypeScript form models from the DCAT-US 3.0 JSON Schema at build time. This enables automatic form generation when the schema is updated.
+
+**Generate models:**
+```bash
+npm run generate:models
+```
+
+This reads class schemas from `schema/dcat-us/jsonschema/definitions/*.json` and generates TypeScript model files in `src/generated/models/`.
+
+**Model structure:**
+
+Each generated model contains:
+- `className`: The DCAT-US class name (e.g., "Dataset")
+- `fields`: Array of form field metadata with:
+  - `name`: Property name from schema
+  - `label`: Human-readable label (titlecased with spaces)
+  - `type`: Field data type (string, number, boolean, object)
+  - `required`: Whether field is required
+  - `cardinality`: Single value or multiple (array)
+  - `helpText`: Field description from schema
+  - `allowedValues`: Enum options (if applicable)
+  - `allowedClasses`: Allowed object types for references (if applicable)
+
+**Example usage:**
+```typescript
+import { DatasetModel } from './generated/models'
+
+console.log(DatasetModel.className) // "Dataset"
+console.log(DatasetModel.fields.length) // 20+
+
+const titleField = DatasetModel.fields.find((f) => f.name === 'title')
+console.log(titleField.label) // "Title"
+console.log(titleField.required) // true
+console.log(titleField.helpText) // "Human-readable title of the dataset"
+```
+
+**CI validation:**
+
+GitHub Actions runs `npm run generate:models:check` which regenerates models and verifies they match the committed versions. This ensures models stay in sync with the schema.
+
+**When to regenerate:**
+- After updating the schema submodule: `npm run schema:update -- <commit>`
+- After schema property descriptions or constraints change upstream
+- When adding new class definitions upstream
+
+Generated models are committed to the repo (not in `.gitignore`) to avoid rebuild on every install and provide fast editor startup.
 
 ## Deployment
 
