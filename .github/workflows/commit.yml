@@ -81,6 +81,9 @@ jobs:
       - name: Check the DCAT-US schema pin
         run: npm run schema:check
 
+      - name: Check model generation is current
+        run: npm run generate:models:check
+
       - name: Run unit tests
         run: npm run test -- --run
 
