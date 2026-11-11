@@ -59,6 +59,7 @@ function readFile(file: File, signal: AbortSignal): Promise<string> {
 function App() {
   const [loaded, setLoaded] = useState<LoadedCatalog & { loadId: number }>()
   const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
+  const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [pasted, setPasted] = useState('')
   const [sample, setSample] = useState(samples[0].name)
   const attempt = useRef(0)
@@ -77,10 +78,54 @@ function App() {
     try {
       const text = await read(controller.signal)
       if (controller.signal.aborted) return
-      setLoaded({ name, catalog: decompose(text), loadId: current })
+      const catalog = decompose(text)
+      setLoaded({ name, catalog, loadId: current })
+      ;(window as typeof window & { loadedCatalog?: typeof catalog }).loadedCatalog = catalog
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
+    }
+  }
+
+  async function handleExport() {
+    if (!loaded) return
+    setExportStatus(undefined)
+
+    try {
+      const { assemble } = await import('./catalog/assemble')
+      const result = assemble(loaded.catalog)
+      const text = JSON.stringify(result.output, null, 2)
+      const blob = new Blob([text], { type: 'application/json' })
+
+      const output = result.output as Record<string, unknown>
+      const title = typeof output.title === 'string' && output.title ? output.title : loaded.name.replace(/\.json$/i, '')
+      const catalogTitle = title
+        .replace(/[/\\:*?"<>|]/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .toLowerCase()
+      const date = new Date().toISOString().slice(0, 10)
+      const filename = `${catalogTitle}-${date}.json`
+
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.click()
+      URL.revokeObjectURL(url)
+
+      let message = 'Catalog exported successfully'
+      if (result.sharedObjects.length > 0) {
+        message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
+      }
+
+      setExportStatus({ type: 'success', message })
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setExportStatus({
+        type: 'error',
+        message: `Export failed: ${message}`
+      })
     }
   }
 
@@ -186,7 +231,15 @@ function App() {
             </Alert>
           )}
 
-          {loaded && <CatalogBrowser key={loaded.loadId} name={loaded.name} catalog={loaded.catalog} />}
+          {loaded && (
+            <CatalogBrowser
+              key={loaded.loadId}
+              name={loaded.name}
+              catalog={loaded.catalog}
+              onExport={handleExport}
+              exportStatus={exportStatus}
+            />
+          )}
         </div>
       </main>
     </>

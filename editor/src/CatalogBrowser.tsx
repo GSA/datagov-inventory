@@ -8,6 +8,10 @@ export interface LoadedCatalog {
   name: string
   /** The decomposed catalog (#20). */
   catalog: DecomposedCatalog
+  /** Optional export handler from parent. */
+  onExport?: () => void
+  /** Optional export status from parent. */
+  exportStatus?: { type: 'success' | 'error'; message: string }
 }
 
 /** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
@@ -210,7 +214,7 @@ function ObjectDetail({
 }
 
 /** Memoized, so typing in the load form does not re-render the catalog. */
-export default memo(function CatalogBrowser({ name, catalog }: LoadedCatalog) {
+export default memo(function CatalogBrowser({ name, catalog, onExport, exportStatus }: LoadedCatalog) {
   const { objects } = catalog
   const [selectedId, setSelectedId] = useState<string>()
   const heading = useRef<HTMLHeadingElement>(null)
@@ -244,7 +248,28 @@ export default memo(function CatalogBrowser({ name, catalog }: LoadedCatalog) {
         <h2 id="summary-heading" ref={heading} tabIndex={-1} className="text-break">
           Loaded <bdi>{name}</bdi>
         </h2>
-        <Table caption={`${count(objects.size)} ${objects.size === 1 ? 'object' : 'objects'} by class`} compact>
+
+        {onExport && (
+          <Button type="button" onClick={onExport} className="margin-top-2">
+            Export catalog
+          </Button>
+        )}
+
+        {exportStatus && (
+          <div
+            id="export-status"
+            role={exportStatus.type === 'error' ? 'alert' : 'status'}
+            className={`margin-top-2 ${exportStatus.type === 'error' ? 'text-secondary-dark' : ''}`}
+          >
+            {exportStatus.message}
+          </div>
+        )}
+
+        <Table
+          caption={`${count(objects.size)} ${objects.size === 1 ? 'object' : 'objects'} by class`}
+          compact
+          className="margin-top-2"
+        >
           <thead>
             <tr>
               <th scope="col">Class</th>
