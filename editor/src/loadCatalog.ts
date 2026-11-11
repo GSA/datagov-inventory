@@ -9,8 +9,9 @@ import type { ParseMessage } from './catalog/parse'
  * refused.
  */
 export async function loadCatalog(source: File | string, signal: AbortSignal): Promise<DecomposedCatalog> {
-  if (typeof source !== 'string') checkSize(source.size) // so an oversize file is never read into memory
-  return parseInWorker(typeof source === 'string' ? source : await readFile(source, signal), signal)
+  if (typeof source === 'string') return parseInWorker(source, signal)
+  checkSize(source.size) // so an oversize file is never read into memory
+  return parseInWorker(await readFile(source, signal), signal)
 }
 
 /** Reads a file's bytes; the worker decodes them. The handlers are detached once it settles, so nothing keeps the reader or its buffer alive. */

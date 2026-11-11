@@ -55,20 +55,24 @@ function App() {
     setCatalogs(keepOpen)
     setLoading(name)
     try {
-      const next = { name, catalog: await loadCatalog(source, controller.signal), loadId: current }
+      const catalog = await loadCatalog(source, controller.signal)
+      if (controller.signal.aborted) return
+      const next = { name, catalog, loadId: current }
       setCatalogs(({ loaded }) => (loaded ? { loaded, pending: next } : { loaded: next }))
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
     } finally {
-      if (!controller.signal.aborted) setLoading(undefined)
+      if (!controller.signal.aborted) stopLoading()
     }
   }
 
-  function cancelLoading() {
-    active.current?.abort()
+  /** Hides the loading status. Focus in it ("Cancel loading") moves to the load heading rather than to the page. */
+  function stopLoading() {
+    if (document.getElementById('loading')?.contains(document.activeElement)) {
+      document.getElementById('load-heading')?.focus()
+    }
     setLoading(undefined)
-    document.getElementById('load-heading')?.focus()
   }
 
   return (
@@ -157,24 +161,45 @@ function App() {
             </Button>
           </section>
 
-          {loading && (
-            <div className="margin-top-4">
-              <p role="status" id="loading-status" className="margin-bottom-1">
-                Loading <bdi>{loading}</bdi>…
-              </p>
-              <progress aria-labelledby="loading-status" className="display-block" />
-              <Button type="button" outline className="margin-top-1" onClick={cancelLoading}>
-                Cancel loading
-              </Button>
-            </div>
-          )}
+          <div id="loading" className={loading ? 'margin-top-4' : undefined}>
+            {/* Always rendered, so screen readers announce the text when it appears. */}
+            <p role="status" id="loading-status" className="margin-0">
+              {loading && (
+                <>
+                  Loading <bdi>{loading}</bdi>…
+                </>
+              )}
+            </p>
+            {loading && (
+              <>
+                <progress aria-labelledby="loading-status" className="display-block margin-top-1" />
+                <Button
+                  type="button"
+                  outline
+                  className="margin-top-1"
+                  onClick={() => {
+                    active.current?.abort()
+                    stopLoading()
+                  }}
+                >
+                  Cancel loading
+                </Button>
+              </>
+            )}
+          </div>
 
           {pending && loaded && (
             <Alert type="warning" className="margin-top-4">
-              <AlertHeading level="h2" id="replace-heading" tabIndex={-1} className="text-break">
+              <AlertHeading
+                level="h2"
+                id="replace-heading"
+                tabIndex={-1}
+                aria-describedby="replace-text"
+                className="text-break"
+              >
                 Replace the open catalog?
               </AlertHeading>
-              <AlertText className="text-break">
+              <AlertText id="replace-text" className="text-break">
                 <bdi>{pending.name}</bdi> is ready. Replace <bdi>{loaded.name}</bdi> with it, or cancel to keep{' '}
                 <bdi>{loaded.name}</bdi> open.
               </AlertText>

@@ -190,6 +190,15 @@ test('shows progress while loading, and the load can be cancelled', async ({ pag
   await expect(page.getByRole('progressbar')).toHaveCount(0)
 })
 
+test('a load that ends while "Cancel loading" has focus moves focus to the load heading', async ({ page }) => {
+  const release = await holdWorker(page)
+  await paste(page, '{}')
+  await page.getByRole('button', { name: 'Cancel loading' }).focus()
+  release()
+  await expect(page.getByRole('alert')).toContainText('No DCAT-US 3.0 class found')
+  await expect(page.getByRole('heading', { name: 'Load a catalog' })).toBeFocused()
+})
+
 test('refuses bad input with an alert and keeps the loaded catalog', async ({ page }) => {
   // Counts file reads. The good load at the end proves the count sees the app's reads.
   await page.evaluate(() => {
