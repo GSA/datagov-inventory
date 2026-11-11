@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { fc } from 'fast-check'
+import * as fc from 'fast-check'
 import { decompose } from './decompose'
 import { assemble, AssembleError, type AssembleErrorCode } from './assemble'
 
@@ -138,18 +138,31 @@ describe('assemble: shared objects', () => {
   })
 
   it('reports shared object IDs', () => {
-    const sharedOrg = { '@type': 'Organization', name: 'Shared Agency' }
     const text = json({
       '@type': 'Catalog',
       dataset: [
-        { '@type': 'Dataset', title: 'Dataset 1', publisher: sharedOrg },
-        { '@type': 'Dataset', title: 'Dataset 2', publisher: sharedOrg }
+        { '@type': 'Dataset', title: 'Dataset 1', publisher: { '@type': 'Organization', name: 'Agency' } }
       ]
     })
     const decomposed = decompose(text)
+
+    const dataset2Id = '#/dataset/1'
+    const dataset2 = {
+      id: dataset2Id,
+      dcatClass: 'Dataset',
+      properties: { '@type': 'Dataset', title: 'Dataset 2' },
+      links: { publisher: ['#/dataset/0/publisher'] },
+      singleLinks: ['publisher']
+    }
+    decomposed.objects.set(dataset2Id, dataset2)
+
+    const catalog = decomposed.objects.get('#')!
+    catalog.links.dataset = ['#/dataset/0', dataset2Id]
+
     const result = assemble(decomposed)
 
     expect(result.sharedObjects.length).toBeGreaterThan(0)
+    expect(result.sharedObjects).toContain('#/dataset/0/publisher')
   })
 
   it('reports no shared objects when none exist', () => {
@@ -176,20 +189,31 @@ describe('assemble: error handling', () => {
 
     const [code, message] = failure(() => assemble(decomposed))
     expect(code).toBe('circular-reference')
-    expect(message).toContain('circular reference')
+    expect(message.toLowerCase()).toContain('circular reference')
     expect(message).toContain('#')
   })
 
   it('detects excessive depth', () => {
-    const nested: Record<string, unknown> = { '@type': 'Catalog', dataset: [] }
-    let current: Record<string, unknown> = nested
-    for (let i = 0; i < 70; i++) {
-      const newDataset = { '@type': 'Dataset', title: `Level ${i}`, distribution: [] }
-      current.dataset = [newDataset]
-      current = newDataset
+    const decomposed = decompose(json({ '@type': 'Catalog', dataset: [] }))
+
+    let currentId = '#'
+    for (let i = 0; i < 65; i++) {
+      const nextId = `${currentId}/dataset/${i}`
+      const obj = {
+        id: nextId,
+        dcatClass: 'Dataset',
+        properties: { '@type': 'Dataset', title: `Level ${i}` },
+        links: {} as Record<string, string[]>,
+        singleLinks: []
+      }
+      decomposed.objects.set(nextId, obj)
+
+      const parent = decomposed.objects.get(currentId)!
+      parent.links.dataset = [nextId]
+
+      currentId = nextId
     }
 
-    const decomposed = decompose(json(nested))
     const [code, message] = failure(() => assemble(decomposed))
     expect(code).toBe('max-depth-exceeded')
     expect(message).toContain('64')
