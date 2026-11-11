@@ -31,7 +31,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Maps without the sourceMappingURL comment: DevTools would fetch them, and the CSP's
+    // connect-src 'none' blocks that.
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
         manualChunks: {
