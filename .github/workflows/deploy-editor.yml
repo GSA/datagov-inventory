@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          submodules: true # the build bundles the DCAT-US schema from editor/schema/dcat-us
 
       - name: Set up Node 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -42,6 +43,7 @@ jobs:
         working-directory: editor
         run: |
           npm ci
+          npm run schema:check # fails if the schema submodule is missing
           npm run build
           cp -R dist cf/public
 
@@ -72,3 +74,7 @@ jobs:
           test -n "$asset"
           check "$APP_URL$asset" 'content-type: text/javascript' 'cache-control: .*immutable' \
             'content-encoding: gzip' 'vary: accept-encoding'
+          # The entry bundle must carry the DCAT-US schema (the submodule was checked out) and no source map URL.
+          js=$(curl -fsS --compressed "$APP_URL$asset")
+          grep -q 'dcat-us/3.0.0/definitions/dataset' <<<"$js" || { echo "DCAT-US schema not bundled"; exit 1; }
+          if grep -q 'sourceMappingURL' <<<"$js"; then echo "unexpected sourceMappingURL"; exit 1; fi
