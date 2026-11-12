@@ -1,0 +1,162 @@
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { Label, TextInput } from '@trussworks/react-uswds'
+import { useNavigate } from '@tanstack/react-router'
+import type { DecomposedCatalog } from './catalog/decompose'
+import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
+
+const count = (n: number) => n.toLocaleString('en-US')
+
+/**
+ * The catalog as a tree, filtered by title or name. USWDS has no tree view, so this is a custom WAI-ARIA treeview
+ * (https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop, arrow keys, Home and End move and expand;
+ * Enter, Space or a click opens the object. Selection does not follow focus, and focus stays in the tree.
+ */
+export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalog; selectedId: string }) {
+  const navigate = useNavigate()
+  const parents = useMemo(() => parentsOf(catalog), [catalog])
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set([catalog.rootId]))
+  // Opening an object (on load, or from a link) expands the objects above it.
+  const [expandedTo, setExpandedTo] = useState<string>()
+  if (expandedTo !== selectedId) {
+    setExpandedTo(selectedId)
+    const above = ancestorIds(selectedId, parents)
+    if (above.some((id) => !expanded.has(id))) setExpanded(new Set([...expanded, ...above]))
+  }
+  const [filter, setFilter] = useState('')
+  // The input shows each key at once; the tree catches up when React has time.
+  const needle = useDeferredValue(filter.trim().toLowerCase())
+  const found = useMemo(() => (needle ? filterTree(catalog, parents, needle) : undefined), [catalog, parents, needle])
+  const rows = useMemo(() => treeRows(catalog, expanded, found?.shown), [catalog, expanded, found])
+  const [focusKey, setFocusKey] = useState<string>()
+  const tabStop =
+    rows.find((row) => row.key === focusKey) ?? rows.find((row) => row.object.id === selectedId) ?? rows[0]
+  const tree = useRef<HTMLUListElement>(null)
+
+  // Scroll a new filter's results to the top, and the selected object into the tree's view when it is out of sight.
+  useEffect(() => tree.current?.parentElement?.scrollTo(0, 0), [needle])
+  useEffect(() => {
+    const item = tree.current?.querySelector<HTMLElement>('[aria-selected="true"]')
+    const pane = tree.current?.parentElement
+    if (!item || !pane) return
+    if (item.offsetTop < pane.scrollTop || item.offsetTop > pane.scrollTop + pane.clientHeight - item.offsetHeight) {
+      pane.scrollTop = item.offsetTop - item.offsetHeight
+    }
+  }, [selectedId])
+
+  const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: row.object.id.slice(2) } })
+  // While filtering, the objects above the matches stay expanded.
+  const toggle = (row: TreeRow) => {
+    if (found || row.expanded === undefined) return
+    const next = new Set(expanded)
+    if (row.expanded) next.delete(row.object.id)
+    else next.add(row.object.id)
+    setExpanded(next)
+  }
+  const indexOf = (target: EventTarget) =>
+    Array.prototype.indexOf.call(tree.current!.children, (target as HTMLElement).closest('[role="treeitem"]'))
+
+  function onClick(event: MouseEvent) {
+    const row = rows[indexOf(event.target)]
+    if (!row) return
+    setFocusKey(row.key)
+    if ((event.target as HTMLElement).closest('.catalog-tree__toggle')) toggle(row)
+    else open(row)
+  }
+
+  function onKeyDown(event: KeyboardEvent) {
+    const i = indexOf(event.target)
+    const row = rows[i]
+    const move = (j: number) => {
+      if (!rows[j]) return
+      setFocusKey(rows[j].key)
+      ;(tree.current!.children[j] as HTMLElement).focus()
+    }
+    switch (event.key) {
+      case 'ArrowDown':
+        move(i + 1)
+        break
+      case 'ArrowUp':
+        move(i - 1)
+        break
+      case 'Home':
+        move(0)
+        break
+      case 'End':
+        move(rows.length - 1)
+        break
+      case 'ArrowRight':
+        if (row.expanded) move(i + 1)
+        else toggle(row)
+        break
+      case 'ArrowLeft':
+        if (row.expanded && !found) toggle(row)
+        else {
+          let parent = i - 1
+          while (parent >= 0 && rows[parent].level >= row.level) parent--
+          move(parent)
+        }
+        break
+      case 'Enter':
+      case ' ':
+        open(row)
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+  }
+
+  return (
+    <>
+      <Label htmlFor="tree-filter" className="margin-top-0">
+        Filter by title or name
+      </Label>
+      {/* Not type="search": USWDS floats those, and a float before the tree makes every change lay out all its rows. */}
+      <TextInput id="tree-filter" name="tree-filter" type="text" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <p role="status" className="margin-y-1">
+        {found &&
+          (found.matches > FILTER_LIMIT
+            ? `${count(found.matches)} objects match. Showing the first ${FILTER_LIMIT}: type more to narrow them down.`
+            : `${count(found.matches)} ${found.matches === 1 ? 'object matches' : 'objects match'}.`)}
+      </p>
+      {found?.matches !== 0 && (
+        <div className="catalog-tree">
+          <ul role="tree" aria-label="Catalog" ref={tree} onClick={onClick} onKeyDown={onKeyDown}>
+            {rows.map(({ key, ...row }) => (
+              <TreeItem key={key} {...row} selected={row.object.id === selectedId} tabStop={key === tabStop.key} />
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** One row. Memoized, so selecting, moving or expanding re-renders only the rows that change. */
+const TreeItem = memo(function TreeItem({
+  object,
+  property,
+  level,
+  position,
+  siblings,
+  expanded,
+  selected,
+  tabStop,
+}: Omit<TreeRow, 'key'> & { selected: boolean; tabStop: boolean }) {
+  return (
+    <li
+      role="treeitem"
+      aria-level={level}
+      aria-posinset={position}
+      aria-setsize={siblings}
+      aria-expanded={expanded}
+      aria-selected={selected}
+      tabIndex={tabStop ? 0 : -1}
+      style={{ paddingLeft: `${level + 0.5}rem` }}
+    >
+      {expanded !== undefined && <span className="catalog-tree__toggle" aria-hidden="true" />}
+      <bdi>{labelOf(object)}</bdi>
+      {property && <span className="catalog-tree__class">{` ${property} · ${object.dcatClass}`}</span>}
+    </li>
+  )
+})

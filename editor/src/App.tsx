@@ -16,7 +16,8 @@ import Editor from './Editor'
 
 /**
  * The page frame. When the path changes, focus moves to the new page's main heading, or within the editor to the
- * object's heading, so keyboard and screen-reader users land on what changed (#30).
+ * object's heading, so keyboard and screen-reader users land on what changed (#30). An object opened from the
+ * catalog tree keeps focus in the tree, so the user can keep moving through it (#23).
  */
 function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -24,7 +25,7 @@ function Layout() {
   useEffect(
     () =>
       router.subscribe('onRendered', ({ fromLocation, toLocation, pathChanged }) => {
-        if (!fromLocation || !pathChanged) return
+        if (!fromLocation || !pathChanged || document.activeElement?.closest('[role="tree"]')) return
         const inEditor = (path: string) => path.startsWith('/editor')
         const object = inEditor(fromLocation.pathname) && inEditor(toLocation.pathname)
         ;((object && document.getElementById('detail-heading')) || document.querySelector('h1'))?.focus()
@@ -108,10 +109,6 @@ const routeTree = root.addChildren([
   createRoute({
     getParentRoute: () => root,
     path: 'editor/$',
-    // The class listed on the left.
-    validateSearch: (search): { type?: string } => ({
-      type: typeof search.type === 'string' ? search.type : undefined,
-    }),
     component: Editor,
   }),
 ])

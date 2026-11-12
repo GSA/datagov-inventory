@@ -46,8 +46,18 @@ for every path (`cf/nginx.conf`), and `vite preview` does the same.
 |---|---|
 | `/` | Start: what the editor is for, and Import |
 | `/import` | Import a file (chosen or dropped), pasted JSON, a sample, or a blank catalog. `?next=` is where to go once it opens. |
-| `/editor` | The open catalog: objects by class on the left, the catalog on the right |
-| `/editor/dataset/0/distribution/1?type=Distribution` | An object: its path is its id without the `#`. `type` is the class listed on the left. |
+| `/editor` | The open catalog: its tree on the left, the catalog on the right |
+| `/editor/dataset/0/distribution/1` | An object: its path is its id without the `#`. The tree opens down to it. |
+
+The catalog tree (`src/CatalogTree.tsx`, rows from `src/tree.ts`) shows the catalog and, under each open object, the
+objects it links to, in order. USWDS has no tree view, so it is a custom
+[WAI-ARIA treeview](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop, arrow keys, Home and End move,
+open and close; Enter, Space or a click opens an object, and focus stays in the tree. The filter shows objects whose
+title or name matches, with the objects above them, at most 200 matches at a time. It renders every row without
+virtualization: with 3,000 datasets (18,001 objects) each action paints in about 100 ms or less (measured in the pull request for #23;
+`PERF=1 npx playwright test tree-performance` measures again). Two things kept it fast: memoized rows, so an action
+re-renders only the rows it changes, and a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
+a float before the tree made each change lay out every row again.
 
 The catalog is held in memory only until #28 stores it, so after a reload an editor address says "No catalog open"
 and links to Import, which returns to that address once the catalog is imported again. When the path changes, focus

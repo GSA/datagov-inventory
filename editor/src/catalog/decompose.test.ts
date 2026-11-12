@@ -2,6 +2,7 @@
 // Runs without a DOM, which proves decompose needs none (it must also run in a worker).
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_LIMITS, DecomposeError, checkSize, decompose, type DecomposedCatalog } from './decompose'
+import { largeCatalog } from '../../fixtures/largeCatalog'
 
 const load = (files: Record<string, string>) =>
   Object.entries(files).map(([path, text]) => [path.slice(path.lastIndexOf('/') + 1), text] as const)
@@ -253,17 +254,6 @@ describe('decompose: limits', () => {
   })
 
   it('fits 3,000 rich datasets within the default limits', () => {
-    const dataset = (i: number) => ({
-      '@type': 'Dataset',
-      title: `Dataset ${i}`,
-      description: 'A generated dataset with the usual recommended properties filled in. '.repeat(4),
-      identifier: `https://example.gov/datasets/${i}`,
-      keyword: ['one', 'two', 'three'],
-      contactPoint: { '@type': 'Kind', fn: 'Data Team', hasEmail: 'mailto:data@example.gov' },
-      publisher: { '@type': 'Organization', name: 'Example Agency' },
-      distribution: [1, 2, 3].map((n) => ({ '@type': 'Distribution', downloadURL: `https://example.gov/${i}/${n}.csv` })),
-    })
-    const text = json({ '@type': 'Catalog', dataset: Array.from({ length: 3_000 }, (_, i) => dataset(i)) })
-    expect(decompose(text).objects.size).toBe(1 + 3_000 * 6)
+    expect(decompose(json(largeCatalog())).objects.size).toBe(1 + 3_000 * 6)
   })
 })

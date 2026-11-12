@@ -1,39 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Alert, Button, Label, Table, TextInput } from '@trussworks/react-uswds'
-import { Link, useParams, useRouterState, useSearch } from '@tanstack/react-router'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Alert, Button, Table } from '@trussworks/react-uswds'
+import { Link, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
+import { CatalogTree } from './CatalogTree'
+import { labelOf } from './tree'
 
 /** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
 const PAGE_SIZE = 500
-const LABEL_LENGTH = 200
 const VALUE_LENGTH = 2_000
-
-/** Labels by object, computed once: objects don't change after loading, and rows re-render. */
-const labels = new WeakMap<CatalogObject, string>()
-
-/**
- * A short name for an object: its title, name, contact name or label, if one has visible
- * characters, cut to 200 characters. Render it in <bdi> so right-to-left overrides in it
- * cannot reorder the text around it.
- */
-function labelOf(object: CatalogObject): string {
-  let label = labels.get(object)
-  if (label === undefined) {
-    const value = ['title', 'name', 'fn', 'prefLabel', 'label']
-      .map((key) => object.properties[key])
-      .find((value): value is string => typeof value === 'string' && /[^\p{Cf}\p{Z}\s]/u.test(value))
-    label =
-      value === undefined
-        ? `Untitled ${object.dcatClass}`
-        : value.length > LABEL_LENGTH
-          ? `${value.slice(0, LABEL_LENGTH).replace(/[\uD800-\uDBFF]$/, '')}…`
-          : value
-    labels.set(object, label)
-  }
-  return label
-}
 
 const count = (n: number) => n.toLocaleString('en-US')
 
@@ -100,7 +76,7 @@ function PropertyTable({ caption, entries }: { caption: string; entries: [string
 /** An object's path under /editor is its id without the "#" (`#/dataset/0` → `dataset/0`). */
 const pathOf = (id: string) => id.slice(2)
 
-/** A link to an object. It lists the object's class on the left, so the object is highlighted there; the catalog lists its datasets. */
+/** A link to an object. */
 function ObjectLink({
   object,
   children,
@@ -115,8 +91,7 @@ function ObjectLink({
     <Link
       to="/editor/$"
       params={{ _splat: pathOf(object.id) }}
-      search={{ type: object.id === '#' ? undefined : object.dcatClass }}
-      activeOptions={{ exact: true, includeSearch: false }}
+      activeOptions={{ exact: true }}
       data-paged-item
       {...props}
     >
@@ -202,52 +177,8 @@ function ObjectDetail({ object, objects }: { object: CatalogObject; objects: Dec
   )
 }
 
-/** The objects of one class, filtered by title or name, 500 at a time. The open one is highlighted. */
-function ObjectList({ dcatClass, objects }: { dcatClass: string; objects: CatalogObject[] }) {
-  const [filter, setFilter] = useState('')
-  const needle = filter.trim().toLowerCase()
-  const shown = needle ? objects.filter((object) => labelOf(object).toLowerCase().includes(needle)) : objects
-  return (
-    <section aria-labelledby="objects-heading" className="margin-top-4">
-      <h2 id="objects-heading" className="font-heading-md margin-bottom-0">
-        {dcatClass} ({count(objects.length)})
-      </h2>
-      <Label htmlFor="object-filter" className="margin-top-1">
-        Filter by title or name
-      </Label>
-      <TextInput
-        id="object-filter"
-        name="object-filter"
-        type="search"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
-      <p role="status" className="usa-sr-only">
-        {needle && `${count(shown.length)} of ${count(objects.length)} match.`}
-      </p>
-      <Paged key={needle} items={shown} noun="objects">
-        {(page) => (
-          <ul className="usa-list usa-list--unstyled object-list">
-            {page.map((object, i) => (
-              <li key={object.id}>
-                <ObjectLink object={object} className="usa-link text-break" aria-describedby={`object-id-${i}`}>
-                  <bdi>{labelOf(object)}</bdi>
-                </ObjectLink>
-                {/* Where it is, since copies of one contact or publisher share a name. */}
-                <code id={`object-id-${i}`} className="display-block font-mono-3xs text-base padding-x-05">
-                  {object.id}
-                </code>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Paged>
-    </section>
-  )
-}
-
 /** The editor for the open catalog: what it holds on the left, the object at this address on the right. */
-function CatalogView({ open, id, type }: { open: OpenCatalog; id: string; type?: string }) {
+function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const { objects, rootId } = open.catalog
   const root = objects.get(rootId)!
   const object = objects.get(id)
@@ -295,20 +226,6 @@ function CatalogView({ open, id, type }: { open: OpenCatalog; id: string; type?:
     }
   }
 
-  const byClass = useMemo(() => {
-    const groups = new Map<string, CatalogObject[]>()
-    for (const object of objects.values()) {
-      const group = groups.get(object.dcatClass)
-      if (group) group.push(object)
-      else groups.set(object.dcatClass, [object])
-    }
-    return new Map([...groups].sort(([a], [b]) => a.localeCompare(b)))
-  }, [objects])
-  // The class asked for, else the open object's (but not the catalog's), else datasets, else the first.
-  const listed =
-    [type, id === rootId ? undefined : object?.dcatClass, 'Dataset'].find((name) => name && byClass.has(name)) ??
-    byClass.keys().next().value!
-
   return (
     <>
       <h1 tabIndex={-1} className="text-break margin-bottom-0">
@@ -332,24 +249,11 @@ function CatalogView({ open, id, type }: { open: OpenCatalog; id: string; type?:
         </Alert>
       )}
       <div className="grid-row grid-gap-lg margin-top-4">
-        <nav aria-label="Catalog contents" className="tablet:grid-col-4">
-          <h2 className="font-heading-md margin-top-0">Objects by class</h2>
-          <ul className="usa-sidenav">
-            {[...byClass].map(([name, group]) => (
-              <li key={name} className="usa-sidenav__item">
-                <Link
-                  to="/editor/$"
-                  params={{ _splat: pathOf(id) }}
-                  search={{ type: name }}
-                  className={name === listed ? 'usa-current' : undefined}
-                  aria-current={name === listed ? 'true' : undefined}
-                >
-                  {name} <span className="text-base-dark">({count(group.length)})</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <ObjectList key={listed} dcatClass={listed} objects={byClass.get(listed)!} />
+        <nav aria-labelledby="tree-heading" className="tablet:grid-col-4">
+          <h2 id="tree-heading" className="font-heading-md margin-top-0">
+            Catalog contents
+          </h2>
+          <CatalogTree catalog={open.catalog} selectedId={id} />
         </nav>
         <div className="tablet:grid-col-8">
           {object ? (
@@ -392,7 +296,6 @@ function NoCatalog() {
 export default function Editor() {
   const { open } = useCatalog()
   const { _splat } = useParams({ from: '/editor/$' })
-  const { type } = useSearch({ from: '/editor/$' })
   if (!open) return <NoCatalog />
-  return <CatalogView key={open.loadId} open={open} id={_splat ? `#/${_splat}` : open.catalog.rootId} type={type} />
+  return <CatalogView key={open.loadId} open={open} id={_splat ? `#/${_splat}` : open.catalog.rootId} />
 }
