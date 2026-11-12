@@ -18,7 +18,13 @@ h2[tabindex="-1"]:focus {
   outline: none;
 }
 
-/* Remove focus outline on buttons. */
-button:focus {
-  outline: none;
+/* Remove focus outline on all interactive elements. */
+button:focus,
+button:focus-visible,
+.usa-button:focus,
+.usa-button:focus-visible,
+a:focus,
+a:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
