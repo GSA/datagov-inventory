@@ -3,29 +3,13 @@ import { render, screen } from '@testing-library/react'
 import App from './App'
 
 describe('App', () => {
-  it('renders the editor heading', () => {
+  it('opens on the start page, with the government banner and a way to import', async () => {
     render(<App />)
-
-    const heading = screen.getByRole('heading', {
-      name: /DCAT-US 3.0 Catalog Editor/i
-    })
-
-    expect(heading).toBeInTheDocument()
-  })
-
-  it('renders the government banner', () => {
-    render(<App />)
-
-    const banner = screen.getByText(/An official website of the United States government/i)
-
-    expect(banner).toBeInTheDocument()
-  })
-
-  it('renders the editor description', () => {
-    render(<App />)
-
-    const description = screen.getByText(/browser-only editor/i)
-
-    expect(description).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Edit your DCAT-US 3.0 catalog in this browser' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/An official website of the United States government/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Import a catalog' })).toHaveAttribute('href', '/import')
+    expect(screen.getByRole('link', { name: 'Editor' })).toHaveAttribute('href', '/editor')
   })
 })
