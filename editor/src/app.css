@@ -14,6 +14,22 @@
   min-height: 24px;
 }
 
+/* Remove focus outline on programmatically-focused headings. */
+h2[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* Remove focus outline on all interactive elements. */
+button:focus,
+button:focus-visible,
+.usa-button:focus,
+.usa-button:focus-visible,
+a:focus,
+a:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* The editor's object list: the open object stands out, so users always see where they are. */
 .object-list {
   margin-top: 1rem;
