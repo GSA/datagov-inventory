@@ -32,7 +32,31 @@ test.describe('App page frame', () => {
     await expect(main).toBeVisible()
 
     const heading = main.locator('h1')
-    await expect(heading).toContainText('DCAT-US 3.0 Catalog Editor')
+    await expect(heading).toContainText('Edit your DCAT-US 3.0 catalog in this browser')
+  })
+
+  test('goes from the start page to import, and the header reaches every page', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('main').getByRole('link', { name: 'Import a catalog' }).click()
+    await expect(page).toHaveURL('/import')
+    await expect(page).toHaveTitle('Import a catalog | Inventory Editor')
+    await expect(page.getByRole('heading', { level: 1, name: 'Import a catalog' })).toBeFocused()
+    await expect(page.getByRole('link', { name: 'Import', exact: true })).toHaveAttribute('aria-current', 'page')
+
+    await page.getByRole('link', { name: 'Editor', exact: true }).click()
+    await expect(page).toHaveURL('/editor')
+    await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeFocused()
+    await page.goBack()
+    await expect(page).toHaveURL('/import')
+    await page.getByRole('link', { name: 'Inventory Editor' }).click()
+    await expect(page).toHaveURL('/')
+  })
+
+  test('serves every route from its address, as a bookmark would', async ({ page }) => {
+    await page.goto('/editor/dataset/0?type=Dataset')
+    await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
+    await page.goto('/no-such-page')
+    await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
   })
 
   test('should not have automatically detectable accessibility issues', async ({ page }) => {
