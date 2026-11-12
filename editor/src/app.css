@@ -17,3 +17,8 @@
 h2[tabindex="-1"]:focus {
   outline: none;
 }
+
+/* Remove focus outline on buttons. */
+button:focus {
+  outline: none;
+}
