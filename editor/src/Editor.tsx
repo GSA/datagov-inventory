@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button, Label, Table, TextInput } from '@trussworks/react-uswds'
+import { Alert, Button, Label, Table, TextInput } from '@trussworks/react-uswds'
 import { Link, useParams, useRouterState, useSearch } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
@@ -251,7 +251,49 @@ function CatalogView({ open, id, type }: { open: OpenCatalog; id: string; type?:
   const { objects, rootId } = open.catalog
   const root = objects.get(rootId)!
   const object = objects.get(id)
+  const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
+
+  async function handleExport() {
+    setExportStatus(undefined)
+
+    try {
+      const { assemble } = await import('./catalog/assemble')
+      const result = assemble(open.catalog)
+      const text = JSON.stringify(result.output, null, 2)
+      const blob = new Blob([text], { type: 'application/json' })
+
+      const output = result.output as Record<string, unknown>
+      const title = typeof output.title === 'string' && output.title ? output.title : open.name.replace(/\.json$/i, '')
+      const catalogTitle = title
+        .replace(/[/\\:*?"<>|]/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .toLowerCase()
+      const date = new Date().toISOString().slice(0, 10)
+      const filename = `${catalogTitle}-${date}.json`
+
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.click()
+      URL.revokeObjectURL(url)
+
+      let message = 'Catalog exported successfully'
+      if (result.sharedObjects.length > 0) {
+        message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
+      }
+
+      setExportStatus({ type: 'success', message })
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setExportStatus({
+        type: 'error',
+        message: `Export failed: ${message}`,
+      })
+    }
+  }
 
   const byClass = useMemo(() => {
     const groups = new Map<string, CatalogObject[]>()
@@ -276,6 +318,19 @@ function CatalogView({ open, id, type }: { open: OpenCatalog; id: string; type?:
         From <bdi>{open.name}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
+      <Button type="button" onClick={handleExport} className="margin-top-2">
+        Export catalog
+      </Button>
+      {exportStatus && (
+        <Alert
+          id="export-status"
+          type={exportStatus.type === 'success' ? 'success' : 'error'}
+          role="status"
+          className="margin-top-2"
+        >
+          {exportStatus.message}
+        </Alert>
+      )}
       <div className="grid-row grid-gap-lg margin-top-4">
         <nav aria-label="Catalog contents" className="tablet:grid-col-4">
           <h2 className="font-heading-md margin-top-0">Objects by class</h2>
