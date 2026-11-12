@@ -190,3 +190,36 @@ test('notifies user about shared object duplication', async ({ page }) => {
   await expect(status).toContainText(/shared object/i)
   await expect(status).toContainText(/duplicated/i)
 })
+
+test('loads fixture, edits value, exports, and verifies edited content', async ({ page }) => {
+  await loadSample(page, 'minimal-catalog.json')
+
+  await page.evaluate(() => {
+    const win = window as { loadedCatalog?: { objects: Map<string, { properties: Record<string, unknown> }> } }
+    const catalog = win.loadedCatalog
+    if (catalog) {
+      const rootCatalog = catalog.objects.get('#')
+      if (rootCatalog) {
+        rootCatalog.properties.title = 'Edited Catalog Title'
+        rootCatalog.properties['x-edited'] = true
+      }
+      const firstDataset = catalog.objects.get('#/dataset/0')
+      if (firstDataset) {
+        firstDataset.properties.title = 'Edited Dataset Title'
+      }
+    }
+  })
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export catalog' }).click()
+  const download = await downloadPromise
+
+  const path = await download.path()
+  if (!path) throw new Error('Download path not available')
+  const text = await readFile(path, 'utf-8')
+  const exported = JSON.parse(text)
+
+  expect(exported.title).toBe('Edited Catalog Title')
+  expect(exported['x-edited']).toBe(true)
+  expect(exported.dataset[0].title).toBe('Edited Dataset Title')
+})
