@@ -12,3 +12,8 @@
 .target-size {
   min-height: 24px;
 }
+
+/* Remove focus outline on programmatically-focused headings. */
+h2[tabindex="-1"]:focus {
+  outline: none;
+}
