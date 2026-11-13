@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { GovBanner, Header, NavMenuButton, PrimaryNav, Title } from '@trussworks/react-uswds'
 import {
   createRootRoute,
@@ -10,6 +10,7 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog } from './session'
+import type { CatalogObject } from './catalog/decompose'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
@@ -122,9 +123,34 @@ declare module '@tanstack/react-router' {
 }
 
 export default function App() {
-  const [open, setOpen] = useState<OpenCatalog>()
+  const [open, setOpen] = useState<OpenCatalog | undefined>()
+
+  const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
+    if (!open) return
+
+    const object = open.catalog.objects.get(id)
+    if (!object) return
+
+    const updated = {
+      ...object,
+      ...updates,
+      properties: { ...object.properties, ...updates.properties }
+    }
+
+    const newObjects = new Map(open.catalog.objects)
+    newObjects.set(id, updated)
+
+    setOpen({
+      ...open,
+      catalog: {
+        ...open.catalog,
+        objects: newObjects
+      }
+    })
+  }, [open])
+
   return (
-    <CatalogContext.Provider value={{ open, setOpen }}>
+    <CatalogContext.Provider value={{ open, setOpen, updateObject }}>
       <RouterProvider router={router} />
     </CatalogContext.Provider>
   )

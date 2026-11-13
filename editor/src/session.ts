@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect } from 'react'
-import type { DecomposedCatalog } from './catalog/decompose'
+import type { DecomposedCatalog, CatalogObject } from './catalog/decompose'
 
 /** The catalog open in the editor: the one working copy (#15). */
 export interface OpenCatalog {
@@ -10,8 +10,15 @@ export interface OpenCatalog {
   loadId: number
 }
 
-export const CatalogContext = createContext<{ open?: OpenCatalog; setOpen: (open: OpenCatalog) => void }>({
+export interface CatalogContextValue {
+  open?: OpenCatalog
+  setOpen: (catalog: OpenCatalog | undefined) => void
+  updateObject: (id: string, updates: Partial<CatalogObject>) => void
+}
+
+export const CatalogContext = createContext<CatalogContextValue>({
   setOpen: () => {},
+  updateObject: () => {},
 })
 
 export const useCatalog = () => useContext(CatalogContext)
