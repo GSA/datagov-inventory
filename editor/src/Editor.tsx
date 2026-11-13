@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Alert, AlertText, Button, Table } from '@trussworks/react-uswds'
 import { Link, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
 import { CatalogTree } from './CatalogTree'
-import { count, labelOf, pathOf } from './tree'
+import { ancestorIds, count, labelOf, parentsOf, pathOf } from './tree'
 
 /** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
 const PAGE_SIZE = 500
@@ -94,22 +94,22 @@ function ObjectLink({
   )
 }
 
-/** The objects the open object sits inside, from the catalog down: its id's prefixes that are objects. */
-function ancestorsOf(id: string, objects: DecomposedCatalog['objects']): CatalogObject[] {
-  const parts = id.split('/')
-  return parts
-    .slice(1, -1)
-    .map((_, i) => objects.get(parts.slice(0, i + 1).join('/')))
-    .filter((object): object is CatalogObject => object !== undefined)
-}
-
-function ObjectDetail({ object, objects }: { object: CatalogObject; objects: DecomposedCatalog['objects'] }) {
+function ObjectDetail({
+  object,
+  objects,
+  parents,
+}: {
+  object: CatalogObject
+  objects: DecomposedCatalog['objects']
+  parents: Map<string, string[]>
+}) {
   const known = getClassProperties(object.dcatClass)
   const entries = Object.entries(object.properties)
   const own = entries.filter(([key]) => known.has(key))
   const other = entries.filter(([key]) => !known.has(key))
   const links = Object.entries(object.links)
-  const ancestors = ancestorsOf(object.id, objects)
+  // Followed through links, not guessed from the id: a single link's id has no index (`#/dataset/0/publisher`).
+  const ancestors = ancestorIds(object.id, parents).map((id) => objects.get(id)!)
 
   return (
     <section aria-labelledby="detail-heading">
@@ -176,6 +176,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const { objects, rootId } = open.catalog
   const root = objects.get(rootId)!
   const object = objects.get(id)
+  const parents = useMemo(() => parentsOf(open.catalog), [open.catalog])
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
 
@@ -248,11 +249,11 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <h2 id="tree-heading" className="font-heading-md margin-top-0">
             Catalog contents
           </h2>
-          <CatalogTree catalog={open.catalog} selectedId={id} />
+          <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />
         </nav>
         <div className="tablet:grid-col-8">
           {object ? (
-            <ObjectDetail key={object.id} object={object} objects={objects} />
+            <ObjectDetail key={object.id} object={object} objects={objects} parents={parents} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">
