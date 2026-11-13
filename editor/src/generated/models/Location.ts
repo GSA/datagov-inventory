@@ -20,7 +20,7 @@ export const LocationModel: FormModel = {
 {
       name: 'bbox',
       label: 'Bbox',
-      type: 'string',
+      type: 'object',
       required: false,
       cardinality: 'single',
       helpText: 'Bounding box for the location, described in WKT, GeoJSON, or GML format',
@@ -28,7 +28,7 @@ export const LocationModel: FormModel = {
 {
       name: 'centroid',
       label: 'Centroid',
-      type: 'string',
+      type: 'object',
       required: false,
       cardinality: 'single',
       helpText: 'The geographic center (centroid) of a location described in WKT, GeoJSON, or GML format',
@@ -54,7 +54,7 @@ export const LocationModel: FormModel = {
 {
       name: 'geometry',
       label: 'Geometry',
-      type: 'string',
+      type: 'object',
       required: false,
       cardinality: 'single',
       helpText: 'Associates a location with a corresponding geometry described in WKT, GeoJSON, or GML format',

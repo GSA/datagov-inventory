@@ -36,6 +36,7 @@ describe('DatasetModel', () => {
     expect(contactField).toBeDefined()
     expect(contactField?.required).toBe(true)
     expect(contactField?.type).toBe('object')
+    expect(contactField?.cardinality).toBe('multiple')
     expect(contactField?.allowedClasses).toContain('Kind')
   })
 
@@ -61,6 +62,20 @@ describe('DatasetModel', () => {
     expect(temporalField?.type).toBe('object')
     expect(temporalField?.cardinality).toBe('multiple')
     expect(temporalField?.allowedClasses).toEqual(['PeriodOfTime'])
+  })
+
+  it('has language, a string or a list of strings (anyOf), as multiple strings', () => {
+    const languageField = DatasetModel.fields.find((f) => f.name === 'language')
+
+    expect(languageField?.type).toBe('string')
+    expect(languageField?.cardinality).toBe('multiple')
+  })
+
+  it('has issued, a choice of date strings (anyOf), as a single string', () => {
+    const issuedField = DatasetModel.fields.find((f) => f.name === 'issued')
+
+    expect(issuedField?.type).toBe('string')
+    expect(issuedField?.cardinality).toBe('single')
   })
 
   it('has spatial, a Location or a list of them (anyOf), as multiple objects', () => {

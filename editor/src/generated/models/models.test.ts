@@ -15,6 +15,21 @@ describe('generated form models', () => {
     expect(fields.map((f) => [f.name, f.allowedClasses ?? []])).toEqual([...getClassProperties(name)])
   })
 
+  it('gives Concept the fields of its object form, with their required list', () => {
+    const prefLabel = models.ConceptModel.fields.find((f) => f.name === 'prefLabel')
+
+    expect(prefLabel?.type).toBe('string')
+    expect(prefLabel?.required).toBe(true)
+  })
+
+  it('keeps a string-or-object value (Location.bbox) as a single object', () => {
+    const bbox = models.LocationModel.fields.find((f) => f.name === 'bbox')
+
+    expect(bbox?.type).toBe('object')
+    expect(bbox?.cardinality).toBe('single')
+    expect(bbox?.allowedClasses).toBeUndefined()
+  })
+
   it('gives every field that holds a class the object type', () => {
     for (const { fields } of modelsByClass.values()) {
       for (const field of fields.filter((f) => f.allowedClasses)) expect(field.type, field.name).toBe('object')

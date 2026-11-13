@@ -6,7 +6,8 @@ import { runnerImport } from 'vite'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = join(__dirname, '..', 'src', 'generated', 'models')
 
-// The schema module loads definitions with import.meta.glob, so it runs through Vite.
+// The schema module loads definitions with import.meta.glob, so it runs through Vite
+// (runnerImport is marked experimental in Vite 6; the lockfile pins the version).
 const { module: schemaModule } = await runnerImport(join(__dirname, '..', 'src', 'schema', 'index.ts'), {
   configFile: false,
   logLevel: 'error',
@@ -41,29 +42,39 @@ function describeValue(propSchema, into = { list: false, scalars: [] }) {
   return into
 }
 
-/** The class's own properties and those of its `anyOf`/`oneOf`/`allOf` branches, with their `required` lists. */
-function propertySchemas(schema) {
+/**
+ * The class's own properties and those of its `anyOf`/`oneOf`/`allOf` branches, with their
+ * `required` lists. A property defined in two branches would need its schemas merged, as
+ * getClassProperties merges their classes; none is today, so that fails instead.
+ */
+function propertySchemas(className) {
+  const schema = getClassSchema(className)
   const found = new Map()
   for (const branch of [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]) {
     for (const [name, propSchema] of Object.entries(branch.properties ?? {})) {
-      if (!found.has(name)) found.set(name, { propSchema, required: (branch.required ?? []).includes(name) })
+      if (found.has(name)) throw new Error(`${className}.${name} is defined in two branches`)
+      found.set(name, { propSchema, required: (branch.required ?? []).includes(name) })
     }
   }
   return found
 }
 
 function extractFormModel(className) {
-  const schemas = propertySchemas(getClassSchema(className))
+  const schemas = propertySchemas(className)
 
   // getClassProperties decides which properties exist and which hold classes, as for decompose.
   const fields = [...getClassProperties(className)].map(([name, classes]) => {
     const { propSchema, required } = schemas.get(name)
     const { list, scalars } = describeValue(propSchema)
 
+    // A value that may be an inline object (e.g. Location.bbox: a string or a GeoJSON object)
+    // stays 'object', so a form can hold either form.
+    const scalarType = scalars.includes('object') ? 'object' : scalars[0]
+
     const field = {
       name,
       label: toTitleCase(name),
-      type: classes.length > 0 ? 'object' : (scalars[0] ?? (list ? 'array' : 'string')),
+      type: classes.length > 0 ? 'object' : (scalarType ?? (list ? 'array' : 'string')),
       required,
       cardinality: list ? 'multiple' : 'single',
     }
