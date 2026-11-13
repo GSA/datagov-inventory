@@ -28,6 +28,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'single' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'multiple' && f.type !== 'object')
+  const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'single' && f.allowedValues)
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
@@ -58,6 +59,18 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
           value={formState[field.name]}
           onChange={value => handleFieldChange(field.name, value)}
           onBlur={() => handleFieldBlur(field.name)}
+        />
+      ))}
+
+      {controlledFields.map(field => (
+        <ControlledValueField
+          key={field.name}
+          field={field}
+          value={formState[field.name]}
+          onChange={value => {
+            handleFieldChange(field.name, value)
+            handleFieldBlur(field.name)
+          }}
         />
       ))}
 
@@ -192,5 +205,46 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
         Add {field.label.toLowerCase()}
       </Button>
     </section>
+  )
+}
+
+interface ControlledValueFieldProps {
+  field: FormField
+  value: unknown
+  onChange: (value: unknown) => void
+}
+
+function ControlledValueField({ field, value, onChange }: ControlledValueFieldProps) {
+  const inputId = `field-${field.name}`
+  const helpId = field.helpText ? `${inputId}-help` : undefined
+
+  return (
+    <div className="margin-top-3">
+      <Label htmlFor={inputId}>
+        {field.label}
+        {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
+      </Label>
+      {field.helpText && (
+        <div id={helpId} className="usa-hint">
+          {field.helpText}
+        </div>
+      )}
+
+      <select
+        id={inputId}
+        name={field.name}
+        value={typeof value === 'string' ? value : ''}
+        onChange={e => onChange(e.target.value)}
+        aria-describedby={helpId}
+        className="usa-select"
+      >
+        <option value="">- Select -</option>
+        {field.allowedValues?.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
   )
 }
