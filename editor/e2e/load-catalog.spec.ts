@@ -11,10 +11,9 @@ test.beforeEach(async ({ page }) => {
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
 })
 
-/** The class list in the editor: "Dataset (1)" and so on. */
-const classCounts = (page: Page) =>
-  page.getByRole('navigation', { name: 'Catalog contents' }).locator('.usa-sidenav a').allInnerTexts()
-const objectList = (page: Page) => page.getByRole('region', { name: /^\w+ \(/ })
+/** The catalog tree's rows, as shown. */
+const tree = (page: Page) => page.getByRole('tree', { name: 'Catalog' })
+const treeRows = (page: Page) => tree(page).getByRole('treeitem').allInnerTexts()
 const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
   page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -51,34 +50,21 @@ async function holdWorker(page: Page) {
   return release
 }
 
-test('imports a sample, lists objects by class, and opens each object at its own address', async ({ page }) => {
+test('imports a sample and opens each object at its own address', async ({ page }) => {
   await loadSample(page, 'dataset-with-distributions.json')
   await expect(page).toHaveURL('/editor')
   await expect(page).toHaveTitle('Example Agency Catalog (Catalog) | Inventory Editor')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Example Agency Catalog')
-  expect(await classCounts(page)).toEqual([
-    'Catalog (1)',
-    'Checksum (1)',
-    'Dataset (1)',
-    'Distribution (2)',
-    'Kind (1)',
-    'Organization (2)',
-    'PeriodOfTime (1)',
-  ])
-  // The catalog is open on the right; datasets are listed on the left.
+  // The catalog is open on the right, and selected in the tree on the left.
   await expect(page.locator('#detail-heading')).toHaveText('Example Agency Catalog')
-  await expect(objectList(page).getByRole('heading')).toHaveText('Dataset (1)')
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Example Agency Catalog')
 
-  await objectList(page).getByRole('link', { name: 'Air quality readings' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+  await tree(page).getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  await expect(page).toHaveURL('/editor/dataset/0')
   await expect(page).toHaveTitle('Air quality readings (Dataset) | Inventory Editor')
   const detail = page.getByRole('region', { name: 'Air quality readings' })
-  await expect(detail.getByRole('heading', { level: 2 })).toBeFocused()
-  await expect(objectList(page).getByRole('link', { name: 'Air quality readings' })).toHaveAttribute(
-    'aria-current',
-    'page',
-  )
-  // The list is on the left and the selected object on the right (#20, James's comment).
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
+  // The tree is on the left and the selected object on the right (#20, James's comment).
   const list = await page.getByRole('navigation', { name: 'Catalog contents' }).boundingBox()
   const pane = await detail.boundingBox()
   expect(list!.x + list!.width).toBeLessThanOrEqual(pane!.x)
@@ -91,27 +77,29 @@ test('imports a sample, lists objects by class, and opens each object at its own
     'Readings API (Distribution)',
   ])
 
-  // Following a link opens that object and lists its class, with the path to it in a breadcrumb.
+  // Following a link opens that object, with the path to it in a breadcrumb, and shows it in the tree.
   await detail.getByRole('link', { name: 'Readings as CSV (Distribution)' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0/distribution/0?type=Distribution')
+  await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
   const distribution = page.getByRole('region', { name: 'Readings as CSV' })
   await expect(distribution.getByRole('heading', { level: 2 })).toBeFocused()
   await expect(distribution.getByRole('navigation', { name: 'Where this object is' })).toHaveText(
     /Example Agency Catalog\s*Air quality readings\s*Readings as CSV/,
   )
-  await expect(objectList(page).getByRole('heading')).toHaveText('Distribution (2)')
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText(
+    'Readings as CSV distribution · Distribution',
+  )
   await distribution.getByRole('link', { name: 'Untitled Checksum (Checksum)' }).click()
   await expect(page.getByRole('region', { name: 'Untitled Checksum' })).toContainText('SHA-256')
   expect((await axe(page).analyze()).violations).toEqual([])
 
   // Back and forward work like any site.
   await page.goBack()
-  await expect(page).toHaveURL('/editor/dataset/0/distribution/0?type=Distribution')
+  await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
   await page
     .getByRole('navigation', { name: 'Where this object is' })
     .getByRole('link', { name: 'Air quality readings' })
     .click()
-  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+  await expect(page).toHaveURL('/editor/dataset/0')
 
   // A reload closes the catalog (it is not stored yet); importing it again returns to the same address.
   await page.reload()
@@ -119,20 +107,8 @@ test('imports a sample, lists objects by class, and opens each object at its own
   await page.getByRole('link', { name: 'Import a catalog' }).click()
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+  await expect(page).toHaveURL('/editor/dataset/0')
   await expect(page.getByRole('region', { name: 'Air quality readings' })).toBeVisible()
-
-  // Choosing a class lists its objects and keeps the open object.
-  await page.getByRole('link', { name: 'Organization (2)' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0?type=Organization')
-  // Copies of one publisher share a name; each shows where it is.
-  await expect(objectList(page).getByRole('link')).toHaveText(['Example Agency', 'Example Agency'])
-  await expect(objectList(page).getByRole('link').last()).toHaveAccessibleDescription('#/dataset/0/publisher')
-  await objectList(page).getByLabel('Filter by title or name').fill('agen')
-  await expect(objectList(page).getByText('2 of 2 match.')).toBeAttached()
-  await objectList(page).getByLabel('Filter by title or name').fill('nothing')
-  await expect(objectList(page).getByRole('link')).toHaveCount(0)
-  await expect(objectList(page).getByText('0 of 2 match.')).toBeAttached()
 })
 
 test('shows an address with nothing at it in the open catalog', async ({ page }) => {
@@ -149,7 +125,7 @@ test('shows an address with nothing at it in the open catalog', async ({ page })
 test('loads a chosen file in the browser', async ({ page }) => {
   await chooseFile(page, fixture('minimal-catalog.json'))
   await expectOpened(page, 'minimal-catalog.json')
-  expect(await classCounts(page)).toEqual(['Catalog (1)', 'Dataset (1)', 'Kind (1)'])
+  expect(await treeRows(page)).toEqual(['Untitled Catalog', 'Minimal dataset dataset · Dataset'])
 })
 
 test('a newer load cancels a file still being read', async ({ page }) => {
@@ -181,7 +157,7 @@ test('starts a blank catalog', async ({ page }) => {
   await page.getByRole('button', { name: 'Start a blank catalog' }).click()
   await expectOpened(page, 'Blank catalog')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Untitled Catalog')
-  expect(await classCounts(page)).toEqual(['Catalog (1)'])
+  expect(await treeRows(page)).toEqual(['Untitled Catalog'])
   await expect(page.getByRole('region', { name: 'Untitled Catalog' })).toContainText('No links to other objects.')
 })
 
@@ -199,7 +175,7 @@ test('loads a dropped file', async ({ page }) => {
 test('loads a catalog with schema errors', async ({ page }) => {
   await chooseFile(page, fixture('dataset-missing-title.json', 'invalid'))
   await expectOpened(page, 'dataset-missing-title.json')
-  await expect(objectList(page).getByRole('link', { name: 'Untitled Dataset' })).toBeVisible()
+  await expect(tree(page).getByRole('treeitem', { name: 'Untitled Dataset dataset · Dataset' })).toBeVisible()
 })
 
 test('asks before replacing a loaded catalog', async ({ page }) => {
@@ -232,7 +208,7 @@ test('asks before replacing a loaded catalog', async ({ page }) => {
   expect((await axe(page).analyze()).violations).toEqual([])
   await page.getByRole('button', { name: 'Replace', exact: true }).click()
   await expectOpened(page, 'dataset-with-distributions.json')
-  expect(await classCounts(page)).toHaveLength(7)
+  expect(await treeRows(page)).toHaveLength(3)
 })
 
 test('shows progress while loading, and the load can be cancelled', async ({ page }) => {
@@ -335,7 +311,7 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await expect(alert).toHaveCount(0)
   await page.getByRole('button', { name: 'Replace', exact: true }).click()
   await expectOpened(page, 'minimal-catalog.json')
-  expect(await classCounts(page)).toEqual(['Catalog (1)', 'Dataset (1)', 'Kind (1)'])
+  expect(await treeRows(page)).toHaveLength(2)
   expect(await fileReads()).toBeGreaterThan(0)
 })
 
@@ -357,7 +333,7 @@ test('shows unknown properties as text only', async ({ page }) => {
       ],
     }),
   )
-  await objectList(page).getByRole('link', { name: payload }).click()
+  await tree(page).getByRole('treeitem', { name: `${payload} dataset · Dataset` }).click()
   const detail = page.getByRole('region', { name: payload })
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText('x-agency')
   await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText(payload)
@@ -377,18 +353,13 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   await expectOpened(page, 'Pasted JSON')
   await expect(page.getByText('From Pasted JSON ·').locator('bdi')).toHaveText('Pasted JSON')
 
-  const list = objectList(page)
-  await expect(list.getByRole('heading')).toHaveText('Dataset (501)')
-  await expect(list.getByRole('listitem')).toHaveCount(500)
-  await expect(list.getByRole('listitem').nth(0).locator('bdi')).toHaveText('Evil \u202E(Catalog)')
-  await expect(list.getByRole('listitem').nth(1)).toHaveText('Untitled Dataset#/dataset/1')
-  await expect(list.getByRole('listitem').nth(2).locator('bdi')).toHaveText(`${'L'.repeat(200)}…`)
-  await list.getByRole('button', { name: 'Show more objects (500 of 501 shown)' }).click()
-  await expect(list.getByRole('listitem')).toHaveCount(501)
-  await expect(list.getByRole('link', { name: 'Dataset 500', exact: true })).toBeFocused() // the first new item
-  await expect(list.getByRole('status').filter({ hasText: 'Showing' })).toHaveText('Showing 501 of 501 objects.')
+  const rows = tree(page).getByRole('treeitem')
+  await expect(rows).toHaveCount(502)
+  await expect(rows.nth(1).locator('bdi')).toHaveText('Evil \u202E(Catalog)')
+  await expect(rows.nth(2)).toHaveText('Untitled Dataset dataset · Dataset')
+  await expect(rows.nth(3).locator('bdi')).toHaveText(`${'L'.repeat(200)}…`)
 
-  // The catalog is open on the right, with its 501 dataset links paged too.
+  // The catalog is open on the right, with its 501 dataset links paged.
   const detail = page.getByRole('region', { name: 'Big' })
   await expect(detail.getByRole('listitem')).toHaveCount(500)
   await detail.getByRole('button', { name: 'Show more dataset links (500 of 501 shown)' }).click()
@@ -400,6 +371,6 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   expect((await axe(page).include('section[aria-labelledby="detail-heading"]').analyze()).violations).toEqual([])
 
   await detail.getByRole('link', { name: /^Evil/ }).click()
-  await expect(page).toHaveURL('/editor/dataset/0?type=Dataset')
+  await expect(page).toHaveURL('/editor/dataset/0')
   await expect(page.locator('#detail-heading bdi')).toHaveText('Evil \u202E(Catalog)')
 })

@@ -49,7 +49,7 @@ test('exported file round-trips identically', async ({ page }) => {
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
 
   await page.waitForURL(/\/editor/)
-  await expect(page.getByRole('heading', { name: /Dataset/ })).toBeVisible()
+  await expect(page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' })).toBeVisible()
 })
 
 test('sanitizes path characters from filename', async ({ page }) => {
@@ -121,7 +121,7 @@ test('handles large catalog export without freezing UI', async ({ page }) => {
   const startTime = Date.now()
   await page.getByRole('button', { name: 'Export catalog' }).click()
 
-  await page.getByRole('button', { name: /Show more objects/ }).click({ timeout: 5000 })
+  await page.getByRole('treeitem', { name: 'Dataset 2999 dataset · Dataset' }).click({ timeout: 5000 })
 
   const download = await downloadPromise
   const duration = Date.now() - startTime
