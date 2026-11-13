@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Alert, Button, Table } from '@trussworks/react-uswds'
+import { Alert, AlertText, Button, Table } from '@trussworks/react-uswds'
 import { Link, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
@@ -239,7 +239,8 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           role="status"
           className="margin-top-2"
         >
-          {exportStatus.message}
+          {/* In AlertText, not bare: USWDS leaves room for the icon only beside the alert body's child elements. */}
+          <AlertText>{exportStatus.message}</AlertText>
         </Alert>
       )}
       <div className="grid-row grid-gap-lg margin-top-4">
