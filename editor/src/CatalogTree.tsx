@@ -15,7 +15,9 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
   const navigate = useNavigate()
   const parents = useMemo(() => parentsOf(catalog), [catalog])
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set([catalog.rootId]))
-  // Opening an object (on load, or from a link) expands the objects above it.
+  // Opening an object (on load, or from a link) expands the objects above it. This adjusts state while rendering, as
+  // React advises over an effect (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes):
+  // the first commit already holds the expanded rows, so the scroll effect below finds the selected row.
   const [expandedTo, setExpandedTo] = useState<string>()
   if (expandedTo !== selectedId) {
     setExpandedTo(selectedId)
@@ -52,11 +54,15 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
     else next.add(row.object.id)
     setExpanded(next)
   }
-  const indexOf = (target: EventTarget) =>
-    Array.prototype.indexOf.call(tree.current!.children, (target as HTMLElement).closest('[role="treeitem"]'))
+  // The row an event on the tree (its currentTarget) came from; the rows are the tree's children, in order.
+  const indexOf = (event: MouseEvent | KeyboardEvent) =>
+    Array.prototype.indexOf.call(
+      event.currentTarget.children,
+      (event.target as HTMLElement).closest('[role="treeitem"]'),
+    )
 
   function onClick(event: MouseEvent) {
-    const row = rows[indexOf(event.target)]
+    const row = rows[indexOf(event)]
     if (!row) return
     setFocusKey(row.key)
     if ((event.target as HTMLElement).closest('.catalog-tree__toggle')) toggle(row)
@@ -64,12 +70,14 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
   }
 
   function onKeyDown(event: KeyboardEvent) {
-    const i = indexOf(event.target)
+    const i = indexOf(event)
     const row = rows[i]
+    if (!row) return
+    const items = event.currentTarget.children
     const move = (j: number) => {
       if (!rows[j]) return
       setFocusKey(rows[j].key)
-      ;(tree.current!.children[j] as HTMLElement).focus()
+      ;(items[j] as HTMLElement).focus()
     }
     switch (event.key) {
       case 'ArrowDown':

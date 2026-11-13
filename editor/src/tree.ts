@@ -17,9 +17,12 @@ const labels = new WeakMap<CatalogObject, string>()
 export function labelOf(object: CatalogObject): string {
   let label = labels.get(object)
   if (label === undefined) {
+    // The first that has a visible character: one that is not a format character (\p{Cf}, such as a zero-width
+    // space or a direction override), a separator (\p{Z}) or whitespace.
     const value = ['title', 'name', 'fn', 'prefLabel', 'label']
       .map((key) => object.properties[key])
       .find((value): value is string => typeof value === 'string' && /[^\p{Cf}\p{Z}\s]/u.test(value))
+    // A cut that ends on the first half of a surrogate pair (\uD800-\uDBFF) drops it, so no half character shows.
     label =
       value === undefined
         ? `Untitled ${object.dcatClass}`
@@ -31,6 +34,7 @@ export function labelOf(object: CatalogObject): string {
   return label
 }
 
+/** One visible row of the tree, in the order the tree shows them (see {@link treeRows}). */
 export interface TreeRow {
   /** Unique per row: the ids from the catalog down, so an object linked twice has a row in each place. */
   key: string
@@ -46,7 +50,15 @@ export interface TreeRow {
   expanded?: boolean
 }
 
-/** Each object's parents' ids: `links` the other way round. */
+/**
+ * Each object's parents: `links` the other way round. Build it once per catalog; {@link ancestorIds} and
+ * {@link filterTree} use it to find the objects above an object.
+ *
+ * @param catalog The decomposed catalog.
+ * @returns A map from each linked object's id to the ids of the objects that link to it, in document order. The
+ *   catalog, which nothing links to, has no entry.
+ * @example parentsOf(catalog).get('#/dataset/0/distribution/1') // ['#/dataset/0']
+ */
 export function parentsOf({ objects }: DecomposedCatalog): Map<string, string[]> {
   const parents = new Map<string, string[]>()
   for (const object of objects.values()) {
