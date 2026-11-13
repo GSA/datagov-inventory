@@ -21,12 +21,15 @@ function revealSelected(pane: HTMLElement | null) {
 export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalog; selectedId: string }) {
   const navigate = useNavigate()
   const parents = useMemo(() => parentsOf(catalog), [catalog])
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set([catalog.rootId]))
-  // Opening an object (on load, or from a link) expands the objects above it, and makes it the tree's tab stop, as
+  // Open at first down to the selected object, so the first render needs no adjusting.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () => new Set([catalog.rootId, ...ancestorIds(selectedId, parents)]),
+  )
+  // Opening another object (from a link, Back or the tree) expands the objects above it, and makes it the tab stop, as
   // the APG asks of a tree that has a selection. This adjusts state while rendering, as
   // React advises over an effect (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes):
   // the first commit already holds the expanded rows, so the scroll effect below finds the selected row.
-  const [expandedTo, setExpandedTo] = useState<string>()
+  const [expandedTo, setExpandedTo] = useState(selectedId)
   const [focusKey, setFocusKey] = useState<string>()
   if (expandedTo !== selectedId) {
     setExpandedTo(selectedId)
@@ -53,9 +56,9 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
   }, [selectedId])
 
   const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: pathOf(row.object.id) } })
-  // While filtering, the objects above the matches stay expanded.
+  // Callers don't toggle while filtering: the objects above the matches stay expanded.
   const toggle = (row: TreeRow) => {
-    if (found || row.expanded === undefined) return
+    if (row.expanded === undefined) return
     const next = new Set(expanded)
     if (row.expanded) next.delete(row.object.id)
     else next.add(row.object.id)

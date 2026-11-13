@@ -116,7 +116,7 @@ describe('an object linked from more than one place', () => {
       ),
     })
     loop.set('#/a', ['#/b', '#']) // b is a's first parent, and a is b's
-    expect(ancestorIds('#/a', loop)).toEqual(['#/a', '#/b'])
+    expect(ancestorIds('#/a', loop)).toEqual(['#/b'])
   })
 
   it('does not repeat an object below itself', () => {

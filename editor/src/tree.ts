@@ -82,7 +82,11 @@ export function parentsOf({ objects }: DecomposedCatalog): Map<string, string[]>
 /** The ids of an object's ancestors along its first parent, catalog first. */
 export function ancestorIds(id: string, parents: Map<string, string[]>): string[] {
   const path: string[] = []
-  for (let parent = parents.get(id)?.[0]; parent !== undefined && !path.includes(parent); parent = parents.get(parent)?.[0]) {
+  for (
+    let parent = parents.get(id)?.[0];
+    parent !== undefined && parent !== id && !path.includes(parent); // stops where first parents loop
+    parent = parents.get(parent)?.[0]
+  ) {
     path.unshift(parent)
   }
   return path
