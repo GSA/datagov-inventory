@@ -111,6 +111,52 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await expect(page.getByRole('region', { name: 'Air quality readings' })).toBeVisible()
 })
 
+test('shows every object above the open one in the breadcrumb, through single links too', async ({ page }) => {
+  await loadSample(page, 'dataset-with-distributions.json')
+  const breadcrumb = page.getByRole('navigation', { name: 'Where this object is' })
+  const open = async (path: string) => {
+    await page.evaluate((url) => {
+      history.pushState({}, '', url)
+      dispatchEvent(new PopStateEvent('popstate'))
+    }, path)
+  }
+
+  // The catalog has nothing above it.
+  await expect(breadcrumb).toHaveCount(0)
+  // Each case: the object's path, then the breadcrumb's links (label, path) and the object's own label.
+  const cases: [string, [string, string][], string][] = [
+    ['/editor/publisher', [['Example Agency Catalog', '/editor']], 'Example Agency'], // single link from the catalog
+    ['/editor/dataset/0', [['Example Agency Catalog', '/editor']], 'Air quality readings'], // list item
+    [
+      '/editor/dataset/0/publisher', // single link from a list item
+      [['Example Agency Catalog', '/editor'], ['Air quality readings', '/editor/dataset/0']],
+      'Example Agency',
+    ],
+    [
+      '/editor/dataset/0/distribution/0', // list item in a list item
+      [['Example Agency Catalog', '/editor'], ['Air quality readings', '/editor/dataset/0']],
+      'Readings as CSV',
+    ],
+    [
+      '/editor/dataset/0/distribution/0/checksum', // single link, two levels down
+      [
+        ['Example Agency Catalog', '/editor'],
+        ['Air quality readings', '/editor/dataset/0'],
+        ['Readings as CSV', '/editor/dataset/0/distribution/0'],
+      ],
+      'Untitled Checksum',
+    ],
+  ]
+  for (const [path, above, label] of cases) {
+    await open(path)
+    await expect(page.getByRole('heading', { level: 2, name: label, exact: true })).toBeVisible()
+    const links = breadcrumb.getByRole('link')
+    await expect(links, path).toHaveText(above.map(([name]) => name))
+    for (const [i, [, href]] of above.entries()) await expect(links.nth(i), path).toHaveAttribute('href', href)
+    await expect(breadcrumb.getByRole('listitem').last(), path).toHaveText(label)
+  }
+})
+
 test('shows an address with nothing at it in the open catalog', async ({ page }) => {
   await loadSample(page, 'minimal-catalog.json')
   await page.evaluate(() => {
