@@ -67,3 +67,32 @@ function collectClassRefs(schema: unknown, self: string, into: Set<string>): voi
     collectClassRefs(sub, self, into)
   }
 }
+
+export interface FormModel {
+  className: string
+  fields: readonly FormField[]
+}
+
+export interface FormField {
+  name: string
+  label: string
+  type: string
+  required: boolean
+  cardinality: string
+  helpText?: string
+  allowedValues?: readonly { value: string; label: string }[]
+  allowedClasses?: readonly string[]
+}
+
+export function getFormModel(dcatClass: string): FormModel | undefined {
+  const models = import.meta.glob<{ [key: string]: FormModel }>('../generated/models/*.ts', { eager: true })
+
+  for (const module of Object.values(models)) {
+    const exportedModel = Object.values(module).find(
+      (m): m is FormModel => typeof m === 'object' && m !== null && 'className' in m && m.className === dcatClass
+    )
+    if (exportedModel) return exportedModel
+  }
+
+  return undefined
+}
