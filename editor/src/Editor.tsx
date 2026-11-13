@@ -1,75 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Alert, Button, Table } from '@trussworks/react-uswds'
+import { useState, type ReactNode } from 'react'
+import { Alert, Button } from '@trussworks/react-uswds'
 import { Link, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
-import { getClassProperties } from './schema'
+import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
 import { CatalogTree } from './CatalogTree'
+import { ObjectForm } from './ObjectForm'
 import { count, labelOf, pathOf } from './tree'
-
-/** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
-const PAGE_SIZE = 500
-const VALUE_LENGTH = 2_000
-
-/**
- * Shows the first PAGE_SIZE items, and more on request. After "Show more", focus moves to
- * the first new item (the element children mark `data-paged-item`) and the new total is announced.
- */
-function Paged<T>({ items, noun, children }: { items: T[]; noun: string; children: (shown: T[]) => ReactNode }) {
-  const [shown, setShown] = useState(PAGE_SIZE)
-  const container = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (shown > PAGE_SIZE) {
-      container.current?.querySelectorAll<HTMLElement>('[data-paged-item]')[shown - PAGE_SIZE]?.focus()
-    }
-  }, [shown])
-  return (
-    <div ref={container}>
-      {children(items.slice(0, shown))}
-      <p className="usa-sr-only" role="status">
-        {shown > PAGE_SIZE && `Showing ${count(Math.min(shown, items.length))} of ${count(items.length)} ${noun}.`}
-      </p>
-      {shown < items.length && (
-        <Button type="button" outline onClick={() => setShown(shown + PAGE_SIZE)}>
-          Show more {noun} ({count(shown)} of {count(items.length)} shown)
-        </Button>
-      )}
-    </div>
-  )
-}
-
-/** Values are untrusted: they are only ever rendered as React text, cut to 2,000 characters so a huge one cannot stall the page. */
-function textOf(value: unknown): string {
-  const text = typeof value === 'string' ? value : JSON.stringify(value)
-  return text.length > VALUE_LENGTH ? `${text.slice(0, VALUE_LENGTH)}… (${count(text.length)} characters in all)` : text
-}
-
-function PropertyTable({ caption, entries }: { caption: string; entries: [string, unknown][] }) {
-  return (
-    <Paged items={entries} noun="properties">
-      {(shown) => (
-        <Table caption={caption} fullWidth compact>
-          <thead>
-            <tr>
-              <th scope="col">Property</th>
-              <th scope="col">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map(([key, value]) => (
-              <tr key={key}>
-                <th scope="row" className="text-break" tabIndex={-1} data-paged-item>
-                  {key}
-                </th>
-                <td className="text-break">{textOf(value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-    </Paged>
-  )
-}
 
 /** A link to an object. */
 function ObjectLink({
@@ -94,81 +31,21 @@ function ObjectLink({
   )
 }
 
-/** The objects the open object sits inside, from the catalog down: its id's prefixes that are objects. */
-function ancestorsOf(id: string, objects: DecomposedCatalog['objects']): CatalogObject[] {
-  const parts = id.split('/')
-  return parts
-    .slice(1, -1)
-    .map((_, i) => objects.get(parts.slice(0, i + 1).join('/')))
-    .filter((object): object is CatalogObject => object !== undefined)
-}
+function ObjectDetail({ object }: { object: CatalogObject; objects: DecomposedCatalog['objects'] }) {
+  const model = getFormModel(object.dcatClass)
 
-function ObjectDetail({ object, objects }: { object: CatalogObject; objects: DecomposedCatalog['objects'] }) {
-  const known = getClassProperties(object.dcatClass)
-  const entries = Object.entries(object.properties)
-  const own = entries.filter(([key]) => known.has(key))
-  const other = entries.filter(([key]) => !known.has(key))
-  const links = Object.entries(object.links)
-  const ancestors = ancestorsOf(object.id, objects)
-
-  return (
-    <section aria-labelledby="detail-heading">
-      {ancestors.length > 0 && (
-        <nav className="usa-breadcrumb padding-top-0" aria-label="Where this object is">
-          <ol className="usa-breadcrumb__list">
-            {ancestors.map((ancestor) => (
-              <li key={ancestor.id} className="usa-breadcrumb__list-item">
-                <ObjectLink object={ancestor} className="usa-breadcrumb__link">
-                  <bdi>{labelOf(ancestor)}</bdi>
-                </ObjectLink>
-              </li>
-            ))}
-            <li className="usa-breadcrumb__list-item usa-current" aria-current="page">
-              <bdi>{labelOf(object)}</bdi>
-            </li>
-          </ol>
-        </nav>
-      )}
-      <h2 id="detail-heading" tabIndex={-1} aria-describedby="detail-class" className="margin-top-0 text-break">
-        <bdi>{labelOf(object)}</bdi>
-      </h2>
-      <p id="detail-class">
-        {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
-      </p>
-      {own.length > 0 ? <PropertyTable caption="Properties" entries={own} /> : <p>No DCAT-US 3.0 properties.</p>}
-
-      <section aria-labelledby="links-heading">
-        <h3 id="links-heading">Links</h3>
-        {links.length === 0 && <p>No links to other objects.</p>}
-        {links.map(([property, ids]) => (
-          <div key={property}>
-            <h4 className="margin-bottom-0">{property}</h4>
-            <Paged items={ids.map((id) => objects.get(id)!)} noun={`${property} links`}>
-              {(shown) => (
-                <ol className="margin-top-05">
-                  {shown.map((child) => (
-                    <li key={child.id}>
-                      <ObjectLink object={child} className="usa-link target-size text-break">
-                        <bdi>{labelOf(child)}</bdi> ({child.dcatClass})
-                      </ObjectLink>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </Paged>
-          </div>
-        ))}
+  if (!model) {
+    return (
+      <section aria-labelledby="detail-heading">
+        <h2 id="detail-heading" tabIndex={-1}>
+          {labelOf(object)}
+        </h2>
+        <p>No form model available for {object.dcatClass}</p>
       </section>
+    )
+  }
 
-      {other.length > 0 && (
-        <>
-          <h3>Other properties</h3>
-          <p>The DCAT-US 3.0 schema does not define these for {object.dcatClass}. They are kept as they are.</p>
-          <PropertyTable caption="Other properties" entries={other} />
-        </>
-      )}
-    </section>
-  )
+  return <ObjectForm object={object} model={model} />
 }
 
 /** The editor for the open catalog: what it holds on the left, the object at this address on the right. */
