@@ -28,7 +28,7 @@ describe('DatasetModel', () => {
     expect(descField?.type).toBe('string')
   })
 
-  it('has contactPoint field marked as required', () => {
+  it('has contactPoint, a Kind or a list of them, as required and multiple', () => {
     const contactField = DatasetModel.fields.find(
       (f) => f.name === 'contactPoint',
     )
