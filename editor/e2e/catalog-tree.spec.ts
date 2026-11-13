@@ -111,7 +111,16 @@ test('filters the tree by title or name', async ({ page }) => {
 
   await filter(page).fill('')
   // As before filtering, but with the dataset of the object opened while filtering open too.
-  await expect(tree(page).getByRole('treeitem')).toHaveCount(8)
+  await expect(tree(page).getByRole('treeitem')).toHaveText([
+    'Example Agency Catalog',
+    'Example Agency publisher · Organization',
+    'Air quality readings dataset · Dataset',
+    'Air Quality Team contactPoint · Kind',
+    'Example Agency publisher · Organization',
+    'Untitled PeriodOfTime temporal · PeriodOfTime',
+    'Readings as CSV distribution · Distribution',
+    'Readings API distribution · Distribution',
+  ])
 })
 
 test('opens a 3,000-dataset catalog at an object, and limits a filter that matches thousands', async ({ page }) => {

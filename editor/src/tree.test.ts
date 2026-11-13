@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { decompose, type CatalogObject, type DecomposedCatalog } from './catalog/decompose'
-import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows } from './tree'
+import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
 // Built once and shared: 3,000 datasets, each with a contact, a publisher and three distributions.
 const big = decompose(JSON.stringify(largeCatalog()))
 const bigParents = parentsOf(big)
-const summary = (rows: ReturnType<typeof treeRows>) => rows.map((row) => `${row.level} ${row.object.id}`)
+const summary = (rows: TreeRow[]) => rows.map((row) => `${row.level} ${row.object.id}`)
 
 describe('the tree of a 3,000-dataset catalog', () => {
   it('shows the catalog and its datasets, each closed, in order', () => {

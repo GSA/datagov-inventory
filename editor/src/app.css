@@ -75,16 +75,16 @@ a:focus-visible {
 .catalog-tree [role='treeitem']:not([aria-expanded]) > bdi {
   margin-left: 1.5rem;
 }
-[aria-expanded='false'] > .catalog-tree__toggle::before {
+.catalog-tree [aria-expanded='false'] > .catalog-tree__toggle::before {
   content: '▸';
 }
-[aria-expanded='true'] > .catalog-tree__toggle::before {
+.catalog-tree [aria-expanded='true'] > .catalog-tree__toggle::before {
   content: '▾';
 }
 .catalog-tree__class {
   font-size: 0.8rem;
   color: #565c65;
 }
-[aria-selected='true'] .catalog-tree__class {
+.catalog-tree [aria-selected='true'] .catalog-tree__class {
   color: #fff;
 }

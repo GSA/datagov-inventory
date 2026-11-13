@@ -5,7 +5,7 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
 import { CatalogTree } from './CatalogTree'
-import { labelOf } from './tree'
+import { labelOf, pathOf } from './tree'
 
 /** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
 const PAGE_SIZE = 500
@@ -72,9 +72,6 @@ function PropertyTable({ caption, entries }: { caption: string; entries: [string
     </Paged>
   )
 }
-
-/** An object's path under /editor is its id without the "#" (`#/dataset/0` → `dataset/0`). */
-const pathOf = (id: string) => id.slice(2)
 
 /** A link to an object. */
 function ObjectLink({

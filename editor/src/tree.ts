@@ -21,7 +21,7 @@ export function labelOf(object: CatalogObject): string {
     // space or a direction override), a separator (\p{Z}) or whitespace.
     const value = ['title', 'name', 'fn', 'prefLabel', 'label']
       .map((key) => object.properties[key])
-      .find((value): value is string => typeof value === 'string' && /[^\p{Cf}\p{Z}\s]/u.test(value))
+      .find((text): text is string => typeof text === 'string' && /[^\p{Cf}\p{Z}\s]/u.test(text))
     // A cut that ends on the first half of a surrogate pair (\uD800-\uDBFF) drops it, so no half character shows.
     label =
       value === undefined
@@ -33,6 +33,9 @@ export function labelOf(object: CatalogObject): string {
   }
   return label
 }
+
+/** An object's path under /editor is its id without the "#" (`#/dataset/0` → `dataset/0`). */
+export const pathOf = (id: string) => id.slice(2)
 
 /** One visible row of the tree, in the order the tree shows them (see {@link treeRows}). */
 export interface TreeRow {

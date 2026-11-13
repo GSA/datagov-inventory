@@ -2,7 +2,7 @@ import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Keyb
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
 import type { DecomposedCatalog } from './catalog/decompose'
-import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, pathOf, treeRows, type TreeRow } from './tree'
 
 const count = (n: number) => n.toLocaleString('en-US')
 
@@ -32,20 +32,22 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
   const [focusKey, setFocusKey] = useState<string>()
   const tabStop =
     rows.find((row) => row.key === focusKey) ?? rows.find((row) => row.object.id === selectedId) ?? rows[0]
-  const tree = useRef<HTMLUListElement>(null)
+  const pane = useRef<HTMLDivElement>(null)
 
-  // Scroll a new filter's results to the top, and the selected object into the tree's view when it is out of sight.
-  useEffect(() => tree.current?.parentElement?.scrollTo(0, 0), [needle])
+  // Scroll a new filter's results to the top, and the selected object into the tree's view when none of it shows.
   useEffect(() => {
-    const item = tree.current?.querySelector<HTMLElement>('[aria-selected="true"]')
-    const pane = tree.current?.parentElement
-    if (!item || !pane) return
-    if (item.offsetTop < pane.scrollTop || item.offsetTop > pane.scrollTop + pane.clientHeight - item.offsetHeight) {
-      pane.scrollTop = item.offsetTop - item.offsetHeight
+    pane.current?.scrollTo(0, 0)
+  }, [needle])
+  useEffect(() => {
+    const item = pane.current?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!item || !pane.current) return
+    const { scrollTop, clientHeight } = pane.current
+    if (item.offsetTop + item.offsetHeight <= scrollTop || item.offsetTop >= scrollTop + clientHeight) {
+      pane.current.scrollTop = item.offsetTop - item.offsetHeight
     }
   }, [selectedId])
 
-  const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: row.object.id.slice(2) } })
+  const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: pathOf(row.object.id) } })
   // While filtering, the objects above the matches stay expanded.
   const toggle = (row: TreeRow) => {
     if (found || row.expanded === undefined) return
@@ -79,6 +81,8 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
       setFocusKey(rows[j].key)
       ;(items[j] as HTMLElement).focus()
     }
+    // Leave Alt+Left (Back) and other shortcuts to the browser.
+    if (event.altKey || event.ctrlKey || event.metaKey) return
     switch (event.key) {
       case 'ArrowDown':
         move(i + 1)
@@ -128,8 +132,8 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
             : `${count(found.matches)} ${found.matches === 1 ? 'object matches' : 'objects match'}.`)}
       </p>
       {found?.matches !== 0 && (
-        <div className="catalog-tree">
-          <ul role="tree" aria-label="Catalog" ref={tree} onClick={onClick} onKeyDown={onKeyDown}>
+        <div className="catalog-tree" ref={pane}>
+          <ul role="tree" aria-label="Catalog" onClick={onClick} onKeyDown={onKeyDown}>
             {rows.map(({ key, ...row }) => (
               <TreeItem key={key} {...row} selected={row.object.id === selectedId} tabStop={key === tabStop.key} />
             ))}
