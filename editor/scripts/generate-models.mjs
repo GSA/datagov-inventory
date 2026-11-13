@@ -68,7 +68,9 @@ function extractFormModel(className) {
     const { list, scalars } = describeValue(propSchema)
 
     // A value that may be an inline object (e.g. Location.bbox: a string or a GeoJSON object)
-    // stays 'object', so a form can hold either form.
+    // stays 'object', as before. FormField can't say "or a string".
+    const otherScalars = new Set(scalars.filter((t) => t !== 'object'))
+    if (otherScalars.size > 1) throw new Error(`${className}.${name} mixes types: ${[...otherScalars]}`)
     const scalarType = scalars.includes('object') ? 'object' : scalars[0]
 
     const field = {

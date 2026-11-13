@@ -15,7 +15,7 @@ describe('generated form models', () => {
     expect(fields.map((f) => [f.name, f.allowedClasses ?? []])).toEqual([...getClassProperties(name)])
   })
 
-  it('gives Concept the fields of its object form, with their required list', () => {
+  it('gives Concept the fields of its object form, where prefLabel is required', () => {
     const prefLabel = models.ConceptModel.fields.find((f) => f.name === 'prefLabel')
 
     expect(prefLabel?.type).toBe('string')
