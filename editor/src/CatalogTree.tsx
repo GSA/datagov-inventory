@@ -2,25 +2,35 @@ import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Keyb
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
 import type { DecomposedCatalog } from './catalog/decompose'
-import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, pathOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, parentsOf, pathOf, treeRows, type TreeRow } from './tree'
 
-const count = (n: number) => n.toLocaleString('en-US')
+/** Scrolls the selected row into the pane's view when none of it shows. */
+function revealSelected(pane: HTMLElement | null) {
+  const item = pane?.querySelector<HTMLElement>('[aria-selected="true"]')
+  if (!pane || !item) return
+  if (item.offsetTop + item.offsetHeight <= pane.scrollTop || item.offsetTop >= pane.scrollTop + pane.clientHeight) {
+    pane.scrollTop = item.offsetTop - item.offsetHeight
+  }
+}
 
 /**
  * The catalog as a tree, filtered by title or name. USWDS has no tree view, so this is a custom WAI-ARIA treeview
- * (https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop, arrow keys, Home and End move and expand;
- * Enter, Space or a click opens the object. Selection does not follow focus, and focus stays in the tree.
+ * (https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop; arrow keys move, open and close; Home and End
+ * move; Enter, Space or a click opens the object. Selection does not follow focus, and focus stays in the tree.
  */
 export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalog; selectedId: string }) {
   const navigate = useNavigate()
   const parents = useMemo(() => parentsOf(catalog), [catalog])
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set([catalog.rootId]))
-  // Opening an object (on load, or from a link) expands the objects above it. This adjusts state while rendering, as
+  // Opening an object (on load, or from a link) expands the objects above it, and makes it the tree's tab stop, as
+  // the APG asks of a tree that has a selection. This adjusts state while rendering, as
   // React advises over an effect (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes):
   // the first commit already holds the expanded rows, so the scroll effect below finds the selected row.
   const [expandedTo, setExpandedTo] = useState<string>()
+  const [focusKey, setFocusKey] = useState<string>()
   if (expandedTo !== selectedId) {
     setExpandedTo(selectedId)
+    setFocusKey(undefined)
     const above = ancestorIds(selectedId, parents)
     if (above.some((id) => !expanded.has(id))) setExpanded(new Set([...expanded, ...above]))
   }
@@ -29,22 +39,17 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
   const needle = useDeferredValue(filter.trim().toLowerCase())
   const found = useMemo(() => (needle ? filterTree(catalog, parents, needle) : undefined), [catalog, parents, needle])
   const rows = useMemo(() => treeRows(catalog, expanded, found?.shown), [catalog, expanded, found])
-  const [focusKey, setFocusKey] = useState<string>()
   const tabStop =
     rows.find((row) => row.key === focusKey) ?? rows.find((row) => row.object.id === selectedId) ?? rows[0]
   const pane = useRef<HTMLDivElement>(null)
 
-  // Scroll a new filter's results to the top, and the selected object into the tree's view when none of it shows.
+  // A filter's results start at the top; the whole tree, and a newly selected object, show the selected object.
   useEffect(() => {
-    pane.current?.scrollTo(0, 0)
+    if (needle) pane.current?.scrollTo(0, 0)
+    else revealSelected(pane.current)
   }, [needle])
   useEffect(() => {
-    const item = pane.current?.querySelector<HTMLElement>('[aria-selected="true"]')
-    if (!item || !pane.current) return
-    const { scrollTop, clientHeight } = pane.current
-    if (item.offsetTop + item.offsetHeight <= scrollTop || item.offsetTop >= scrollTop + clientHeight) {
-      pane.current.scrollTop = item.offsetTop - item.offsetHeight
-    }
+    revealSelected(pane.current)
   }, [selectedId])
 
   const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: pathOf(row.object.id) } })
@@ -67,11 +72,14 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
     const row = rows[indexOf(event)]
     if (!row) return
     setFocusKey(row.key)
-    if ((event.target as HTMLElement).closest('.catalog-tree__toggle')) toggle(row)
+    // While filtering the arrows are fixed open, so a click anywhere on the row opens the object.
+    if (!found && (event.target as HTMLElement).closest('.catalog-tree__toggle')) toggle(row)
     else open(row)
   }
 
   function onKeyDown(event: KeyboardEvent) {
+    // Leave Alt+Left (Back) and other shortcuts to the browser.
+    if (event.altKey || event.ctrlKey || event.metaKey) return
     const i = indexOf(event)
     const row = rows[i]
     if (!row) return
@@ -81,8 +89,6 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
       setFocusKey(rows[j].key)
       ;(items[j] as HTMLElement).focus()
     }
-    // Leave Alt+Left (Back) and other shortcuts to the browser.
-    if (event.altKey || event.ctrlKey || event.metaKey) return
     switch (event.key) {
       case 'ArrowDown':
         move(i + 1)

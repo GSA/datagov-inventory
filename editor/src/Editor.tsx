@@ -5,13 +5,11 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getClassProperties } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
 import { CatalogTree } from './CatalogTree'
-import { labelOf, pathOf } from './tree'
+import { count, labelOf, pathOf } from './tree'
 
 /** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
 const PAGE_SIZE = 500
 const VALUE_LENGTH = 2_000
-
-const count = (n: number) => n.toLocaleString('en-US')
 
 /**
  * Shows the first PAGE_SIZE items, and more on request. After "Show more", focus moves to
@@ -82,7 +80,6 @@ function ObjectLink({
   object: CatalogObject
   children: ReactNode
   className?: string
-  'aria-describedby'?: string
 }) {
   return (
     <Link

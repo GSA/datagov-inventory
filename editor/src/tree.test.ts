@@ -104,6 +104,21 @@ describe('an object linked from more than one place', () => {
     )
   })
 
+  it('stops finding the objects above when first parents loop', () => {
+    const loop = parentsOf({
+      rootId: '#',
+      objects: new Map(
+        [
+          object('#', 'Catalog', 'Catalog', { dataset: ['#/a'] }),
+          object('#/a', 'Dataset', 'A', { hasPart: ['#/b'] }),
+          object('#/b', 'Dataset', 'B', { hasPart: ['#/a'] }),
+        ].map((o) => [o.id, o]),
+      ),
+    })
+    loop.set('#/a', ['#/b', '#']) // b is a's first parent, and a is b's
+    expect(ancestorIds('#/a', loop)).toEqual(['#/a', '#/b'])
+  })
+
   it('does not repeat an object below itself', () => {
     const rows = treeRows(shared, new Set(['#', '#/dataset/0', '#/dataset/1', '#/contact']))
     expect(summary(rows)).toEqual([

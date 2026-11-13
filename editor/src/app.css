@@ -32,6 +32,7 @@ a:focus-visible {
 
 /* The catalog tree (#23): it scrolls on its own, and the open object stands out, so users always see where they are. */
 .catalog-tree {
+  /* The rows' offsetParent, which the scroll into view in CatalogTree.tsx measures from. */
   position: relative;
   max-height: 75vh;
   overflow-y: auto;

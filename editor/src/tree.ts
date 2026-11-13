@@ -34,6 +34,9 @@ export function labelOf(object: CatalogObject): string {
   return label
 }
 
+/** A count for people: `3,000`. */
+export const count = (n: number) => n.toLocaleString('en-US')
+
 /** An object's path under /editor is its id without the "#" (`#/dataset/0` → `dataset/0`). */
 export const pathOf = (id: string) => id.slice(2)
 
@@ -119,13 +122,13 @@ export function treeRows(
   const path = new Set<string>()
   const add = (object: CatalogObject, key: string, level: number, position: number, siblings: number, property?: string) => {
     path.add(object.id)
-    const children = Object.entries(object.links).flatMap(([property, ids]) =>
-      ids.filter((id) => !path.has(id) && (!shown || shown.has(id))).map((id) => ({ property, id })),
+    const children = Object.entries(object.links).flatMap(([link, ids]) =>
+      ids.filter((id) => !path.has(id) && (!shown || shown.has(id))).map((id) => ({ link, id })),
     )
     const open = children.length > 0 && (shown !== undefined || expanded.has(object.id))
     rows.push({ key, object, property, level, position, siblings, expanded: children.length > 0 ? open : undefined })
-    if (open) children.forEach(({ property, id }, i) =>
-      add(objects.get(id)!, `${key} ${id}`, level + 1, i + 1, children.length, property),
+    if (open) children.forEach(({ link, id }, i) =>
+      add(objects.get(id)!, `${key} ${id}`, level + 1, i + 1, children.length, link),
     )
     path.delete(object.id)
   }

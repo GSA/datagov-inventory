@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { largeCatalog } from '../fixtures/largeCatalog'
@@ -88,6 +88,8 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
   await item(page, 'Air quality readings dataset · Dataset').click()
   await page.getByRole('region', { name: 'Air quality readings' }).getByRole('link', { name: /^Readings API/ }).click()
   await expect(item(page, 'Readings API distribution · Distribution')).toHaveAttribute('aria-selected', 'true')
+  // ...and makes it the tree's tab stop, in place of the row focused before.
+  await expect(tree(page).locator('[tabindex="0"]')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('heading', { level: 2, name: 'Readings API' })).toBeFocused()
 })
 
@@ -134,10 +136,7 @@ test('opens a 3,000-dataset catalog at an object, and limits a filter that match
   await expect(page).toHaveURL('/editor/dataset/2999/distribution/1')
   const selected = tree(page).getByRole('treeitem', { selected: true })
   await expect(selected).toHaveText('JSON download distribution · Distribution')
-  // Scrolled into the tree's view (the tree scrolls on its own).
-  const [row, pane] = await Promise.all([selected.boundingBox(), page.locator('.catalog-tree').boundingBox()])
-  expect(row!.y).toBeGreaterThanOrEqual(pane!.y)
-  expect(row!.y + row!.height).toBeLessThanOrEqual(pane!.y + pane!.height)
+  await expectInTreeView(page, selected)
   await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000 + 5)
 
   await filter(page).fill('json download')
@@ -150,4 +149,19 @@ test('opens a 3,000-dataset catalog at an object, and limits a filter that match
     'Generated catalog of 3,000 datasets',
     'Water use 2995 dataset · Dataset',
   ])
+  // Opened while filtering, it is still in view once the filter is cleared.
+  await item(page, 'Water use 2995 dataset · Dataset').click()
+  await filter(page).fill('')
+  await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000 + 5)
+  await expect(selected).toHaveText('Water use 2995 dataset · Dataset')
+  await expectInTreeView(page, selected)
 })
+
+/** The row is within the tree's visible area (the tree scrolls on its own). */
+async function expectInTreeView(page: Page, row: Locator) {
+  await expect(async () => {
+    const [box, pane] = await Promise.all([row.boundingBox(), page.locator('.catalog-tree').boundingBox()])
+    expect(box!.y).toBeGreaterThanOrEqual(pane!.y)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(pane!.y + pane!.height)
+  }).toPass()
+}
