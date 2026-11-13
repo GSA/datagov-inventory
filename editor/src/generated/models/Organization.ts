@@ -28,10 +28,11 @@ export const OrganizationModel: FormModel = {
 {
       name: 'subOrganizationOf',
       label: 'Sub Organization Of',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'Represents hierarchical containment of Organizations or OrganizationalUnits; indicates an Organization which contains this Organization',
+      allowedClasses: ['Organization'],
     },
 {
       name: 'altLabel',
@@ -44,9 +45,9 @@ export const OrganizationModel: FormModel = {
 {
       name: 'notation',
       label: 'Notation',
-      type: 'array',
+      type: 'string',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'List of abbreviations or codes from code lists for an organization (e.g. DOI, DOD)',
     },
 {

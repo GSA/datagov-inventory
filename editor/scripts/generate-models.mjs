@@ -1,11 +1,18 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runnerImport } from 'vite'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const SCHEMA_DIR = join(__dirname, '..', 'schema', 'dcat-us', 'jsonschema', 'definitions')
+const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = join(__dirname, '..', 'src', 'generated', 'models')
+
+// The schema module loads definitions with import.meta.glob, so it runs through Vite
+// (runnerImport is marked experimental in Vite 6; the lockfile pins the version).
+const { module: schemaModule } = await runnerImport(join(__dirname, '..', 'src', 'schema', 'index.ts'), {
+  configFile: false,
+  logLevel: 'error',
+})
+const { classSchemas, getClassSchema, getClassProperties } = schemaModule
 
 function toTitleCase(str) {
   return str
@@ -14,84 +21,76 @@ function toTitleCase(str) {
     .trim()
 }
 
-function extractClassNameFromRef(ref) {
-  const match = ref.match(/\/([^/]+)$/)
-  if (!match) return 'Unknown'
-  return toTitleCase(match[1])
-}
-
-function extractAllowedClasses(propSchema) {
-  if (propSchema.$ref && typeof propSchema.$ref === 'string') {
-    return [extractClassNameFromRef(propSchema.$ref)]
-  }
-
-  if (Array.isArray(propSchema.anyOf)) {
-    const classes = propSchema.anyOf
-      .filter((item) => item && typeof item === 'object' && item.$ref)
-      .map((item) => extractClassNameFromRef(item.$ref))
-    return classes.length > 0 ? classes : undefined
-  }
-
-  return undefined
-}
-
-function extractFieldType(propSchema) {
-  if (propSchema.type === 'array' && propSchema.items && typeof propSchema.items === 'object') {
-    const items = propSchema.items
-    const itemType = items.type
-
-    if (itemType === 'string' || itemType === 'number' || itemType === 'boolean') {
-      return { type: itemType, cardinality: 'multiple' }
-    }
-
-    if (items.$ref) {
-      return { type: 'object', cardinality: 'multiple', allowedClasses: [extractClassNameFromRef(items.$ref)] }
+/**
+ * What a property's value can be, across `type` lists and `anyOf`/`oneOf`/`allOf` branches:
+ * whether any form is a list, and the scalar types of its single values and list items.
+ */
+function describeValue(propSchema, into = { list: false, scalars: [] }) {
+  if (!propSchema || typeof propSchema !== 'object') return into
+  const types = [propSchema.type].flat().filter((t) => t && t !== 'null')
+  for (const type of types) {
+    if (type === 'array') {
+      into.list = true
+      describeValue(propSchema.items, into)
+    } else {
+      into.scalars.push(type === 'integer' ? 'number' : type)
     }
   }
-
-  if (propSchema.$ref || propSchema.anyOf) {
-    return { type: 'object', cardinality: 'single' }
+  for (const key of ['anyOf', 'oneOf', 'allOf']) {
+    for (const branch of propSchema[key] ?? []) describeValue(branch, into)
   }
-
-  let type = propSchema.type || 'string'
-  if (Array.isArray(type)) {
-    type = type.find((t) => t !== 'null') || 'string'
-  }
-
-  return {
-    type: type === 'integer' ? 'number' : type,
-    cardinality: 'single',
-  }
+  return into
 }
 
-function extractFormModel(className, schema) {
-  const properties = schema.properties || {}
-  const required = schema.required || []
+/**
+ * The class's own properties and those of its `anyOf`/`oneOf`/`allOf` branches, with their
+ * `required` lists. A property defined in two branches would need its schemas merged, as
+ * getClassProperties merges their classes; none is today, so that fails instead.
+ */
+function propertySchemas(className) {
+  const schema = getClassSchema(className)
+  const found = new Map()
+  for (const branch of [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])]) {
+    for (const [name, propSchema] of Object.entries(branch.properties ?? {})) {
+      if (found.has(name)) throw new Error(`${className}.${name} is defined in two branches`)
+      found.set(name, { propSchema, required: (branch.required ?? []).includes(name) })
+    }
+  }
+  return found
+}
 
-  const fields = Object.entries(properties).map(([name, propSchema]) => {
-    const fieldType = extractFieldType(propSchema)
-    const { type, cardinality } = fieldType
-    const allowedClasses = fieldType.allowedClasses || extractAllowedClasses(propSchema)
-    const allowedValues = Array.isArray(propSchema.enum) ? propSchema.enum : undefined
+function extractFormModel(className) {
+  const schemas = propertySchemas(className)
+
+  // getClassProperties decides which properties exist and which hold classes, as for decompose.
+  const fields = [...getClassProperties(className)].map(([name, classes]) => {
+    const { propSchema, required } = schemas.get(name)
+    const { list, scalars } = describeValue(propSchema)
+
+    // A value that may be an inline object (e.g. Location.bbox: a string or a GeoJSON object)
+    // stays 'object', as before. FormField can't say "or a string".
+    const otherScalars = new Set(scalars.filter((t) => t !== 'object'))
+    if (otherScalars.size > 1) throw new Error(`${className}.${name} mixes types: ${[...otherScalars]}`)
+    const scalarType = scalars.includes('object') ? 'object' : scalars[0]
 
     const field = {
       name,
       label: toTitleCase(name),
-      type,
-      required: required.includes(name),
-      cardinality,
+      type: classes.length > 0 ? 'object' : (scalarType ?? (list ? 'array' : 'string')),
+      required,
+      cardinality: list ? 'multiple' : 'single',
     }
 
     if (propSchema.description) {
       field.helpText = propSchema.description
     }
 
-    if (allowedValues) {
-      field.allowedValues = allowedValues
+    if (Array.isArray(propSchema.enum)) {
+      field.allowedValues = propSchema.enum
     }
 
-    if (allowedClasses) {
-      field.allowedClasses = allowedClasses
+    if (classes.length > 0) {
+      field.allowedClasses = classes
     }
 
     return field
@@ -169,22 +168,11 @@ function generateModelFile(model) {
 function generateModels() {
   mkdirSync(OUTPUT_DIR, { recursive: true })
 
-  const files = readdirSync(SCHEMA_DIR).filter((f) => f.endsWith('.json'))
-  const modelNames = []
+  const modelNames = [...classSchemas.keys()].sort()
 
-  for (const file of files) {
-    const className = file.replace('.json', '')
-    const schemaPath = join(SCHEMA_DIR, file)
-    const schemaContent = readFileSync(schemaPath, 'utf-8')
-    const schema = JSON.parse(schemaContent)
-
-    const model = extractFormModel(className, schema)
-    const code = generateModelFile(model)
-    const outputPath = join(OUTPUT_DIR, `${className}.ts`)
-
-    writeFileSync(outputPath, code, 'utf-8')
-    modelNames.push(className)
-
+  for (const className of modelNames) {
+    const code = generateModelFile(extractFormModel(className))
+    writeFileSync(join(OUTPUT_DIR, `${className}.ts`), code, 'utf-8')
     console.log(`Generated model: ${className}.ts`)
   }
 
