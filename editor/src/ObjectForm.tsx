@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Label, TextInput, Textarea } from '@trussworks/react-uswds'
+import { Label, TextInput, Textarea, Button } from '@trussworks/react-uswds'
 import type { CatalogObject } from './catalog/decompose'
 import type { FormModel, FormField } from './schema'
 import { useCatalog } from './session'
@@ -26,7 +26,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
   }
 
-  const knownFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'single' && !f.allowedValues)
+  const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'single' && !f.allowedValues)
+  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'multiple' && f.type !== 'object')
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
@@ -40,8 +41,18 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
 
-      {knownFields.map(field => (
+      {textFields.map(field => (
         <TextField
+          key={field.name}
+          field={field}
+          value={formState[field.name]}
+          onChange={value => handleFieldChange(field.name, value)}
+          onBlur={() => handleFieldBlur(field.name)}
+        />
+      ))}
+
+      {multiFields.map(field => (
+        <MultiValueField
           key={field.name}
           field={field}
           value={formState[field.name]}
@@ -115,5 +126,71 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
         />
       )}
     </div>
+  )
+}
+
+interface MultiValueFieldProps {
+  field: FormField
+  value: unknown
+  onChange: (value: unknown) => void
+  onBlur: () => void
+}
+
+function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProps) {
+  const items = Array.isArray(value) ? value : []
+
+  const handleAdd = () => {
+    onChange([...items, ''])
+  }
+
+  const handleRemove = (index: number) => {
+    onChange(items.filter((_, i) => i !== index))
+    onBlur()
+  }
+
+  const handleChange = (index: number, newValue: string) => {
+    const updated = [...items]
+    updated[index] = newValue
+    onChange(updated)
+  }
+
+  return (
+    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-3">
+      <h3 id={`field-${field.name}-heading`} className="font-sans-md">
+        {field.label}
+        {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
+      </h3>
+      {field.helpText && (
+        <p className="usa-hint">{field.helpText}</p>
+      )}
+      <ul className="usa-list usa-list--unstyled">
+        {items.map((item, index) => (
+          <li key={index} className="display-flex flex-align-center margin-top-1">
+            <TextInput
+              id={`field-${field.name}-${index}`}
+              name={`${field.name}-${index}`}
+              type="text"
+              value={typeof item === 'string' ? item : ''}
+              onChange={e => handleChange(index, e.target.value)}
+              onBlur={onBlur}
+              className="flex-fill margin-right-1"
+              aria-label={`${field.label} ${index + 1}`}
+            />
+            <Button
+              type="button"
+              onClick={() => handleRemove(index)}
+              unstyled
+              className="usa-button--secondary"
+              aria-label={`Remove ${field.label} ${index + 1}`}
+            >
+              Remove
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <Button type="button" onClick={handleAdd} outline>
+        Add {field.label.toLowerCase()}
+      </Button>
+    </section>
   )
 }
