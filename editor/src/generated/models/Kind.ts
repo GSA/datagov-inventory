@@ -20,10 +20,11 @@ export const KindModel: FormModel = {
 {
       name: 'address',
       label: 'Address',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'The address of the contact',
+      allowedClasses: ['Address'],
     },
 {
       name: 'hasEmail',

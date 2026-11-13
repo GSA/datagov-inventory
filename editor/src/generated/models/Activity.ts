@@ -20,10 +20,11 @@ export const ActivityModel: FormModel = {
 {
       name: 'category',
       label: 'Category',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'List of categories for the Activity',
+      allowedClasses: ['Concept'],
     },
 {
       name: 'label',

@@ -20,7 +20,7 @@ export const LocationModel: FormModel = {
 {
       name: 'bbox',
       label: 'Bbox',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'Bounding box for the location, described in WKT, GeoJSON, or GML format',
@@ -28,7 +28,7 @@ export const LocationModel: FormModel = {
 {
       name: 'centroid',
       label: 'Centroid',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The geographic center (centroid) of a location described in WKT, GeoJSON, or GML format',
@@ -45,15 +45,16 @@ export const LocationModel: FormModel = {
 {
       name: 'otherIdentifier',
       label: 'Other Identifier',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'A list of geographic identifiers for the Location besides the main identifier, e.g. the URI or other unique identifiers in the context of the relevant gazetteer',
+      allowedClasses: ['Identifier'],
     },
 {
       name: 'geometry',
       label: 'Geometry',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'Associates a location with a corresponding geometry described in WKT, GeoJSON, or GML format',
@@ -65,7 +66,7 @@ export const LocationModel: FormModel = {
       required: false,
       cardinality: 'single',
       helpText: 'The gazetteer to which the location belongs',
-      allowedClasses: ['Conceptscheme'],
+      allowedClasses: ['ConceptScheme'],
     },
 {
       name: 'altLabel',

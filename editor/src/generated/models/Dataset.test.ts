@@ -48,12 +48,27 @@ describe('DatasetModel', () => {
     expect(idField?.allowedClasses).toContain('Identifier')
   })
 
-  it('has keyword field as array type', () => {
+  it('has keyword, a nullable list of strings, as multiple strings', () => {
     const keywordField = DatasetModel.fields.find((f) => f.name === 'keyword')
 
-    if (keywordField) {
-      expect(keywordField.type).toBe('array')
-    }
+    expect(keywordField?.type).toBe('string')
+    expect(keywordField?.cardinality).toBe('multiple')
+  })
+
+  it('has temporal, a nullable list of PeriodOfTime, as multiple objects', () => {
+    const temporalField = DatasetModel.fields.find((f) => f.name === 'temporal')
+
+    expect(temporalField?.type).toBe('object')
+    expect(temporalField?.cardinality).toBe('multiple')
+    expect(temporalField?.allowedClasses).toEqual(['PeriodOfTime'])
+  })
+
+  it('has spatial, a Location or a list of them (anyOf), as multiple objects', () => {
+    const spatialField = DatasetModel.fields.find((f) => f.name === 'spatial')
+
+    expect(spatialField?.type).toBe('object')
+    expect(spatialField?.cardinality).toBe('multiple')
+    expect(spatialField?.allowedClasses).toEqual(['Location'])
   })
 
   it('has publisher field referencing Organization', () => {
