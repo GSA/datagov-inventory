@@ -9,7 +9,8 @@ import {
   RouterProvider,
   useRouter,
 } from '@tanstack/react-router'
-import { CatalogContext, type OpenCatalog, type CatalogObject } from './session'
+import { CatalogContext, type OpenCatalog } from './session'
+import type { CatalogObject } from './catalog/decompose'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
