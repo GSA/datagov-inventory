@@ -6,10 +6,16 @@ interface ValidationSummaryProps {
     timestamp: number
     schemaVersion: string
   } | null
-  onViewErrors?: (objectType: string) => void
+  objectResults?: Array<{
+    objectId: string
+    objectType: string
+    valid: boolean
+    errors: Array<{ field: string; message: string }>
+  }>
+  onNavigateToObject?: (objectId: string) => void
 }
 
-export function ValidationSummary({ catalogSummary, onViewErrors }: ValidationSummaryProps) {
+export function ValidationSummary({ catalogSummary, objectResults, onNavigateToObject }: ValidationSummaryProps) {
   if (!catalogSummary) {
     return (
       <div className="validation-summary validation-summary--empty" role="region" aria-label="Validation results">
@@ -46,16 +52,32 @@ export function ValidationSummary({ catalogSummary, onViewErrors }: ValidationSu
             {Object.entries(errorSummary).map(([type, count]) => {
               if (count === 0) return null
 
+              const objectsWithErrors = objectResults?.filter(
+                (r) => r.objectType === type && !r.valid
+              )
+
               return (
                 <li key={type} className="validation-summary__item">
-                  <span className="validation-summary__count" aria-label={`${count} errors in ${type} objects`}>
-                    {count} {type} {count === 1 ? 'error' : 'errors'}
-                  </span>
-                  {onViewErrors && (
-                    <button type="button" onClick={() => onViewErrors(type)} className="validation-summary__view-btn">
-                      View {type} errors
-                    </button>
-                  )}
+                  <div>
+                    <span className="validation-summary__count" aria-label={`${count} errors in ${type} objects`}>
+                      {count} {type} {count === 1 ? 'error' : 'errors'}
+                    </span>
+                    {objectsWithErrors && objectsWithErrors.length > 0 && onNavigateToObject && (
+                      <ul className="validation-summary__objects margin-top-1">
+                        {objectsWithErrors.map((obj) => (
+                          <li key={obj.objectId}>
+                            <button
+                              type="button"
+                              onClick={() => onNavigateToObject(obj.objectId)}
+                              className="validation-summary__object-link"
+                            >
+                              {obj.objectId} ({obj.errors.length} {obj.errors.length === 1 ? 'error' : 'errors'})
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </li>
               )
             })}

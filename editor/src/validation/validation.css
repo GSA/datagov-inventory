@@ -100,18 +100,26 @@
   font-weight: 600;
 }
 
-.validation-summary__view-btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  background-color: #005ea2;
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
+.validation-summary__objects {
+  list-style: none;
+  padding-left: 1rem;
+  margin: 0;
 }
 
-.validation-summary__view-btn:hover {
-  background-color: #1a4480;
+.validation-summary__object-link {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  background-color: transparent;
+  color: #005ea2;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.validation-summary__object-link:hover {
+  color: #1a4480;
+  background-color: #e7f6f8;
 }
 
 .validation-progress {

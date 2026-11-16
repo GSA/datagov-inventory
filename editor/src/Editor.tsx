@@ -8,6 +8,7 @@ import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
 import { count, labelOf, pathOf } from './tree'
 import { useValidation } from './validation/useValidation'
+import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
 import { ValidationProgress } from './validation/ValidationProgress'
 
@@ -143,7 +144,9 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showValidationSummary, setShowValidationSummary] = useState(false)
   const { validateCatalog, catalogSummary, validationProgress, validationState, isReady } = useValidation()
+  const validationContext = useValidationContext()
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
+  const navigate = useNavigate()
 
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
 
@@ -246,7 +249,29 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
       )}
       {showValidationSummary && catalogSummary && (
         <div className="margin-top-2">
-          <ValidationSummary catalogSummary={catalogSummary} />
+          <ValidationSummary
+            catalogSummary={catalogSummary}
+            objectResults={Array.from(open.catalog.objects.values())
+              .map((obj) => {
+                const errors = validationContext.getObjectErrors(obj.id)
+                const typeMap = {
+                  Dataset: 'Dataset',
+                  Organization: 'Organization',
+                  'Contact Point': 'ContactPoint',
+                } as const
+                return {
+                  objectId: obj.id,
+                  objectType: typeMap[obj.dcatClass as keyof typeof typeMap] || obj.dcatClass,
+                  valid: errors.length === 0,
+                  errors,
+                }
+              })
+              .filter((r) => !r.valid)}
+            onNavigateToObject={(objectId) => {
+              const path = objectId.replace(/^#\//, '')
+              navigate({ to: '/editor/$', params: { _splat: path } })
+            }}
+          />
         </div>
       )}
       {exportStatus && (
