@@ -14,12 +14,7 @@ export function ExportWarningDialog({ isOpen, catalogSummary, onCancel, onExport
   if (!isOpen) return null
 
   return (
-    <Modal
-      isOpen={isOpen}
-      id="export-warning-modal"
-      aria-labelledby="export-warning-heading"
-      aria-describedby="export-warning-description"
-    >
+    <Modal id="export-warning-modal" aria-labelledby="export-warning-heading" aria-describedby="export-warning-description">
       <ModalHeading id="export-warning-heading">Validation Errors Detected</ModalHeading>
       <div className="usa-prose">
         <p id="export-warning-description">

@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest'
 import { createValidator, validateObject, validateCatalog } from './validator'
 
 const mockSchema = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
   type: 'object',
   properties: {
     '@type': { type: 'string' },

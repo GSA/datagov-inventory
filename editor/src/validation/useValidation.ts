@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useValidationWorker } from './useValidationWorker'
 import { useValidationContext } from './ValidationContext'
-import { useCatalogContext } from '../session'
+import { useCatalog } from '../session'
 
 export function useValidation() {
   const { validateObject: validateObjectWorker, validateCatalog: validateCatalogWorker, isReady } = useValidationWorker()
@@ -16,7 +16,7 @@ export function useValidation() {
     getObjectState,
     getObjectErrors,
   } = useValidationContext()
-  const { open } = useCatalogContext()
+  const { open } = useCatalog()
 
   const validateObject = useCallback(
     async (objectId: string) => {

@@ -102,7 +102,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 
       {validationErrors.length > 0 && (
         <>
-          <Alert type="error" headingLevel="h3" role="alert" aria-live="polite">
+          <Alert type="error" role="alert" aria-live="polite">
             <strong>Validation errors:</strong>
             <ul className="margin-top-1">
               {validationErrors.map((error, idx) => (

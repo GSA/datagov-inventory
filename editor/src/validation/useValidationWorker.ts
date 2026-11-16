@@ -72,14 +72,18 @@ export function useValidationWorker() {
       payload: unknown,
       onProgress?: (progress: number) => void
     ): Promise<T> => {
-      return new Promise((resolve, reject) => {
+      return new Promise<T>((resolve, reject) => {
         if (!workerRef.current || !isReady) {
           reject(new Error('Worker not ready'))
           return
         }
 
         const id = `${Date.now()}-${Math.random()}`
-        pendingRequests.current.set(id, { resolve, reject, onProgress })
+        pendingRequests.current.set(id, {
+          resolve: resolve as (value: unknown) => void,
+          reject,
+          onProgress,
+        })
 
         workerRef.current.postMessage({ id, type, payload } as WorkerMessage)
       })

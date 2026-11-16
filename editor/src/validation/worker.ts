@@ -9,8 +9,8 @@ interface WorkerMessage {
 }
 
 interface WorkerResponse {
-  id: string
-  type: 'ready' | 'result' | 'progress' | 'error'
+  id?: string
+  type: 'ready' | 'result' | 'progress' | 'error' | 'init'
   payload?: unknown
 }
 
