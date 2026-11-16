@@ -36,9 +36,9 @@ export const CUIRestrictionModel: FormModel = {
 {
       name: 'requiredIndicatorPerAuthority',
       label: 'Required Indicator Per Authority',
-      type: 'array',
+      type: 'string',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'List of free-text required indicators from the applicable authority (for example, category descriptions or distribution statements)',
     }
   ],
