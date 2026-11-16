@@ -53,10 +53,10 @@ describe('loadCatalog', () => {
       BATCH_SIZE,
       BATCH_SIZE,
       1,
-      { rootId: '#' },
+      { rootObjectId: '#' },
     ])
     const catalog = await load(text)
-    expect(catalog.rootId).toBe('#')
+    expect(catalog.rootObjectId).toBe('#')
     expect([...catalog.objects.keys()]).toEqual(['#', ...datasets.map((_, i) => `#/dataset/${i}`)])
     expect(Object.getPrototypeOf(catalog.objects.get(`#/dataset/${2 * BATCH_SIZE - 1}`)!.properties)).toBeNull()
   })

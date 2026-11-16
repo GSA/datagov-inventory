@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { decompose, type CatalogObject, type DecomposedCatalog } from './catalog/decompose'
+import { decompose } from './catalog/decompose'
+import type { CatalogGraph, CatalogObject } from './catalog/types'
 import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
@@ -82,8 +83,8 @@ describe('an object linked from more than one place', () => {
     singleLinks: [],
   })
   // Decompose never links one object twice; editing (#25) will. A cycle must not recurse either.
-  const shared: DecomposedCatalog = {
-    rootId: '#',
+  const shared: CatalogGraph = {
+    rootObjectId: '#',
     objects: new Map(
       [
         object('#', 'Catalog', 'Catalog', { dataset: ['#/dataset/0', '#/dataset/1'] }),
@@ -106,7 +107,7 @@ describe('an object linked from more than one place', () => {
 
   it('stops finding the objects above when first parents loop', () => {
     const loop = parentsOf({
-      rootId: '#',
+      rootObjectId: '#',
       objects: new Map(
         [
           object('#', 'Catalog', 'Catalog', { dataset: ['#/a'] }),

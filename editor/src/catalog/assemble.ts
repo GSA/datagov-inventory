@@ -8,7 +8,7 @@
  *
  * Pure TypeScript with no React or DOM imports, so it runs in a worker and in tests.
  */
-import type { DecomposedCatalog } from './decompose'
+import type { CatalogGraph } from './types'
 
 const MAX_DEPTH = 64
 
@@ -26,7 +26,7 @@ export interface AssembleResult {
   sharedObjects: string[]
 }
 
-function detectSharedObjects(catalog: DecomposedCatalog): Set<string> {
+function detectSharedObjects(catalog: CatalogGraph): Set<string> {
   const refCounts = new Map<string, number>()
 
   for (const object of catalog.objects.values()) {
@@ -47,8 +47,8 @@ function detectSharedObjects(catalog: DecomposedCatalog): Set<string> {
   return shared
 }
 
-export function assemble(catalog: DecomposedCatalog): AssembleResult {
-  const { rootId, objects } = catalog
+export function assemble(catalog: CatalogGraph): AssembleResult {
+  const { rootObjectId, objects } = catalog
 
   function assembleObject(id: string, path: string[]): Record<string, unknown> {
     if (path.includes(id)) {
@@ -95,7 +95,7 @@ export function assemble(catalog: DecomposedCatalog): AssembleResult {
   }
 
   const sharedObjects = detectSharedObjects(catalog)
-  const output = assembleObject(rootId, [])
+  const output = assembleObject(rootObjectId, [])
 
   return {
     output,

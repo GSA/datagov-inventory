@@ -2,7 +2,7 @@
  * The catalog tree's rows (#23): the catalog, and each expanded object's children in link order. Rows follow
  * `links` by id, so an object linked from several places shows as the same object in each.
  */
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogGraph, CatalogObject } from './catalog/types'
 
 const LABEL_LENGTH = 200
 
@@ -37,9 +37,6 @@ export function labelOf(object: CatalogObject): string {
 /** A count for people: `3,000`. */
 export const count = (n: number) => n.toLocaleString('en-US')
 
-/** An object's path under /editor is its id without the "#" (`#/dataset/0` → `dataset/0`). */
-export const pathOf = (id: string) => id.slice(2)
-
 /** One visible row of the tree, in the order the tree shows them (see {@link treeRows}). */
 export interface TreeRow {
   /** Unique per row: the ids from the catalog down, so an object linked twice has a row in each place. */
@@ -60,12 +57,12 @@ export interface TreeRow {
  * Each object's parents: `links` the other way round. Build it once per catalog; {@link ancestorIds} and
  * {@link filterTree} use it to find the objects above an object.
  *
- * @param catalog The decomposed catalog.
+ * @param catalog The editable catalog graph.
  * @returns A map from each linked object's id to the ids of the objects that link to it, in document order. The
  *   catalog, which nothing links to, has no entry.
- * @example parentsOf(catalog).get('#/dataset/0/distribution/1') // ['#/dataset/0']
+ * @example parentsOf(catalog).get(distributionId) // [datasetId]
  */
-export function parentsOf({ objects }: DecomposedCatalog): Map<string, string[]> {
+export function parentsOf({ objects }: CatalogGraph): Map<string, string[]> {
   const parents = new Map<string, string[]>()
   for (const object of objects.values()) {
     for (const ids of Object.values(object.links)) {
@@ -96,7 +93,7 @@ export function ancestorIds(id: string, parents: Map<string, string[]>): string[
 export const FILTER_LIMIT = 200
 
 /** The objects whose label contains `needle` (lower case), the first FILTER_LIMIT in document order, and every object above them. */
-export function filterTree(catalog: DecomposedCatalog, parents: Map<string, string[]>, needle: string) {
+export function filterTree(catalog: CatalogGraph, parents: Map<string, string[]>, needle: string) {
   let matches = 0
   const shown = new Set<string>()
   const show = (id: string) => {
@@ -118,7 +115,7 @@ export function filterTree(catalog: DecomposedCatalog, parents: Map<string, stri
  * below it, so a cycle cannot recurse.
  */
 export function treeRows(
-  { objects, rootId }: DecomposedCatalog,
+  { objects, rootObjectId }: CatalogGraph,
   expanded: ReadonlySet<string>,
   shown?: ReadonlySet<string>,
 ): TreeRow[] {
@@ -136,6 +133,6 @@ export function treeRows(
     )
     path.delete(object.id)
   }
-  add(objects.get(rootId)!, rootId, 1, 1, 1)
+  add(objects.get(rootObjectId)!, rootObjectId, 1, 1, 1)
   return rows
 }

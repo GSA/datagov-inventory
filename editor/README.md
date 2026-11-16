@@ -17,8 +17,8 @@ App runs at http://localhost:5173
 
 ## Architecture
 
-- **Framework**: React 18 + TypeScript 5
-- **Build System**: Vite 5
+- **Framework**: React 19 + TypeScript 5
+- **Build System**: Vite 6
 - **UI**: USWDS 3 via `@trussworks/react-uswds`
 - **Security**: CSP without unsafe-inline, banned `dangerouslySetInnerHTML`, pinned dependencies
 - **Storage**: Browser IndexedDB (local-first editing)
@@ -29,8 +29,8 @@ App runs at http://localhost:5173
 [ADR 0005](../docs/decisions/0005-object-graph-data-model-for-dcat-us-3.md): a `Map` of
 objects (id, DCAT class, own scalar properties) whose class-valued properties are ordered
 lists of child ids. Which properties hold classes, and so each object's class, comes from
-the schema (`getClassProperties` in `src/schema`). Ids are the objects' JSON Pointers in
-the source document (`#/dataset/0`). Input is bounded by `DEFAULT_LIMITS` (25 MB, 64
+the schema (`getClassProperties` in `src/schema`). Ids are browser-generated UUIDs. 
+Input is bounded by `DEFAULT_LIMITS`(25 MB, 64
 levels deep, 250,000 JSON objects and arrays), checked before parsing. `fixtures/decomposed/` holds
 the expected output for each valid fixture catalog as plain JSON, for other implementations
 (the Python one, E04-02) to test against. The module may import only
@@ -47,7 +47,15 @@ for every path (`cf/nginx.conf`), and `vite preview` does the same.
 | `/` | Start: what the editor is for, and Import |
 | `/import` | Import a file (chosen or dropped), pasted JSON, a sample, or a blank catalog. `?next=` is where to go once it opens. |
 | `/editor` | The open catalog: its tree on the left, the catalog on the right |
-| `/editor/dataset/0/distribution/1` | An object: its path is its id without the `#`. The tree opens down to it. |
+| `/editor/distribution/readings-as-csv--<object-token>` | A non-root object: readable class/title slugs followed by its identity token. The tree opens down to it. |
+
+Non-root object paths have the form
+`/editor/<class>/<label>--<base64url-uuid>`. The final 22-character token reversibly encodes
+the object's complete 128-bit UUID and is the only identity-bearing part; class and label
+slugs are descriptive. Therefore duplicate labels have distinct addresses, and a URL with
+an old label still resolves after that label is edited. Malformed or truncated tokens show
+"Nothing at this address" rather than being treated as object ids. The catalog root remains
+at `/editor`.
 
 The catalog tree (`src/CatalogTree.tsx`, rows from `src/tree.ts`) shows the catalog and, under each open object, the
 objects it links to, in order. USWDS has no tree view, so it is a custom
@@ -59,9 +67,10 @@ virtualization: with 3,000 datasets (18,001 objects) each action paints in about
 re-renders only the rows it changes, and a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
 a float before the tree made each change lay out every row again.
 
-The catalog is held in memory only until #28 stores it, so after a reload an editor address says "No catalog open"
-and links to Import, which returns to that address once the catalog is imported again. When the path changes, focus
-moves to the new page's `h1` (or, within the editor, to the object's heading) and the tab title changes.
+The catalog is held in memory only until #28 stores it, so after a reload an editor address says "No catalog open."
+Re-importing creates a new workspace and new UUIDs, so a prior object's address is not durable yet; durable bookmarks
+depend on IndexedDB restoration. When the path changes, focus moves to the new page's `h1` (or, within the editor,
+to the object's heading) and the tab title changes.
 
 `src/loadCatalog.ts` is the one way a catalog loads (a file, pasted JSON, a sample, a blank catalog, and the
 restore from browser storage in #28). It checks a file's size before reading it, then parses and decomposes in a

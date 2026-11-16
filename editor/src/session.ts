@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect } from 'react'
-import type { DecomposedCatalog, CatalogObject } from './catalog/decompose'
+import type { CatalogGraph, CatalogObject, WorkspaceCatalog } from './catalog/types'
 
 /** The catalog open in the editor: the one working copy (#15). */
 export interface OpenCatalog {
   /** The file name, sample name, "Pasted JSON" or "Blank catalog". */
   name: string
-  catalog: DecomposedCatalog
+  /** Stable application graph used for editing, export, and persistence. */
+  workspace: WorkspaceCatalog
   /** Unique per load, so the editor starts fresh for each catalog. */
   loadId: number
 }
@@ -63,7 +64,7 @@ export function usePageTitle(title: string) {
 }
 
 export function findParentLinks(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   targetId: string
 ): ParentLink[] {
   const parents: ParentLink[] = []
@@ -80,7 +81,7 @@ export function findParentLinks(
 }
 
 function findAllChildren(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   objectId: string
 ): CatalogObject[] {
   const children: CatalogObject[] = []
@@ -100,11 +101,11 @@ function findAllChildren(
 }
 
 export function removeLink(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   parentId: string,
   property: string,
   childId: string
-): { catalog: DecomposedCatalog; undoRecord: LinkRemovalRecord } {
+): { catalog: CatalogGraph; undoRecord: LinkRemovalRecord } {
   const objects = new Map(catalog.objects)
   const parent = objects.get(parentId)
   if (!parent) {
@@ -150,9 +151,9 @@ export function removeLink(
 }
 
 export function deleteObject(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   objectId: string
-): { catalog: DecomposedCatalog; undoRecord: ObjectRemovalRecord } {
+): { catalog: CatalogGraph; undoRecord: ObjectRemovalRecord } {
   const parentLinks = findParentLinks(catalog, objectId)
   const object = catalog.objects.get(objectId)
   if (!object) {
@@ -214,9 +215,9 @@ export function deleteObject(
 }
 
 export function undoRemoval(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   record: RemovalRecord
-): DecomposedCatalog {
+): CatalogGraph {
   const objects = new Map(catalog.objects)
 
   if (record.type === 'link') {

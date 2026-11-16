@@ -10,10 +10,17 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
-import type { CatalogObject } from './catalog/decompose'
+import type { CatalogObject } from './catalog/types'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
+import { CatalogService } from './application/CatalogService'
+import { CatalogOperationsProvider } from './application/CatalogOperationsProvider'
+import { IndexedDbCatalogRepository } from './storage/IndexedDbCatalogRepository'
+
+/** Application-scoped service over the current no-op persistence scaffold. */
+const catalogRepository = new IndexedDbCatalogRepository()
+const catalogService = new CatalogService(catalogRepository)
 
 /**
  * The page frame. When the path changes, focus moves to the new page's main heading, or within the editor to the
@@ -106,7 +113,7 @@ const routeTree = root.addChildren([
     }),
     component: ImportPage,
   }),
-  // An object's path is its id without the "#": `#/dataset/0` is /editor/dataset/0, and the catalog is /editor.
+  // Non-root objects use readable class/title slugs plus an identity-bearing encoded UUID; the root is /editor.
   createRoute({
     getParentRoute: () => root,
     path: 'editor/$',
@@ -129,7 +136,7 @@ export default function App() {
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
     if (!open) return
 
-    const object = open.catalog.objects.get(id)
+    const object = open.workspace.graph.objects.get(id)
     if (!object) return
 
     const updated = {
@@ -138,14 +145,14 @@ export default function App() {
       properties: { ...object.properties, ...updates.properties }
     }
 
-    const newObjects = new Map(open.catalog.objects)
+    const newObjects = new Map(open.workspace.graph.objects)
     newObjects.set(id, updated)
 
     setOpen({
       ...open,
-      catalog: {
-        ...open.catalog,
-        objects: newObjects
+      workspace: {
+        ...open.workspace,
+        graph: { ...open.workspace.graph, objects: newObjects },
       }
     })
   }, [open])
@@ -154,7 +161,7 @@ export default function App() {
     if (!open) return
 
     const { catalog: updatedCatalog, undoRecord } = removeLink(
-      open.catalog,
+      open.workspace.graph,
       parentId,
       property,
       childId
@@ -162,7 +169,7 @@ export default function App() {
 
     setOpen({
       ...open,
-      catalog: updatedCatalog,
+      workspace: { ...open.workspace, graph: updatedCatalog },
     })
     setRemovalHistory(undoRecord)
   }, [open])
@@ -171,13 +178,13 @@ export default function App() {
     if (!open) return
 
     const { catalog: updatedCatalog, undoRecord } = deleteObject(
-      open.catalog,
+      open.workspace.graph,
       id
     )
 
     setOpen({
       ...open,
-      catalog: updatedCatalog,
+      workspace: { ...open.workspace, graph: updatedCatalog },
     })
     setRemovalHistory(undoRecord)
   }, [open])
@@ -185,28 +192,30 @@ export default function App() {
   const handleUndoRemoval = useCallback(() => {
     if (!open || !removalHistory) return
 
-    const updatedCatalog = undoRemoval(open.catalog, removalHistory)
+    const updatedCatalog = undoRemoval(open.workspace.graph, removalHistory)
 
     setOpen({
       ...open,
-      catalog: updatedCatalog,
+      workspace: { ...open.workspace, graph: updatedCatalog },
     })
     setRemovalHistory(undefined)
   }, [open, removalHistory])
 
   return (
-    <CatalogContext.Provider
-      value={{
-        open,
-        setOpen,
-        updateObject,
-        removeLink: handleRemoveLink,
-        deleteObject: handleDeleteObject,
-        undoRemoval: handleUndoRemoval,
-        canUndo: removalHistory !== undefined,
-      }}
-    >
-      <RouterProvider router={router} />
-    </CatalogContext.Provider>
+    <CatalogOperationsProvider operations={catalogService}>
+      <CatalogContext.Provider
+        value={{
+          open,
+          setOpen,
+          updateObject,
+          removeLink: handleRemoveLink,
+          deleteObject: handleDeleteObject,
+          undoRemoval: handleUndoRemoval,
+          canUndo: removalHistory !== undefined,
+        }}
+      >
+        <RouterProvider router={router} />
+      </CatalogContext.Provider>
+    </CatalogOperationsProvider>
   )
 }

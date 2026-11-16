@@ -14,6 +14,9 @@ import {
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { loadCatalog } from './loadCatalog'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
+import { useCatalogOperations } from './application/CatalogOperationsContext'
+import { DCAT_US_SCHEMA_VERSION } from './schema'
+import type { CatalogGraph } from './catalog/types'
 
 /** The smallest document that decomposes: one Catalog for the user to fill in. */
 const BLANK_CATALOG = '{"@type": "Catalog"}'
@@ -26,13 +29,20 @@ const samples = Object.entries(
 /** Counts loads across visits to this page, so each catalog gets its own `loadId`. */
 let loads = 0
 
+interface LoadedCatalog {
+  name: string
+  catalog: CatalogGraph
+  loadId: number
+}
+
 export default function ImportPage() {
   const { open, setOpen } = useCatalog()
+  const { createCatalog } = useCatalogOperations()
   const { next } = useSearch({ from: '/import' })
   const navigate = useNavigate()
   usePageTitle('Import a catalog')
   /** A catalog that loaded while another was open, waiting for the user to confirm it replaces that one. */
-  const [pending, setPending] = useState<OpenCatalog>()
+  const [pending, setPending] = useState<LoadedCatalog>()
   const [loading, setLoading] = useState<string>()
   const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
   const [pasted, setPasted] = useState('')
@@ -50,6 +60,26 @@ export default function ImportPage() {
   function show(catalog: OpenCatalog) {
     setOpen(catalog)
     void navigate({ href: next ?? '/editor' })
+  }
+
+  /** Creates durable identities only after this parsed catalog has been accepted for editing. */
+  async function createAndShow(loaded: LoadedCatalog) {
+    const workspace = await createCatalog(loaded.catalog, DCAT_US_SCHEMA_VERSION)
+    show({ name: loaded.name, loadId: loaded.loadId, workspace })
+  }
+
+  /** Accepts a parsed replacement; a failure leaves the currently open catalog unchanged. */
+  async function replace(loaded: LoadedCatalog) {
+    setError(undefined)
+    setLoading(loaded.name)
+    try {
+      await createAndShow(loaded)
+      setPending(undefined)
+    } catch (e) {
+      setError({ name: loaded.name, message: e instanceof Error ? e.message : String(e), attempt: loaded.loadId })
+    } finally {
+      stopLoading()
+    }
   }
 
   /**
@@ -70,7 +100,7 @@ export default function ImportPage() {
       if (controller.signal.aborted) return
       const loaded = { name, catalog, loadId: current }
       if (openNow.current) setPending(loaded)
-      else show(loaded)
+      else await createAndShow(loaded)
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
@@ -168,7 +198,7 @@ export default function ImportPage() {
             <bdi>{open.name}</bdi> open.
           </AlertText>
           <ButtonGroup>
-            <Button type="button" onClick={() => show(pending)}>
+            <Button type="button" disabled={loading !== undefined} onClick={() => void replace(pending)}>
               Replace
             </Button>
             <Button type="button" outline onClick={() => setPending(undefined)}>

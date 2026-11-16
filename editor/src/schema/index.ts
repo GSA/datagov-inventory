@@ -3,9 +3,16 @@
  * submodule. Nothing from the submodule is executed. See schema/README.md.
  * Loads through Vite or Vitest only (`import.meta.glob`), not plain Node.
  */
-export { default as rootSchema } from '../../schema/dcat-us-document.schema.json'
+import rootSchema from '../../schema/dcat-us-document.schema.json'
+
+export { rootSchema }
 
 export type JsonSchema = Record<string, unknown>
+
+const schemaVersionMatch = /^urn:datagov-inventory:dcat-us:([^:]+):document$/.exec(rootSchema.$id)
+if (!schemaVersionMatch) throw new Error(`Unexpected DCAT-US document schema id "${rootSchema.$id}"`)
+/** Version of the bundled DCAT-US schema used to interpret and persist catalogs. */
+export const DCAT_US_SCHEMA_VERSION = schemaVersionMatch[1]
 
 const files = import.meta.glob<JsonSchema>('../../schema/dcat-us/jsonschema/definitions/*.json', {
   eager: true,

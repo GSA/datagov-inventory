@@ -1,8 +1,9 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
-import type { DecomposedCatalog } from './catalog/decompose'
-import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, parentsOf, pathOf, treeRows, type TreeRow } from './tree'
+import type { CatalogGraph } from './catalog/types'
+import { objectPath } from './objectRoute'
+import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
 function revealSelected(pane: HTMLElement | null) {
@@ -18,12 +19,12 @@ function revealSelected(pane: HTMLElement | null) {
  * (https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop; arrow keys move, open and close; Home and End
  * move; Enter, Space or a click opens the object. Selection does not follow focus, and focus stays in the tree.
  */
-export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalog; selectedId: string }) {
+export function CatalogTree({ catalog, selectedId }: { catalog: CatalogGraph; selectedId: string }) {
   const navigate = useNavigate()
   const parents = useMemo(() => parentsOf(catalog), [catalog])
   // Open at first down to the selected object, so the first render needs no adjusting.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
-    () => new Set([catalog.rootId, ...ancestorIds(selectedId, parents)]),
+    () => new Set([catalog.rootObjectId, ...ancestorIds(selectedId, parents)]),
   )
   // Opening another object (from a link, Back or the tree) expands the objects above it, and makes it the tab stop, as
   // the APG asks of a tree that has a selection. This adjusts state while rendering, as
@@ -55,7 +56,11 @@ export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalo
     revealSelected(pane.current)
   }, [selectedId])
 
-  const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: pathOf(row.object.id) } })
+  const open = (row: TreeRow) =>
+    navigate({
+      to: '/editor/$',
+      params: { _splat: row.object.id === catalog.rootObjectId ? '' : objectPath(row.object) },
+    })
   // Callers don't toggle while filtering: the objects above the matches stay expanded.
   const toggle = (row: TreeRow) => {
     if (row.expanded === undefined) return

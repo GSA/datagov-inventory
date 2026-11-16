@@ -53,7 +53,7 @@ test.describe('App page frame', () => {
   })
 
   test('serves every route from its address, as a bookmark would', async ({ page }) => {
-    await page.goto('/editor/dataset/0')
+    await page.goto('/editor/dataset/example--byND73XUQ6eHsUP6ks4Kog')
     await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
     await page.goto('/no-such-page')
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()

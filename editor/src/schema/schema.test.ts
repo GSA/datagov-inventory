@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classSchemas, getClassProperties, getClassSchema, rootSchema } from '.'
+import { classSchemas, DCAT_US_SCHEMA_VERSION, getClassProperties, getClassSchema, rootSchema } from '.'
 
 describe('getClassSchema', () => {
   it('returns the upstream schema for a class by name', () => {
@@ -25,6 +25,7 @@ describe('rootSchema', () => {
   it('is a 2020-12 schema that starts a document at the Catalog class', () => {
     expect(rootSchema.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
     expect(rootSchema.$ref).toBe(getClassSchema('Catalog').$id)
+    expect(DCAT_US_SCHEMA_VERSION).toBe('3.0.0')
   })
 })
 

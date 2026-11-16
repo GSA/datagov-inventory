@@ -1,27 +1,30 @@
 import { useState, type ReactNode } from 'react'
 import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogGraph, CatalogObject } from './catalog/types'
 import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
-import { count, labelOf, pathOf } from './tree'
+import { count, labelOf } from './tree'
+import { objectIdFromPath, objectPath } from './objectRoute'
 
 /** A link to an object. */
 function ObjectLink({
   object,
+  rootObjectId,
   children,
   ...props
 }: {
   object: CatalogObject
+  rootObjectId?: string
   children: ReactNode
   className?: string
 }) {
   return (
     <Link
       to="/editor/$"
-      params={{ _splat: pathOf(object.id) }}
+      params={{ _splat: object.id === rootObjectId ? '' : objectPath(object) }}
       activeOptions={{ exact: true }}
       data-paged-item
       {...props}
@@ -31,7 +34,7 @@ function ObjectLink({
   )
 }
 
-function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: DecomposedCatalog }) {
+function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -45,9 +48,13 @@ function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: Dec
     const parentLinks = findParentLinks(catalog, object.id)
 
     if (parentLinks.length <= 1) {
-      const firstParentId = parentLinks[0]?.parentId || catalog.rootId
+      const firstParentId = parentLinks[0]?.parentId || catalog.rootObjectId
       deleteObject(object.id)
-      navigate({ to: '/editor/$', params: { _splat: firstParentId === catalog.rootId ? '' : pathOf(firstParentId) } })
+      const firstParent = catalog.objects.get(firstParentId)
+      navigate({
+        to: '/editor/$',
+        params: { _splat: firstParentId === catalog.rootObjectId || !firstParent ? '' : objectPath(firstParent) },
+      })
     } else {
       const parents = parentLinks.map(link => {
         const parent = catalog.objects.get(link.parentId)!
@@ -133,8 +140,8 @@ function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: Dec
 
 /** The editor for the open catalog: what it holds on the left, the object at this address on the right. */
 function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
-  const { objects, rootId } = open.catalog
-  const root = objects.get(rootId)!
+  const { objects, rootObjectId } = open.workspace.graph
+  const root = objects.get(rootObjectId)!
   const object = objects.get(id)
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
@@ -145,7 +152,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
 
     try {
       const { assemble } = await import('./catalog/assemble')
-      const result = assemble(open.catalog)
+      const result = assemble(open.workspace.graph)
       const text = JSON.stringify(result.output, null, 2)
       const blob = new Blob([text], { type: 'application/json' })
 
@@ -214,18 +221,18 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <h2 id="tree-heading" className="font-heading-md margin-top-0">
             Catalog contents
           </h2>
-          <CatalogTree catalog={open.catalog} selectedId={id} />
+          <CatalogTree catalog={open.workspace.graph} selectedId={id} />
         </nav>
         <div className="tablet:grid-col-8">
           {object ? (
-            <ObjectDetail key={object.id} object={object} catalog={open.catalog} />
+            <ObjectDetail key={object.id} object={object} catalog={open.workspace.graph} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">
                 Nothing at this address
               </h2>
               <p>This catalog has no object here. The link may be from another catalog.</p>
-              <ObjectLink object={root} className="usa-link">
+              <ObjectLink object={root} rootObjectId={rootObjectId} className="usa-link">
                 Open the catalog
               </ObjectLink>
             </>
@@ -258,5 +265,11 @@ export default function Editor() {
   const { open } = useCatalog()
   const { _splat } = useParams({ from: '/editor/$' })
   if (!open) return <NoCatalog />
-  return <CatalogView key={open.loadId} open={open} id={_splat ? `#/${_splat}` : open.catalog.rootId} />
+  return (
+    <CatalogView
+      key={open.loadId}
+      open={open}
+      id={_splat ? (objectIdFromPath(_splat) ?? '') : open.workspace.graph.rootObjectId}
+    />
+  )
 }

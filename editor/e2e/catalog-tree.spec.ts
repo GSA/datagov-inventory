@@ -55,7 +55,7 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
 
   // Enter opens the object on the right, and focus stays in the tree.
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
+  await expect(page).toHaveURL(/\/editor\/distribution\/readings-as-csv--[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('heading', { level: 2, name: 'Readings as CSV' })).toBeVisible()
   await expect(csv).toHaveAttribute('aria-selected', 'true')
   await expect(catalog).toHaveAttribute('aria-selected', 'false')
@@ -82,7 +82,7 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
   await expect(dataset).toHaveAttribute('aria-expanded', 'false')
   await expect(csv).toHaveCount(0)
   await item(page, 'Example Agency publisher · Organization').click()
-  await expect(page).toHaveURL('/editor/publisher')
+  await expect(page).toHaveURL(/\/editor\/organization\/example-agency--[A-Za-z0-9_-]{22}$/)
 
   // Issue #24: Object reference links in forms are out of scope (blocked by #25).
   // This test would check that clicking a link in the detail pane opens the tree to that object.
@@ -101,7 +101,7 @@ test('filters the tree by title or name', async ({ page }) => {
     'Readings API distribution · Distribution',
   ])
   await item(page, 'Readings API distribution · Distribution').click()
-  await expect(page).toHaveURL('/editor/dataset/0/distribution/1')
+  await expect(page).toHaveURL(/\/editor\/distribution\/readings-api--[A-Za-z0-9_-]{22}$/)
 
   await filter(page).fill('nothing like this')
   await expect(page.getByRole('status').filter({ hasText: 'match' })).toHaveText('0 objects match.')
@@ -121,19 +121,15 @@ test('filters the tree by title or name', async ({ page }) => {
   ])
 })
 
-test('opens a 3,000-dataset catalog at an object, and limits a filter that matches thousands', async ({ page }) => {
-  // Imported from a bookmark of the object, so the editor opens there.
-  await page.goto(`/import?next=${encodeURIComponent('/editor/dataset/2999/distribution/1')}`)
+test('opens an object in a 3,000-dataset catalog and limits a filter that matches thousands', async ({ page }) => {
+  await page.goto('/import')
   await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
     name: 'large.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(largeCatalog())),
   })
-  await expect(page).toHaveURL('/editor/dataset/2999/distribution/1')
-  const selected = tree(page).getByRole('treeitem', { selected: true })
-  await expect(selected).toHaveText('JSON download distribution · Distribution')
-  await expectInTreeView(page, selected)
-  await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000 + 5)
+  await expect(page).toHaveURL('/editor')
+  await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000)
 
   await filter(page).fill('json download')
   await expect(page.getByRole('status').filter({ hasText: 'match' })).toHaveText(
@@ -147,10 +143,13 @@ test('opens a 3,000-dataset catalog at an object, and limits a filter that match
   ])
   // Opened while filtering, it is still in view once the filter is cleared.
   await item(page, 'Water use 2995 dataset · Dataset').click()
+  await expect(page).toHaveURL(/\/editor\/dataset\/water-use-2995--[A-Za-z0-9_-]{22}$/)
   await filter(page).fill('')
-  await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000 + 5)
+  const selected = tree(page).getByRole('treeitem', { selected: true })
   await expect(selected).toHaveText('Water use 2995 dataset · Dataset')
   await expectInTreeView(page, selected)
+  // Clearing the filter restores the root and all 3,000 datasets. The selected dataset is closed.
+  await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000)
 })
 
 /** The row is within the tree's visible area (the tree scrolls on its own). */

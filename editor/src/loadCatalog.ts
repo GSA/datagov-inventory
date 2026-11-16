@@ -1,4 +1,5 @@
-import { checkSize, DecomposeError, type CatalogObject, type DecomposedCatalog } from './catalog/decompose'
+import { checkSize, DecomposeError } from './catalog/decompose'
+import type { CatalogGraph, CatalogObject } from './catalog/types'
 import type { ParseMessage } from './catalog/parse'
 
 /**
@@ -8,7 +9,7 @@ import type { ParseMessage } from './catalog/parse'
  * the abort reason. Any other failure rejects with a message for the user: a {@link DecomposeError} if the input is
  * refused.
  */
-export async function loadCatalog(source: File | string, signal: AbortSignal): Promise<DecomposedCatalog> {
+export async function loadCatalog(source: File | string, signal: AbortSignal): Promise<CatalogGraph> {
   if (typeof source === 'string') return parseInWorker(source, signal)
   checkSize(source.size) // so an oversize file is never read into memory
   return parseInWorker(await readFile(source, signal), signal)
@@ -43,7 +44,7 @@ function readFile(file: File, signal: AbortSignal): Promise<ArrayBuffer> {
  * One worker per load, terminated when it is done or the load is aborted, so a cancelled parse stops at once. It posts
  * the objects in batches (see parse.ts), so the page takes in a big catalog a little at a time.
  */
-function parseInWorker(input: string | ArrayBuffer, signal: AbortSignal): Promise<DecomposedCatalog> {
+function parseInWorker(input: string | ArrayBuffer, signal: AbortSignal): Promise<CatalogGraph> {
   signal.throwIfAborted()
   return new Promise((resolve, reject) => {
     // A same-origin file, which the CSP's script-src 'self' allows; blob: and inline workers it would block.
@@ -64,7 +65,7 @@ function parseInWorker(input: string | ArrayBuffer, signal: AbortSignal): Promis
           Object.setPrototypeOf(object.links, null)
           objects.set(object.id, object)
         }
-      } else if ('rootId' in data) settle(() => resolve({ rootId: data.rootId, objects }))
+      } else if ('rootObjectId' in data) settle(() => resolve({ rootObjectId: data.rootObjectId, objects }))
       else settle(() => reject(data.code ? new DecomposeError(data.code, data.error) : new Error(data.error)))
     }
     worker.onerror = worker.onmessageerror = () =>

@@ -260,7 +260,7 @@ describe('assemble: round-trip validation', () => {
     const result = assemble(original)
     const roundTripped = decompose(json(result.output))
 
-    expect(roundTripped.rootId).toBe(original.rootId)
+    expect(roundTripped.rootObjectId).toBe(original.rootObjectId)
     expect(roundTripped.objects.size).toBe(original.objects.size)
 
     for (const [id, obj] of original.objects) {

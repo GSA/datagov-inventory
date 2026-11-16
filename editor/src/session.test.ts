@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { DecomposedCatalog, CatalogObject } from './catalog/decompose'
+import type { CatalogGraph, CatalogObject } from './catalog/types'
 import { removeLink, deleteObject, undoRemoval, findParentLinks } from './session'
 
 const createObject = (
@@ -15,8 +15,8 @@ const createObject = (
   singleLinks: [],
 })
 
-const createCatalog = (objects: CatalogObject[]): DecomposedCatalog => ({
-  rootId: objects[0].id,
+const createCatalog = (objects: CatalogObject[]): CatalogGraph => ({
+  rootObjectId: objects[0].id,
   objects: new Map(objects.map(obj => [obj.id, obj])),
 })
 

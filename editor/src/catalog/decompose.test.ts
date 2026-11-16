@@ -1,7 +1,8 @@
 // @vitest-environment node
 // Runs without a DOM, which proves decompose needs none (it must also run in a worker).
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_LIMITS, DecomposeError, checkSize, decompose, type DecomposedCatalog } from './decompose'
+import { DEFAULT_LIMITS, DecomposeError, checkSize, decompose } from './decompose'
+import type { CatalogGraph } from './types'
 import { largeCatalog } from '../../fixtures/largeCatalog'
 
 const load = (files: Record<string, string>) =>
@@ -9,7 +10,7 @@ const load = (files: Record<string, string>) =>
 const valid = load(import.meta.glob<string>('../../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }))
 const invalid = load(import.meta.glob<string>('../../fixtures/catalogs/invalid/*.json', { eager: true, query: '?raw', import: 'default' }))
 
-const countByClass = ({ objects }: DecomposedCatalog) => {
+const countByClass = ({ objects }: CatalogGraph) => {
   const counts: Record<string, number> = {}
   for (const { dcatClass } of objects.values()) counts[dcatClass] = (counts[dcatClass] ?? 0) + 1
   return counts
@@ -27,8 +28,8 @@ const failure = (run: () => unknown) => {
 }
 
 /** The plain JSON form of a decomposed catalog, as stored in fixtures/decomposed for other implementations to share. */
-const plainForm = ({ rootId, objects }: DecomposedCatalog) => ({
-  rootId,
+const plainForm = ({ rootObjectId, objects }: CatalogGraph) => ({
+  rootId: rootObjectId,
   objects: [...objects.values()].map((o) => ({ ...o, properties: { ...o.properties }, links: { ...o.links } })),
 })
 
@@ -59,7 +60,7 @@ describe('decompose: fixture catalogs', () => {
   }
   it.each(invalid)('%s, which has schema errors, still decomposes', (name, text) => {
     const catalog = decompose(text)
-    expect(catalog.objects.get(catalog.rootId)?.dcatClass).toBe('Catalog')
+    expect(catalog.objects.get(catalog.rootObjectId)?.dcatClass).toBe('Catalog')
     expect(countByClass(catalog)).toEqual(invalidCounts[name])
   })
 
@@ -87,7 +88,7 @@ describe('decompose: shape rules', () => {
   it('keeps identical objects separate, even with the same @id', () => {
     const twin = dataset('Twin', { '@id': 'https://example.gov/same', publisher: { name: 'Agency' } })
     const { objects } = decompose(catalogOf([twin, twin]))
-    expect(countByClass({ rootId: '#', objects })).toEqual({ Catalog: 1, Dataset: 2, Organization: 2 })
+    expect(countByClass({ rootObjectId: '#', objects })).toEqual({ Catalog: 1, Dataset: 2, Organization: 2 })
     expect(objects.get('#')!.links.dataset).toEqual(['#/dataset/0', '#/dataset/1'])
   })
 

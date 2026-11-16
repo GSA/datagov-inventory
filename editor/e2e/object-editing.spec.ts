@@ -12,7 +12,7 @@ test('opens object in editable form when clicked in tree', async ({ page }) => {
   await loadSample(page)
 
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0')
+  await expect(page).toHaveURL(/\/editor\/dataset\/air-quality-readings--[A-Za-z0-9_-]{22}$/)
 
   const form = page.getByRole('form', { name: 'Edit Air quality readings' })
   await expect(form).toBeVisible()
