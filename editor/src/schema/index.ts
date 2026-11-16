@@ -85,7 +85,7 @@ export interface FormField {
 }
 
 export function getFormModel(dcatClass: string): FormModel | undefined {
-  const models = import.meta.glob<{ [key: string]: FormModel }>('../generated/models/*.ts', { eager: true })
+  const models = import.meta.glob<{ [key: string]: FormModel }>('../generated/models/!(*.test).ts', { eager: true })
 
   for (const module of Object.values(models)) {
     const exportedModel = Object.values(module).find(

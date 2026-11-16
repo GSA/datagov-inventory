@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Label, TextInput, Textarea, Button } from '@trussworks/react-uswds'
 import type { CatalogObject } from './catalog/decompose'
-import type { FormModel, FormField } from './schema'
 import { useCatalog } from './session'
 import { labelOf } from './tree'
+import type { FormModel, FormField } from './schema'
 
 interface ObjectFormProps {
   object: CatalogObject
