@@ -137,6 +137,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const { objects, rootId } = open.catalog
   const root = objects.get(rootId)!
   const object = objects.get(id)
+  const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
 
@@ -190,9 +191,14 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         From <bdi>{open.name}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
-      <Button type="button" onClick={handleExport} className="margin-top-2">
-        Export catalog
-      </Button>
+      <div className="margin-top-2 display-flex flex-gap-1">
+        <Button type="button" onClick={handleExport}>
+          Export catalog
+        </Button>
+        <Button type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+          Undo
+        </Button>
+      </div>
       {exportStatus && (
         <Alert
           id="export-status"
