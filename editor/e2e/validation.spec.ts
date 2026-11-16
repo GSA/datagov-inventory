@@ -2,9 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Validation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
-
-    await page.getByTestId('header').getByRole('link', { name: 'Import' }).click()
+    await page.goto('/import')
     await page.getByRole('link', { name: 'Blank catalog' }).click()
     await expect(page).toHaveURL(/\/editor/)
   })
