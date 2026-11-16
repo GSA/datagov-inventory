@@ -4,7 +4,7 @@ test.describe('Validation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('link', { name: 'Import' }).click()
+    await page.getByTestId('header').getByRole('link', { name: 'Import' }).click()
     await page.getByRole('link', { name: 'Blank catalog' }).click()
     await expect(page).toHaveURL(/\/editor/)
   })
