@@ -7,6 +7,9 @@ import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './s
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
 import { count, labelOf, pathOf } from './tree'
+import { useValidation } from './validation/useValidation'
+import { ValidationSummary } from './validation/ValidationSummary'
+import { ValidationProgress } from './validation/ValidationProgress'
 
 /** A link to an object. */
 function ObjectLink({
@@ -138,7 +141,23 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const object = objects.get(id)
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
+  const [showValidationSummary, setShowValidationSummary] = useState(false)
+  const { validateCatalog, catalogSummary, validationProgress, validationState, isReady } = useValidation()
+  const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
+
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
+
+  const handleValidateCatalog = async () => {
+    setIsValidatingCatalog(true)
+    setShowValidationSummary(true)
+    try {
+      await validateCatalog()
+    } catch (error) {
+      console.error('Catalog validation failed:', error)
+    } finally {
+      setIsValidatingCatalog(false)
+    }
+  }
 
   async function handleExport() {
     setExportStatus(undefined)
@@ -194,10 +213,25 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         <Button type="button" onClick={handleExport}>
           Export catalog
         </Button>
+        {isReady && (
+          <Button type="button" onClick={handleValidateCatalog} disabled={isValidatingCatalog} secondary>
+            {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
+          </Button>
+        )}
         <Button type="button" onClick={undoRemoval} disabled={!canUndo} outline>
           Undo
         </Button>
       </div>
+      {validationState === 'validating' && (
+        <div className="margin-top-2">
+          <ValidationProgress progress={validationProgress} total={objects.size} />
+        </div>
+      )}
+      {showValidationSummary && catalogSummary && (
+        <div className="margin-top-2">
+          <ValidationSummary catalogSummary={catalogSummary} />
+        </div>
+      )}
       {exportStatus && (
         <Alert
           id="export-status"
