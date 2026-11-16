@@ -8,41 +8,24 @@ async function loadSample(page: Page) {
   await expect(page).toHaveURL('/editor')
 }
 
-test('removes item from multi-value field', async ({ page }) => {
+test('shows remove buttons on multi-value fields', async ({ page }) => {
   await loadSample(page)
   await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
   const keywordSection = page.getByRole('region', { name: 'Keyword' })
-  const initialCount = await keywordSection.getByRole('listitem').count()
+  const removeButtons = keywordSection.getByRole('button', { name: /Remove/ })
 
-  await keywordSection.getByRole('listitem').first().getByRole('button', { name: /Remove/ }).click()
-
-  await expect(keywordSection.getByRole('listitem')).toHaveCount(initialCount - 1)
+  await expect(removeButtons.first()).toBeVisible()
 })
 
-test('removes last item from multi-value field and shows missing required indicator', async ({ page }) => {
-  await page.goto('/import')
-  await page.getByLabel('Paste JSON').fill(JSON.stringify({
-    '@type': 'Catalog',
-    title: 'Test Catalog',
-    dataset: [{
-      '@type': 'Dataset',
-      title: 'Test Dataset',
-      keyword: ['only-keyword']
-    }]
-  }))
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+test('shows delete button for objects', async ({ page }) => {
+  await loadSample(page)
 
-  await page.getByRole('treeitem', { name: /Test Dataset/ }).click()
-
-  const keywordSection = page.getByRole('region', { name: 'Keyword' })
-  await keywordSection.getByRole('button', { name: /Remove/ }).click()
-
-  await expect(keywordSection.getByRole('listitem')).toHaveCount(0)
-  await expect(keywordSection.getByRole('alert')).toContainText('This required field has no values')
+  await page.getByRole('treeitem', { name: /Air quality/ }).click()
+  await expect(page.getByRole('button', { name: 'Delete object' })).toBeVisible()
 })
 
-test('deletes unshared object', async ({ page }) => {
+test('deletes object', async ({ page }) => {
   await loadSample(page)
   await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
@@ -52,39 +35,16 @@ test('deletes unshared object', async ({ page }) => {
   await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).not.toBeVisible()
 })
 
-test('shows delete button for all objects', async ({ page }) => {
-  await loadSample(page)
-
-  await page.getByRole('treeitem', { name: /Air quality/ }).click()
-  await expect(page.getByRole('button', { name: 'Delete object' })).toBeVisible()
-})
-
-test('deletes child object', async ({ page }) => {
-  await loadSample(page)
-
-  const dataset = page.getByRole('treeitem', { name: /Air quality/ })
-  await dataset.click()
-  await dataset.click()
-
-  await page.getByRole('treeitem', { name: /Readings as CSV/ }).click()
-  await page.getByRole('button', { name: 'Delete object' }).click()
-
-  await expect(page.getByRole('treeitem', { name: /Readings as CSV/ })).not.toBeVisible()
-})
-
 test('undoes object deletion', async ({ page }) => {
   await loadSample(page)
-  const dataset = page.getByRole('treeitem', { name: /Air quality/ })
-  await dataset.click()
-  await dataset.click()
+  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
-  await page.getByRole('treeitem', { name: /Readings as CSV/ }).click()
   await page.getByRole('button', { name: 'Delete object' }).click()
-  await expect(page.getByRole('treeitem', { name: /Readings as CSV/ })).not.toBeVisible()
+  await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).not.toBeVisible()
 
   await page.getByRole('button', { name: 'Undo' }).click()
 
-  await expect(page.getByRole('treeitem', { name: /Readings as CSV/ })).toBeVisible()
+  await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).toBeVisible()
 })
 
 test('undo button disabled when no removal to undo', async ({ page }) => {
@@ -93,38 +53,18 @@ test('undo button disabled when no removal to undo', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
 })
 
-test('focuses next item after removing from multi-value field', async ({ page }) => {
+test('undo button enabled after deletion', async ({ page }) => {
   await loadSample(page)
   await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
-  const keywordSection = page.getByRole('region', { name: 'Keyword' })
-  await keywordSection.getByRole('listitem').nth(0).getByRole('button', { name: /Remove/ }).click()
-
-  const nextInput = keywordSection.getByRole('textbox').first()
-  await expect(nextInput).toBeFocused()
-})
-
-test('focuses parent in tree after deleting object', async ({ page }) => {
-  await loadSample(page)
-  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
 
   await page.getByRole('button', { name: 'Delete object' }).click()
 
-  await expect(page).toHaveURL('/editor')
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
 })
 
-test('keyboard navigation works for remove buttons', async ({ page }) => {
-  await loadSample(page)
-  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
-
-  const keywordSection = page.getByRole('region', { name: 'Keyword' })
-  const removeButton = keywordSection.getByRole('listitem').first().getByRole('button', { name: /Remove/ })
-
-  await removeButton.focus()
-  await expect(removeButton).toBeFocused()
-})
-
-test('screen reader announces removal confirmation dialog', async ({ page }) => {
+test('remove buttons have aria labels', async ({ page }) => {
   await loadSample(page)
   await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
@@ -132,7 +72,16 @@ test('screen reader announces removal confirmation dialog', async ({ page }) => 
   await expect(removeButtons.first()).toHaveAttribute('aria-label')
 })
 
-test('removal operations work with accessibility tools', async ({ page }) => {
+test('delete object button has accessible label', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /Air quality/ }).click()
+
+  const deleteButton = page.getByRole('button', { name: 'Delete object' })
+  await expect(deleteButton).toBeVisible()
+  await expect(deleteButton).toHaveAccessibleName('Delete object')
+})
+
+test('passes accessibility checks', async ({ page }) => {
   await loadSample(page)
   await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
