@@ -225,7 +225,13 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           Export catalog
         </Button>
         {isReady && (
-          <Button type="button" onClick={handleValidateCatalog} disabled={isValidatingCatalog} secondary>
+          <Button
+            type="button"
+            onClick={handleValidateCatalog}
+            disabled={isValidatingCatalog}
+            secondary
+            aria-label="Validate entire catalog against DCAT-US 3.0 schema"
+          >
             {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
           </Button>
         )}

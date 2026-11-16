@@ -74,6 +74,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
             secondary
             disabled={isValidating}
             className="margin-left-1"
+            aria-label={`Validate ${labelOf(object)}`}
           >
             {isValidating ? 'Validating...' : 'Validate'}
           </Button>
