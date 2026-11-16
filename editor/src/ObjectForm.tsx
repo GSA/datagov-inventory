@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Label, TextInput, Textarea, Button } from '@trussworks/react-uswds'
+import { useState, useEffect, useRef } from 'react'
+import { Label, TextInput, Textarea, Button, Alert } from '@trussworks/react-uswds'
 import type { CatalogObject } from './catalog/decompose'
 import { useCatalog } from './session'
 import { labelOf } from './tree'
@@ -151,6 +151,7 @@ interface MultiValueFieldProps {
 
 function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProps) {
   const items = Array.isArray(value) ? value : []
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const handleAdd = () => {
     onChange([...items, ''])
@@ -159,6 +160,11 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
   const handleRemove = (index: number) => {
     onChange(items.filter((_, i) => i !== index))
     onBlur()
+
+    setTimeout(() => {
+      const nextInput = inputRefs.current[Math.min(index, items.length - 2)]
+      nextInput?.focus()
+    }, 50)
   }
 
   const handleChange = (index: number, newValue: string) => {
@@ -176,10 +182,16 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
       {field.helpText && (
         <p className="usa-hint">{field.helpText}</p>
       )}
+      {field.required && items.length === 0 && (
+        <Alert type="warning" slim className="margin-top-1">
+          This required field has no values
+        </Alert>
+      )}
       <ul className="usa-list usa-list--unstyled">
         {items.map((item, index) => (
           <li key={index} className="display-flex flex-align-center margin-top-1">
             <TextInput
+              ref={el => { inputRefs.current[index] = el }}
               id={`field-${field.name}-${index}`}
               name={`${field.name}-${index}`}
               type="text"
