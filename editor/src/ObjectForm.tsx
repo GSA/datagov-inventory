@@ -11,7 +11,7 @@ interface ObjectFormProps {
 }
 
 export function ObjectForm({ object, model }: ObjectFormProps) {
-  const { updateObject } = useCatalog()
+  const { updateObject, removeLink } = useCatalog()
   const [formState, setFormState] = useState(object.properties)
 
   useEffect(() => {
@@ -29,6 +29,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'array')
   const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
+  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0)
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
@@ -71,6 +72,15 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
             handleFieldChange(field.name, value)
             handleFieldBlur(field.name)
           }}
+        />
+      ))}
+
+      {linkFields.map(field => (
+        <LinkField
+          key={field.name}
+          field={field}
+          object={object}
+          onRemove={(childId) => removeLink(object.id, field.name, childId)}
         />
       ))}
 
@@ -258,5 +268,71 @@ function ControlledValueField({ field, value, onChange }: ControlledValueFieldPr
         ))}
       </select>
     </div>
+  )
+}
+
+interface LinkFieldProps {
+  field: FormField
+  object: CatalogObject
+  onRemove: (childId: string) => void
+}
+
+function LinkField({ field, object, onRemove }: LinkFieldProps) {
+  const linkedIds = object.links[field.name] || []
+  const inputRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const handleRemove = (index: number, childId: string) => {
+    onRemove(childId)
+
+    setTimeout(() => {
+      const nextButton = inputRefs.current[Math.min(index, linkedIds.length - 2)]
+      nextButton?.focus()
+    }, 50)
+  }
+
+  if (linkedIds.length === 0) {
+    return null
+  }
+
+  return (
+    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-3">
+      <h3 id={`field-${field.name}-heading`} className="font-sans-md">
+        {field.label}
+        {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
+      </h3>
+      {field.helpText && (
+        <p className="usa-hint">{field.helpText}</p>
+      )}
+      {field.required && linkedIds.length === 0 && (
+        <Alert type="warning" slim className="margin-top-1">
+          This required field has no values
+        </Alert>
+      )}
+      <ul className="usa-list usa-list--unstyled">
+        {linkedIds.map((childId, index) => {
+          const child = object.links[field.name] ?
+            (typeof childId === 'string' ? childId : String(childId)) :
+            String(childId)
+
+          return (
+            <li key={childId} className="display-flex flex-align-center margin-top-1">
+              <div className="flex-fill margin-right-1 padding-1 bg-base-lightest">
+                <code className="font-mono-2xs">{child}</code>
+              </div>
+              <Button
+                ref={el => { inputRefs.current[index] = el }}
+                type="button"
+                onClick={() => handleRemove(index, childId)}
+                unstyled
+                className="usa-button--secondary"
+                aria-label={`Remove ${field.label} ${index + 1}`}
+              >
+                Remove
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
