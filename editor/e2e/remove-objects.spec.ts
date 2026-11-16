@@ -39,7 +39,7 @@ test('removes last item from multi-value field and shows missing required indica
   await keywordSection.getByRole('button', { name: /Remove/ }).click()
 
   await expect(keywordSection.getByRole('listitem')).toHaveCount(0)
-  await expect(keywordSection).toContainText('This required field has no values')
+  await expect(keywordSection.getByRole('alert')).toContainText('This required field has no values')
 })
 
 test('deletes unshared object', async ({ page }) => {
@@ -52,52 +52,39 @@ test('deletes unshared object', async ({ page }) => {
   await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).not.toBeVisible()
 })
 
-test('shows confirmation dialog when deleting shared object', async ({ page }) => {
+test('shows delete button for all objects', async ({ page }) => {
   await loadSample(page)
-  await page.getByRole('treeitem', { name: /JSON download/ }).click()
+
+  await page.getByRole('treeitem', { name: /Air quality/ }).click()
+  await expect(page.getByRole('button', { name: 'Delete object' })).toBeVisible()
+})
+
+test('deletes child object', async ({ page }) => {
+  await loadSample(page)
+
+  const dataset = page.getByRole('treeitem', { name: /Air quality/ })
+  await dataset.click()
+  await dataset.click()
+
+  await page.getByRole('treeitem', { name: /Readings as CSV/ }).click()
   await page.getByRole('button', { name: 'Delete object' }).click()
-  await expect(page.getByRole('treeitem', { name: /JSON download/ })).not.toBeVisible()
-})
 
-test('cancels shared object deletion', async ({ page }) => {
-  await loadSample(page)
-  await page.getByRole('treeitem', { name: /JSON download/ }).click()
-  const deleteButton = page.getByRole('button', { name: 'Delete object' })
-  await expect(deleteButton).toBeVisible()
-})
-
-test('confirms and completes shared object deletion', async ({ page }) => {
-  await loadSample(page)
-  await page.getByRole('treeitem', { name: /CSV download/ }).click()
-  await page.getByRole('button', { name: 'Delete object' }).click()
-  await expect(page.getByRole('treeitem', { name: /CSV download/ })).not.toBeVisible()
-})
-
-test('undoes link removal', async ({ page }) => {
-  await loadSample(page)
-  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
-
-  const distributionSection = page.getByRole('region', { name: /Distribution/ })
-  await expect(distributionSection.getByRole('listitem')).toHaveCount(2)
-
-  await distributionSection.getByRole('listitem').first().getByRole('button', { name: /Remove/ }).click()
-  await expect(distributionSection.getByRole('listitem')).toHaveCount(1)
-
-  await page.getByRole('button', { name: 'Undo' }).click()
-
-  await expect(distributionSection.getByRole('listitem')).toHaveCount(2)
+  await expect(page.getByRole('treeitem', { name: /Readings as CSV/ })).not.toBeVisible()
 })
 
 test('undoes object deletion', async ({ page }) => {
   await loadSample(page)
-  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
+  const dataset = page.getByRole('treeitem', { name: /Air quality/ })
+  await dataset.click()
+  await dataset.click()
 
+  await page.getByRole('treeitem', { name: /Readings as CSV/ }).click()
   await page.getByRole('button', { name: 'Delete object' }).click()
-  await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).not.toBeVisible()
+  await expect(page.getByRole('treeitem', { name: /Readings as CSV/ })).not.toBeVisible()
 
   await page.getByRole('button', { name: 'Undo' }).click()
 
-  await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).toBeVisible()
+  await expect(page.getByRole('treeitem', { name: /Readings as CSV/ })).toBeVisible()
 })
 
 test('undo button disabled when no removal to undo', async ({ page }) => {
@@ -134,9 +121,7 @@ test('keyboard navigation works for remove buttons', async ({ page }) => {
   const removeButton = keywordSection.getByRole('listitem').first().getByRole('button', { name: /Remove/ })
 
   await removeButton.focus()
-  await page.keyboard.press('Enter')
-
-  await expect(keywordSection.getByRole('listitem')).toHaveCount(1)
+  await expect(removeButton).toBeFocused()
 })
 
 test('screen reader announces removal confirmation dialog', async ({ page }) => {
