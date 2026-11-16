@@ -4,6 +4,8 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { useCatalog } from './session'
 import { labelOf } from './tree'
 import type { FormModel, FormField } from './schema'
+import { useValidation } from './validation/useValidation'
+import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -13,10 +15,26 @@ interface ObjectFormProps {
 export function ObjectForm({ object, model }: ObjectFormProps) {
   const { updateObject, removeLink, open } = useCatalog()
   const [formState, setFormState] = useState(object.properties)
+  const { validateObject, getObjectState, getObjectErrors, isReady } = useValidation()
+  const [isValidating, setIsValidating] = useState(false)
+
+  const validationState = getObjectState(object.id)
+  const validationErrors = getObjectErrors(object.id)
 
   useEffect(() => {
     setFormState(object.properties)
   }, [object.id, object.properties])
+
+  const handleValidate = async () => {
+    setIsValidating(true)
+    try {
+      await validateObject(object.id)
+    } catch (error) {
+      console.error('Validation failed:', error)
+    } finally {
+      setIsValidating(false)
+    }
+  }
 
   const handleFieldChange = (fieldName: string, value: unknown) => {
     setFormState(prev => ({ ...prev, [fieldName]: value }))
@@ -42,6 +60,34 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       <p className="text-base-dark">
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
+
+      <div className="margin-top-2 margin-bottom-2">
+        <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
+        {isReady && (
+          <Button
+            type="button"
+            onClick={handleValidate}
+            secondary
+            disabled={isValidating}
+            className="margin-left-1"
+          >
+            {isValidating ? 'Validating...' : 'Validate'}
+          </Button>
+        )}
+      </div>
+
+      {validationErrors.length > 0 && (
+        <Alert type="error" headingLevel="h3" role="alert" aria-live="polite">
+          <strong>Validation errors:</strong>
+          <ul className="margin-top-1">
+            {validationErrors.map((error, idx) => (
+              <li key={idx}>
+                <strong>{error.field}:</strong> {error.message}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      )}
 
       {textFields.map(field => (
         <TextField

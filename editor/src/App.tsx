@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
 import type { CatalogObject } from './catalog/decompose'
+import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
@@ -206,7 +207,9 @@ export default function App() {
         canUndo: removalHistory !== undefined,
       }}
     >
-      <RouterProvider router={router} />
+      <ValidationProvider>
+        <RouterProvider router={router} />
+      </ValidationProvider>
     </CatalogContext.Provider>
   )
 }
