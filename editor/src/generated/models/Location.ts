@@ -45,10 +45,11 @@ export const LocationModel: FormModel = {
 {
       name: 'otherIdentifier',
       label: 'Other Identifier',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'A list of geographic identifiers for the Location besides the main identifier, e.g. the URI or other unique identifiers in the context of the relevant gazetteer',
+      allowedClasses: ['Identifier'],
     },
 {
       name: 'geometry',
@@ -65,7 +66,7 @@ export const LocationModel: FormModel = {
       required: false,
       cardinality: 'single',
       helpText: 'The gazetteer to which the location belongs',
-      allowedClasses: ['Conceptscheme'],
+      allowedClasses: ['ConceptScheme'],
     },
 {
       name: 'altLabel',

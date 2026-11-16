@@ -20,7 +20,7 @@ export const PeriodOfTimeModel: FormModel = {
 {
       name: 'endDate',
       label: 'End Date',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The end date of the period of time',
@@ -28,7 +28,7 @@ export const PeriodOfTimeModel: FormModel = {
 {
       name: 'startDate',
       label: 'Start Date',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The start date of the period of time',
