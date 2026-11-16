@@ -4,6 +4,9 @@ export { useValidationWorker } from './useValidationWorker'
 export { ValidationStatusBadge } from './ValidationStatusBadge'
 export { ValidationSummary } from './ValidationSummary'
 export { ValidationProgress } from './ValidationProgress'
+export { ValidationDisclaimer } from './ValidationDisclaimer'
+export { createValidator, validateObject, validateCatalog } from './validator'
+export { humanizeError, getFieldLabel, formatFieldPath } from './messages'
 export type {
   ValidationState,
   ValidationError,
