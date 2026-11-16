@@ -123,3 +123,11 @@ export function useValidationContext() {
   }
   return context
 }
+
+export function useMarkStaleOnChange(objectId: string) {
+  const { markStale } = useValidationContext()
+
+  useEffect(() => {
+    markStale(objectId)
+  }, [objectId, markStale])
+}

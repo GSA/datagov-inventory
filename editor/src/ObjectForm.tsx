@@ -6,6 +6,7 @@ import { labelOf } from './tree'
 import type { FormModel, FormField } from './schema'
 import { useValidation } from './validation/useValidation'
 import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
+import { useValidationContext } from './validation/ValidationContext'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -16,6 +17,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const { updateObject, removeLink, open } = useCatalog()
   const [formState, setFormState] = useState(object.properties)
   const { validateObject, getObjectState, getObjectErrors, isReady } = useValidation()
+  const { markStale } = useValidationContext()
   const [isValidating, setIsValidating] = useState(false)
 
   const validationState = getObjectState(object.id)
@@ -42,6 +44,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 
   const handleFieldBlur = (fieldName: string) => {
     updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
+    markStale(object.id)
   }
 
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && !f.allowedValues)
