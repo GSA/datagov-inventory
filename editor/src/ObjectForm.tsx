@@ -48,6 +48,18 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     markStale(object.id)
   }
 
+  useEffect(() => {
+    if (validationState === 'stale' && isReady) {
+      const timer = setTimeout(() => {
+        validateObject(object.id).catch((error) => {
+          console.error('Auto-revalidation failed:', error)
+        })
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [validationState, isReady, object.id, validateObject])
+
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'array')
   const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
