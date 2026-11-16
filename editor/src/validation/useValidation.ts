@@ -47,7 +47,7 @@ export function useValidation() {
       setValidationState('validating')
 
       try {
-        const result = await validateObjectWorker(obj.data, objectType)
+        const result = await validateObjectWorker(obj.properties, objectType)
         setObjectValidation(objectId, result)
         setValidationState(result.valid ? 'valid' : 'invalid')
         return result
@@ -74,7 +74,7 @@ export function useValidation() {
       const contactPoints: unknown[] = []
 
       for (const [id, obj] of open.catalog.objects.entries()) {
-        const data = { '@id': id, ...obj.data }
+        const data = { '@id': id, ...obj.properties }
         if (obj.dcatClass === 'Dataset') {
           datasets.push(data)
         } else if (obj.dcatClass === 'Organization') {
