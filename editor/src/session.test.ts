@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { DecomposedCatalog, CatalogObject } from './catalog/decompose'
+import { removeLink, deleteObject, undoRemoval, findParentLinks } from './session'
 
 const createObject = (
   id: string,
@@ -31,8 +32,8 @@ describe('removeLink', () => {
 
     const result = removeLink(catalog, '#', 'dataset', '#/dataset/0')
 
-    expect(result.objects.get('#')?.links.dataset).toEqual(['#/dataset/1'])
-    expect(result.objects.has('#/dataset/0')).toBe(true)
+    expect(result.catalog.objects.get('#')?.links.dataset).toEqual(['#/dataset/1'])
+    expect(result.catalog.objects.has('#/dataset/0')).toBe(true)
   })
 
   it('removes property entirely when removing last link', () => {
@@ -43,7 +44,7 @@ describe('removeLink', () => {
 
     const result = removeLink(catalog, '#', 'dataset', '#/dataset/0')
 
-    expect(result.objects.get('#')?.links.dataset).toBeUndefined()
+    expect(result.catalog.objects.get('#')?.links.dataset).toBeUndefined()
   })
 
   it('preserves singleLinks when removing from array', () => {
@@ -56,7 +57,7 @@ describe('removeLink', () => {
 
     const result = removeLink(catalog, '#', 'dataset', '#/dataset/0')
 
-    expect(result.objects.get('#')?.singleLinks).toEqual(['publisher'])
+    expect(result.catalog.objects.get('#')?.singleLinks).toEqual(['publisher'])
   })
 
   it('removes property from singleLinks when removing last link', () => {
@@ -70,7 +71,7 @@ describe('removeLink', () => {
 
     const result = removeLink(catalog, '#/dataset/0', 'publisher', '#/org/0')
 
-    expect(result.objects.get('#/dataset/0')?.singleLinks).toEqual([])
+    expect(result.catalog.objects.get('#/dataset/0')?.singleLinks).toEqual([])
   })
 
   it('returns removal record for undo', () => {
@@ -119,8 +120,8 @@ describe('deleteObject', () => {
     const result = deleteObject(catalog, '#/contact')
 
     expect(result.catalog.objects.has('#/contact')).toBe(false)
-    expect(result.catalog.objects.get('#/dataset/0')?.links.contactPoint).toEqual([])
-    expect(result.catalog.objects.get('#/dataset/1')?.links.contactPoint).toEqual([])
+    expect(result.catalog.objects.get('#/dataset/0')?.links.contactPoint).toBeUndefined()
+    expect(result.catalog.objects.get('#/dataset/1')?.links.contactPoint).toBeUndefined()
   })
 
   it('recursively deletes child objects when parent deleted', () => {
@@ -239,6 +240,7 @@ describe('undoRemoval', () => {
     const undoRecord = {
       type: 'object' as const,
       object: createObject('#/contact', 'Kind', { fn: 'Shared Contact' }),
+      children: [],
       parentLinks: [
         { parentId: '#/dataset/0', property: 'contactPoint', position: 0 },
         { parentId: '#/dataset/1', property: 'contactPoint', position: 0 },

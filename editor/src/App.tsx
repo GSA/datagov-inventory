@@ -9,7 +9,7 @@ import {
   RouterProvider,
   useRouter,
 } from '@tanstack/react-router'
-import { CatalogContext, type OpenCatalog } from './session'
+import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
 import type { CatalogObject } from './catalog/decompose'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
@@ -124,6 +124,7 @@ declare module '@tanstack/react-router' {
 
 export default function App() {
   const [open, setOpen] = useState<OpenCatalog | undefined>()
+  const [removalHistory, setRemovalHistory] = useState<RemovalRecord | undefined>()
 
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
     if (!open) return
@@ -149,8 +150,62 @@ export default function App() {
     })
   }, [open])
 
+  const handleRemoveLink = useCallback((parentId: string, property: string, childId: string) => {
+    if (!open) return
+
+    const { catalog: updatedCatalog, undoRecord } = removeLink(
+      open.catalog,
+      parentId,
+      property,
+      childId
+    )
+
+    setOpen({
+      ...open,
+      catalog: updatedCatalog,
+    })
+    setRemovalHistory(undoRecord)
+  }, [open])
+
+  const handleDeleteObject = useCallback((id: string) => {
+    if (!open) return
+
+    const { catalog: updatedCatalog, undoRecord } = deleteObject(
+      open.catalog,
+      id
+    )
+
+    setOpen({
+      ...open,
+      catalog: updatedCatalog,
+    })
+    setRemovalHistory(undoRecord)
+  }, [open])
+
+  const handleUndoRemoval = useCallback(() => {
+    if (!open || !removalHistory) return
+
+    const updatedCatalog = undoRemoval(open.catalog, removalHistory)
+
+    setOpen({
+      ...open,
+      catalog: updatedCatalog,
+    })
+    setRemovalHistory(undefined)
+  }, [open, removalHistory])
+
   return (
-    <CatalogContext.Provider value={{ open, setOpen, updateObject }}>
+    <CatalogContext.Provider
+      value={{
+        open,
+        setOpen,
+        updateObject,
+        removeLink: handleRemoveLink,
+        deleteObject: handleDeleteObject,
+        undoRemoval: handleUndoRemoval,
+        canUndo: removalHistory !== undefined,
+      }}
+    >
       <RouterProvider router={router} />
     </CatalogContext.Provider>
   )
