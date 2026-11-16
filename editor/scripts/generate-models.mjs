@@ -8,10 +8,24 @@ const OUTPUT_DIR = join(__dirname, '..', 'src', 'generated', 'models')
 
 // The schema module loads definitions with import.meta.glob, so it runs through Vite
 // (runnerImport is marked experimental in Vite 6; the lockfile pins the version).
-const { module: schemaModule } = await runnerImport(join(__dirname, '..', 'src', 'schema', 'index.ts'), {
-  configFile: false,
-  logLevel: 'error',
-})
+// It also globs the generated models (getFormModel); those load empty here, so a broken
+// or stale model can't stop the generator from rewriting it.
+const skipGeneratedModels = {
+  name: 'skip-generated-models',
+  load: (id) => (id.startsWith(OUTPUT_DIR) ? 'export {}' : undefined),
+}
+let schemaModule
+try {
+  ;({ module: schemaModule } = await runnerImport(join(__dirname, '..', 'src', 'schema', 'index.ts'), {
+    configFile: false,
+    logLevel: 'error',
+    plugins: [skipGeneratedModels],
+  }))
+} catch (error) {
+  console.error('Could not load src/schema. Is the schema submodule checked out (git submodule update --init)?')
+  console.error(error)
+  process.exit(1)
+}
 const { classSchemas, getClassSchema, getClassProperties } = schemaModule
 
 function toTitleCase(str) {
@@ -25,21 +39,24 @@ function toTitleCase(str) {
  * What a property's value can be, across `type` lists and `anyOf`/`oneOf`/`allOf` branches:
  * whether any form is a list, and the scalar types of its single values and list items.
  */
-function describeValue(propSchema, into = { list: false, scalars: [] }) {
-  if (!propSchema || typeof propSchema !== 'object') return into
-  const types = [propSchema.type].flat().filter((t) => t && t !== 'null')
-  for (const type of types) {
-    if (type === 'array') {
-      into.list = true
-      describeValue(propSchema.items, into)
-    } else {
-      into.scalars.push(type === 'integer' ? 'number' : type)
+function describeValue(propSchema) {
+  const value = { list: false, scalars: [] }
+  const walk = (schema) => {
+    if (!schema || typeof schema !== 'object') return
+    for (const type of [schema.type].flat().filter((t) => t && t !== 'null')) {
+      if (type === 'array') {
+        value.list = true
+        walk(schema.items)
+      } else {
+        value.scalars.push(type === 'integer' ? 'number' : type)
+      }
+    }
+    for (const key of ['anyOf', 'oneOf', 'allOf']) {
+      for (const branch of schema[key] ?? []) walk(branch)
     }
   }
-  for (const key of ['anyOf', 'oneOf', 'allOf']) {
-    for (const branch of propSchema[key] ?? []) describeValue(branch, into)
-  }
-  return into
+  walk(propSchema)
+  return value
 }
 
 /**
@@ -64,7 +81,9 @@ function extractFormModel(className) {
 
   // getClassProperties decides which properties exist and which hold classes, as for decompose.
   const fields = [...getClassProperties(className)].map(([name, classes]) => {
-    const { propSchema, required } = schemas.get(name)
+    const property = schemas.get(name)
+    if (!property) throw new Error(`getClassProperties lists ${className}.${name}, but its schema has no such property`)
+    const { propSchema, required } = property
     const { list, scalars } = describeValue(propSchema)
 
     // A value that may be an inline object (e.g. Location.bbox: a string or a GeoJSON object)
