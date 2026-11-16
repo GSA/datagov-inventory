@@ -11,6 +11,7 @@ import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
 import { ValidationProgress } from './validation/ValidationProgress'
+import { ExportWarningDialog } from './validation/ExportWarningDialog'
 
 /** A link to an object. */
 function ObjectLink({
@@ -142,6 +143,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const object = objects.get(id)
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
+  const [showExportWarning, setShowExportWarning] = useState(false)
   const [showValidationSummary, setShowValidationSummary] = useState(false)
   const { validateCatalog, catalogSummary, validationProgress, validationState, isReady } = useValidation()
   const validationContext = useValidationContext()
@@ -162,16 +164,17 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
     }
   }
 
-  async function handleExport() {
-    setExportStatus(undefined)
-
+  function initiateExport() {
     if (catalogSummary && !catalogSummary.valid) {
-      const proceed = window.confirm(
-        `The catalog has ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'}. ` +
-          'The exported file did not pass the DCAT-US schema check. Do you want to download it anyway?'
-      )
-      if (!proceed) return
+      setShowExportWarning(true)
+      return
     }
+    performExport()
+  }
+
+  async function performExport() {
+    setExportStatus(undefined)
+    setShowExportWarning(false)
 
     try {
       const { assemble } = await import('./catalog/assemble')
@@ -224,7 +227,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         tab only (nothing is uploaded)
       </p>
       <div className="margin-top-2 display-flex flex-gap-1">
-        <Button type="button" onClick={handleExport}>
+        <Button type="button" onClick={initiateExport}>
           Export catalog
         </Button>
         {isReady && (
@@ -273,6 +276,14 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
             }}
           />
         </div>
+      )}
+      {catalogSummary && (
+        <ExportWarningDialog
+          isOpen={showExportWarning}
+          catalogSummary={catalogSummary}
+          onCancel={() => setShowExportWarning(false)}
+          onExport={performExport}
+        />
       )}
       {exportStatus && (
         <Alert
