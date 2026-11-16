@@ -94,8 +94,7 @@ function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: Dec
       </div>
       {deleteConfirmation && (
         <Modal
-          isOpen={true}
-          onClose={handleCancelDelete}
+          forceAction
           aria-labelledby="delete-modal-heading"
           aria-describedby="delete-modal-description"
           id="delete-confirmation-modal"
