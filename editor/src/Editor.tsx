@@ -162,6 +162,14 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   async function handleExport() {
     setExportStatus(undefined)
 
+    if (catalogSummary && !catalogSummary.valid) {
+      const proceed = window.confirm(
+        `The catalog has ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'}. ` +
+          'The exported file did not pass the DCAT-US schema check. Do you want to download it anyway?'
+      )
+      if (!proceed) return
+    }
+
     try {
       const { assemble } = await import('./catalog/assemble')
       const result = assemble(open.catalog)
@@ -186,6 +194,9 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
       URL.revokeObjectURL(url)
 
       let message = 'Catalog exported successfully'
+      if (catalogSummary && !catalogSummary.valid) {
+        message += ` (with ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'})`
+      }
       if (result.sharedObjects.length > 0) {
         message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
       }
