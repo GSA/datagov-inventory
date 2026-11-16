@@ -26,8 +26,10 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
   }
 
-  const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && !f.allowedValues)
-  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'array')
+  // A class field can also hold strings (a Concept or Identifier given as text), which decompose keeps as properties.
+  const holdsText = (f: FormField) => f.type === 'string' || (!!f.allowedClasses && isText(object.properties[f.name]))
+  const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
+  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
   const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
   const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0)
   const unknownProperties = Object.entries(object.properties).filter(
@@ -112,6 +114,10 @@ interface TextFieldProps {
   onBlur: () => void
 }
 
+function isText(value: unknown): boolean {
+  return typeof value === 'string' || (Array.isArray(value) && value.every(item => typeof item === 'string'))
+}
+
 function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
   const inputId = `field-${field.name}`
   const helpId = field.helpText ? `${inputId}-help` : undefined
@@ -161,7 +167,8 @@ interface MultiValueFieldProps {
 }
 
 function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProps) {
-  const items = Array.isArray(value) ? value : []
+  // A string-or-list field (e.g. language) may hold one string.
+  const items = Array.isArray(value) ? value : typeof value === 'string' ? [value] : []
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const handleAdd = () => {

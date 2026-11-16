@@ -28,7 +28,7 @@ export const ConceptSchemeModel: FormModel = {
 {
       name: 'created',
       label: 'Created',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The date on which the Concept Scheme was first created',
@@ -44,7 +44,7 @@ export const ConceptSchemeModel: FormModel = {
 {
       name: 'issued',
       label: 'Issued',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The date of formal issuance (e.g., publication) of the concept scheme',
@@ -52,7 +52,7 @@ export const ConceptSchemeModel: FormModel = {
 {
       name: 'modified',
       label: 'Modified',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The most recent date at which the concept scheme was changed or modified',
