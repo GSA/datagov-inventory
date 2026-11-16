@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Label, TextInput, Textarea, Button, Alert } from '@trussworks/react-uswds'
-import type { CatalogObject } from './catalog/decompose'
+import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { useCatalog } from './session'
 import { labelOf } from './tree'
 import type { FormModel, FormField } from './schema'
@@ -11,7 +11,7 @@ interface ObjectFormProps {
 }
 
 export function ObjectForm({ object, model }: ObjectFormProps) {
-  const { updateObject, removeLink } = useCatalog()
+  const { updateObject, removeLink, open } = useCatalog()
   const [formState, setFormState] = useState(object.properties)
 
   useEffect(() => {
@@ -80,6 +80,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
           key={field.name}
           field={field}
           object={object}
+          catalog={open?.catalog}
           onRemove={(childId) => removeLink(object.id, field.name, childId)}
         />
       ))}
@@ -274,10 +275,11 @@ function ControlledValueField({ field, value, onChange }: ControlledValueFieldPr
 interface LinkFieldProps {
   field: FormField
   object: CatalogObject
+  catalog: DecomposedCatalog | undefined
   onRemove: (childId: string) => void
 }
 
-function LinkField({ field, object, onRemove }: LinkFieldProps) {
+function LinkField({ field, object, catalog, onRemove }: LinkFieldProps) {
   const linkedIds = object.links[field.name] || []
   const inputRefs = useRef<(HTMLButtonElement | null)[]>([])
 
@@ -310,14 +312,13 @@ function LinkField({ field, object, onRemove }: LinkFieldProps) {
       )}
       <ul className="usa-list usa-list--unstyled">
         {linkedIds.map((childId, index) => {
-          const child = object.links[field.name] ?
-            (typeof childId === 'string' ? childId : String(childId)) :
-            String(childId)
+          const childObject = catalog?.objects.get(childId)
+          const displayLabel = childObject ? labelOf(childObject) : childId
 
           return (
             <li key={childId} className="display-flex flex-align-center margin-top-1">
               <div className="flex-fill margin-right-1 padding-1 bg-base-lightest">
-                <code className="font-mono-2xs">{child}</code>
+                <bdi>{displayLabel}</bdi>
               </div>
               <Button
                 ref={el => { inputRefs.current[index] = el }}
