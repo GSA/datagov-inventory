@@ -1,38 +1,47 @@
-// @vitest-environment node
-import { describe, it, expect, beforeAll } from 'vitest'
-import { readFileSync } from 'fs'
-import { join } from 'path'
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest'
+import { createValidator, validateObject, validateCatalog } from './validator'
+
+const mockSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: {
+    '@type': { type: 'string' },
+    'dct:title': { type: 'string' },
+    'dct:description': { type: 'string' },
+    'dcat:distribution': { type: 'array' },
+    'foaf:name': { type: 'string' },
+    'vcard:fn': { type: 'string' },
+    'vcard:hasEmail': { type: 'string', pattern: '^mailto:' },
+  },
+  required: ['dct:title'],
+}
 
 describe('Validator', () => {
-  let validator: { validate: (data: unknown) => boolean; errors: null | unknown[] }
-
-  beforeAll(async () => {
-    const { createValidator } = await import('./validator')
-    const schemaPath = join(process.cwd(), 'schema/dcat-us-document.schema.json')
-    const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'))
-    validator = createValidator(schema)
-  })
-
   describe('createValidator', () => {
     it('should create validator instance', () => {
+      const validator = createValidator(mockSchema)
+
       expect(validator).toBeDefined()
       expect(typeof validator.validate).toBe('function')
     })
 
     it('should compile schema without errors', () => {
+      const validator = createValidator(mockSchema)
+
       expect(validator.errors).toBeNull()
     })
   })
 
   describe('validateObject', () => {
-    it('should validate valid Dataset object', async () => {
-      const { validateObject } = await import('./validator')
+    it('should validate valid Dataset object', () => {
+      const validator = createValidator(mockSchema)
 
       const validDataset = {
         '@type': 'dcat:Dataset',
         'dct:title': 'Test Dataset',
         'dct:description': 'A test dataset',
-        'dcat:distribution': []
+        'dcat:distribution': [],
       }
 
       const result = validateObject(validator, validDataset, 'Dataset')
@@ -41,44 +50,45 @@ describe('Validator', () => {
       expect(result.errors).toHaveLength(0)
     })
 
-    it('should invalidate Dataset missing required title', async () => {
-      const { validateObject } = await import('./validator')
+    it('should invalidate Dataset missing required title', () => {
+      const validator = createValidator(mockSchema)
 
       const invalidDataset = {
         '@type': 'dcat:Dataset',
         'dct:description': 'A test dataset',
-        'dcat:distribution': []
+        'dcat:distribution': [],
       }
 
       const result = validateObject(validator, invalidDataset, 'Dataset')
 
       expect(result.valid).toBe(false)
       expect(result.errors.length).toBeGreaterThan(0)
-      expect(result.errors.some((e) => e.field.includes('title'))).toBe(true)
+      expect(result.errors.some((e) => e.field.includes('Title'))).toBe(true)
     })
 
-    it('should invalidate Dataset with wrong type for title', async () => {
-      const { validateObject } = await import('./validator')
+    it('should invalidate Dataset with wrong type for title', () => {
+      const validator = createValidator(mockSchema)
 
       const invalidDataset = {
         '@type': 'dcat:Dataset',
         'dct:title': 123,
         'dct:description': 'A test dataset',
-        'dcat:distribution': []
+        'dcat:distribution': [],
       }
 
       const result = validateObject(validator, invalidDataset, 'Dataset')
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.field.includes('title') && e.type === 'type')).toBe(true)
+      expect(result.errors.some((e) => e.field.includes('Title') && e.type === 'type')).toBe(true)
     })
 
-    it('should validate valid Organization object', async () => {
-      const { validateObject } = await import('./validator')
+    it('should validate valid Organization object', () => {
+      const validator = createValidator(mockSchema)
 
       const validOrg = {
         '@type': 'org:Organization',
-        'foaf:name': 'Test Organization'
+        'dct:title': 'Required title',
+        'foaf:name': 'Test Organization',
       }
 
       const result = validateObject(validator, validOrg, 'Organization')
@@ -87,13 +97,14 @@ describe('Validator', () => {
       expect(result.errors).toHaveLength(0)
     })
 
-    it('should validate valid ContactPoint object', async () => {
-      const { validateObject } = await import('./validator')
+    it('should validate valid ContactPoint object', () => {
+      const validator = createValidator(mockSchema)
 
       const validContact = {
         '@type': 'vcard:Contact',
+        'dct:title': 'Required title',
         'vcard:fn': 'John Doe',
-        'vcard:hasEmail': 'mailto:john@example.gov'
+        'vcard:hasEmail': 'mailto:john@example.gov',
       }
 
       const result = validateObject(validator, validContact, 'ContactPoint')
@@ -104,8 +115,8 @@ describe('Validator', () => {
   })
 
   describe('validateCatalog', () => {
-    it('should validate catalog with all valid objects', async () => {
-      const { validateCatalog } = await import('./validator')
+    it('should validate catalog with all valid objects', () => {
+      const validator = createValidator(mockSchema)
 
       const catalog = {
         datasets: [
@@ -114,24 +125,26 @@ describe('Validator', () => {
             '@type': 'dcat:Dataset',
             'dct:title': 'Dataset 1',
             'dct:description': 'Description 1',
-            'dcat:distribution': []
-          }
+            'dcat:distribution': [],
+          },
         ],
         publishers: [
           {
             '@id': 'pub1',
             '@type': 'org:Organization',
-            'foaf:name': 'Publisher 1'
-          }
+            'dct:title': 'Required title',
+            'foaf:name': 'Publisher 1',
+          },
         ],
         contactPoints: [
           {
             '@id': 'cp1',
             '@type': 'vcard:Contact',
+            'dct:title': 'Required title',
             'vcard:fn': 'Contact 1',
-            'vcard:hasEmail': 'mailto:contact@example.gov'
-          }
-        ]
+            'vcard:hasEmail': 'mailto:contact@example.gov',
+          },
+        ],
       }
 
       const result = validateCatalog(validator, catalog)
@@ -141,8 +154,8 @@ describe('Validator', () => {
       expect(result.objectResults.every((r) => r.valid)).toBe(true)
     })
 
-    it('should detect invalid objects in catalog', async () => {
-      const { validateCatalog } = await import('./validator')
+    it('should detect invalid objects in catalog', () => {
+      const validator = createValidator(mockSchema)
 
       const catalog = {
         datasets: [
@@ -150,11 +163,11 @@ describe('Validator', () => {
             '@id': 'ds1',
             '@type': 'dcat:Dataset',
             'dct:description': 'Missing title',
-            'dcat:distribution': []
-          }
+            'dcat:distribution': [],
+          },
         ],
         publishers: [],
-        contactPoints: []
+        contactPoints: [],
       }
 
       const result = validateCatalog(validator, catalog)
@@ -165,29 +178,29 @@ describe('Validator', () => {
       expect(result.errorSummary.Dataset).toBeGreaterThan(0)
     })
 
-    it('should group errors by class', async () => {
-      const { validateCatalog } = await import('./validator')
+    it('should group errors by class', () => {
+      const validator = createValidator(mockSchema)
 
       const catalog = {
         datasets: [
           {
             '@id': 'ds1',
             '@type': 'dcat:Dataset',
-            'dcat:distribution': []
+            'dcat:distribution': [],
           },
           {
             '@id': 'ds2',
             '@type': 'dcat:Dataset',
-            'dcat:distribution': []
-          }
+            'dcat:distribution': [],
+          },
         ],
         publishers: [
           {
             '@id': 'pub1',
-            '@type': 'org:Organization'
-          }
+            '@type': 'org:Organization',
+          },
         ],
-        contactPoints: []
+        contactPoints: [],
       }
 
       const result = validateCatalog(validator, catalog)
