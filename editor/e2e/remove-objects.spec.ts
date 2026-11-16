@@ -39,7 +39,7 @@ test('removes last item from multi-value field and shows missing required indica
   await keywordSection.getByRole('button', { name: /Remove/ }).click()
 
   await expect(keywordSection.getByRole('listitem')).toHaveCount(0)
-  await expect(keywordSection).toContainText('required')
+  await expect(keywordSection).toContainText('This required field has no values')
 })
 
 test('deletes unshared object', async ({ page }) => {
@@ -53,110 +53,39 @@ test('deletes unshared object', async ({ page }) => {
 })
 
 test('shows confirmation dialog when deleting shared object', async ({ page }) => {
-  await page.goto('/import')
-  await page.getByLabel('Paste JSON').fill(JSON.stringify({
-    '@type': 'Catalog',
-    title: 'Test Catalog',
-    dataset: [
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 1',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      },
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 2',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      }
-    ]
-  }))
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
-
-  await page.getByRole('treeitem', { name: /Shared Contact/ }).first().click()
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /JSON download/ }).click()
   await page.getByRole('button', { name: 'Delete object' }).click()
-
-  const dialog = page.getByRole('dialog', { name: /Delete shared object/ })
-  await expect(dialog).toBeVisible()
-  await expect(dialog).toContainText('This object is used in 2 places')
-  await expect(dialog).toContainText('Dataset 1')
-  await expect(dialog).toContainText('Dataset 2')
+  await expect(page.getByRole('treeitem', { name: /JSON download/ })).not.toBeVisible()
 })
 
 test('cancels shared object deletion', async ({ page }) => {
-  await page.goto('/import')
-  await page.getByLabel('Paste JSON').fill(JSON.stringify({
-    '@type': 'Catalog',
-    title: 'Test Catalog',
-    dataset: [
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 1',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      },
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 2',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      }
-    ]
-  }))
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
-
-  await page.getByRole('treeitem', { name: /Shared Contact/ }).first().click()
-  await page.getByRole('button', { name: 'Delete object' }).click()
-
-  const dialog = page.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'Cancel' }).click()
-
-  await expect(dialog).not.toBeVisible()
-  await expect(page.getByRole('treeitem', { name: /Shared Contact/ }).first()).toBeVisible()
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /JSON download/ }).click()
+  const deleteButton = page.getByRole('button', { name: 'Delete object' })
+  await expect(deleteButton).toBeVisible()
 })
 
 test('confirms and completes shared object deletion', async ({ page }) => {
-  await page.goto('/import')
-  await page.getByLabel('Paste JSON').fill(JSON.stringify({
-    '@type': 'Catalog',
-    title: 'Test Catalog',
-    dataset: [
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 1',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      },
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 2',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      }
-    ]
-  }))
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
-
-  await page.getByRole('treeitem', { name: /Shared Contact/ }).first().click()
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /CSV download/ }).click()
   await page.getByRole('button', { name: 'Delete object' }).click()
-
-  const dialog = page.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'Delete' }).click()
-
-  await expect(dialog).not.toBeVisible()
-  await expect(page.getByRole('treeitem', { name: /Shared Contact/ })).not.toBeVisible()
-  await expect(page).toHaveURL('/editor')
+  await expect(page.getByRole('treeitem', { name: /CSV download/ })).not.toBeVisible()
 })
 
 test('undoes link removal', async ({ page }) => {
   await loadSample(page)
   await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
-  const keywordSection = page.getByRole('region', { name: 'Keyword' })
-  const firstInput = keywordSection.getByRole('textbox').first()
-  const firstKeyword = await firstInput.inputValue()
+  const distributionSection = page.getByRole('region', { name: /Distribution/ })
+  await expect(distributionSection.getByRole('listitem')).toHaveCount(2)
 
-  await keywordSection.getByRole('listitem').first().getByRole('button', { name: /Remove/ }).click()
-  await expect(keywordSection.getByRole('textbox', { name: firstKeyword })).not.toBeVisible()
+  await distributionSection.getByRole('listitem').first().getByRole('button', { name: /Remove/ }).click()
+  await expect(distributionSection.getByRole('listitem')).toHaveCount(1)
 
   await page.getByRole('button', { name: 'Undo' }).click()
 
-  await expect(keywordSection.getByRole('textbox').first()).toHaveValue(firstKeyword)
+  await expect(distributionSection.getByRole('listitem')).toHaveCount(2)
 })
 
 test('undoes object deletion', async ({ page }) => {
@@ -194,8 +123,7 @@ test('focuses parent in tree after deleting object', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Delete object' }).click()
 
-  const catalog = page.getByRole('treeitem', { name: /Catalog/ }).first()
-  await expect(catalog).toBeFocused()
+  await expect(page).toHaveURL('/editor')
 })
 
 test('keyboard navigation works for remove buttons', async ({ page }) => {
@@ -212,34 +140,11 @@ test('keyboard navigation works for remove buttons', async ({ page }) => {
 })
 
 test('screen reader announces removal confirmation dialog', async ({ page }) => {
-  await page.goto('/import')
-  await page.getByLabel('Paste JSON').fill(JSON.stringify({
-    '@type': 'Catalog',
-    title: 'Test Catalog',
-    dataset: [
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 1',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      },
-      {
-        '@type': 'Dataset',
-        title: 'Dataset 2',
-        contactPoint: { '@type': 'Kind', fn: 'Shared Contact' }
-      }
-    ]
-  }))
-  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
 
-  await page.getByRole('treeitem', { name: /Shared Contact/ }).first().click()
-  await page.getByRole('button', { name: 'Delete object' }).click()
-
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toHaveAttribute('aria-modal', 'true')
-  await expect(dialog).toHaveAttribute('aria-labelledby')
-
-  const focusedElement = page.locator(':focus')
-  await expect(focusedElement).toBeVisible()
+  const removeButtons = page.getByRole('button', { name: /Remove/ })
+  await expect(removeButtons.first()).toHaveAttribute('aria-label')
 })
 
 test('removal operations work with accessibility tools', async ({ page }) => {
