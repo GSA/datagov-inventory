@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { Alert, AlertText, Button } from '@trussworks/react-uswds'
-import { Link, useParams, useRouterState } from '@tanstack/react-router'
+import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
+import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { getFormModel } from './schema'
-import { type OpenCatalog, useCatalog, usePageTitle } from './session'
+import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
 import { count, labelOf, pathOf } from './tree'
@@ -31,8 +31,42 @@ function ObjectLink({
   )
 }
 
-function ObjectDetail({ object }: { object: CatalogObject; objects: DecomposedCatalog['objects'] }) {
+function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: DecomposedCatalog }) {
+  const { deleteObject } = useCatalog()
+  const navigate = useNavigate()
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    objectId: string
+    parents: Array<{ id: string; label: string }>
+  } | undefined>(undefined)
+
   const model = getFormModel(object.dcatClass)
+
+  const handleDeleteClick = () => {
+    const parentLinks = findParentLinks(catalog, object.id)
+
+    if (parentLinks.length <= 1) {
+      const firstParentId = parentLinks[0]?.parentId || catalog.rootId
+      deleteObject(object.id)
+      navigate({ to: '/editor/$', params: { _splat: firstParentId === catalog.rootId ? '' : pathOf(firstParentId) } })
+    } else {
+      const parents = parentLinks.map(link => {
+        const parent = catalog.objects.get(link.parentId)!
+        return { id: parent.id, label: labelOf(parent) }
+      })
+      setDeleteConfirmation({ objectId: object.id, parents })
+    }
+  }
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmation) return
+    deleteObject(deleteConfirmation.objectId)
+    setDeleteConfirmation(undefined)
+    navigate({ to: '/editor' })
+  }
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmation(undefined)
+  }
 
   if (!model) {
     return (
@@ -41,11 +75,61 @@ function ObjectDetail({ object }: { object: CatalogObject; objects: DecomposedCa
           {labelOf(object)}
         </h2>
         <p>No form model available for {object.dcatClass}</p>
+        <div className="margin-top-2">
+          <Button type="button" onClick={handleDeleteClick} secondary>
+            Delete object
+          </Button>
+        </div>
       </section>
     )
   }
 
-  return <ObjectForm object={object} model={model} />
+  return (
+    <>
+      <ObjectForm object={object} model={model} />
+      <div className="margin-top-3">
+        <Button type="button" onClick={handleDeleteClick} secondary>
+          Delete object
+        </Button>
+      </div>
+      {deleteConfirmation && (
+        <Modal
+          isOpen={true}
+          onClose={handleCancelDelete}
+          aria-labelledby="delete-modal-heading"
+          aria-describedby="delete-modal-description"
+          id="delete-confirmation-modal"
+        >
+          <ModalHeading id="delete-modal-heading">
+            Delete shared object?
+          </ModalHeading>
+          <div id="delete-modal-description">
+            <p>
+              This object is used in {deleteConfirmation.parents.length} places:
+            </p>
+            <ul>
+              {deleteConfirmation.parents.map(parent => (
+                <li key={parent.id}>
+                  <bdi>{parent.label}</bdi>
+                </li>
+              ))}
+            </ul>
+            <p>
+              Deleting it will remove it from all of these locations. This action can be undone.
+            </p>
+          </div>
+          <ModalFooter>
+            <Button type="button" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+            <Button type="button" onClick={handleCancelDelete} unstyled>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+    </>
+  )
 }
 
 /** The editor for the open catalog: what it holds on the left, the object at this address on the right. */
@@ -129,7 +213,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         </nav>
         <div className="tablet:grid-col-8">
           {object ? (
-            <ObjectDetail key={object.id} object={object} objects={objects} />
+            <ObjectDetail key={object.id} object={object} catalog={open.catalog} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">
