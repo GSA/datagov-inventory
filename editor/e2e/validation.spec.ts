@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Validation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/import')
-    await page.getByRole('link', { name: 'Blank catalog' }).click()
+    await page.getByRole('button', { name: 'Start a blank catalog' }).click()
     await expect(page).toHaveURL(/\/editor/)
   })
 
