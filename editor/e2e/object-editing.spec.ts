@@ -82,6 +82,20 @@ test('adds and removes entries in multi-value field', async ({ page }) => {
   await expect(keywordSection.getByRole('listitem')).toHaveCount(2)
 })
 
+test('edits class fields given as text and string-only fields', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  const form = page.getByRole('form', { name: 'Edit Air quality readings' })
+
+  // theme holds Concepts; the sample gives one as a string, which stays editable.
+  await expect(form.getByRole('region', { name: 'Theme' }).getByRole('textbox')).toHaveValue('Environment')
+  await expect(form.getByRole('region', { name: 'Language' }).getByRole('textbox')).toHaveValue('en')
+  await expect(form.getByRole('textbox', { name: /^Identifier/ })).toHaveValue('example-air-quality')
+  await expect(form.getByRole('textbox', { name: /^Issued/ })).toHaveValue('2024-01-15')
+  // Distributions are linked objects, not text.
+  await expect(form.getByRole('region', { name: 'Distribution' }).getByRole('textbox')).toHaveCount(0)
+})
+
 test('shows unknown properties as read-only', async ({ page }) => {
   await page.goto('/import')
 
