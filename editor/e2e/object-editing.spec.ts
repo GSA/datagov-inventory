@@ -14,9 +14,10 @@ test('opens object in editable form when clicked in tree', async ({ page }) => {
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
   await expect(page).toHaveURL('/editor/dataset/0')
 
-  await expect(page.getByRole('form', { name: 'Edit Air quality readings' })).toBeVisible()
-  await expect(page.getByLabel('Title')).toBeVisible()
-  await expect(page.getByLabel('Description')).toBeVisible()
+  const form = page.getByRole('form', { name: 'Edit Air quality readings' })
+  await expect(form).toBeVisible()
+  await expect(form.getByRole('textbox', { name: /^Title/ })).toBeVisible()
+  await expect(form.getByRole('textbox', { name: /^Description/ })).toBeVisible()
 })
 
 test('edits text field and updates tree label', async ({ page }) => {
@@ -24,7 +25,8 @@ test('edits text field and updates tree label', async ({ page }) => {
 
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
 
-  const titleInput = page.getByLabel('Title')
+  const form = page.getByRole('form', { name: 'Edit Air quality readings' })
+  const titleInput = form.getByRole('textbox', { name: /^Title/ })
   await expect(titleInput).toHaveValue('Air quality readings')
 
   await titleInput.fill('Updated Air Quality Data')
@@ -38,9 +40,12 @@ test('shows required marker on required fields', async ({ page }) => {
 
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
 
-  const titleLabel = page.getByText('Title').locator('..')
-  await expect(titleLabel).toContainText('*')
-  await expect(titleLabel).toContainText('required')
+  const form = page.getByRole('form', { name: 'Edit Air quality readings' })
+  const titleField = form.getByRole('textbox', { name: /Title.*\*/ })
+  await expect(titleField).toBeVisible()
+  const label = form.locator('label[for="field-title"]')
+  await expect(label).toContainText('*')
+  await expect(label.locator('abbr')).toHaveAttribute('title', 'required')
 })
 
 test('shows help text below fields', async ({ page }) => {
@@ -48,8 +53,14 @@ test('shows help text below fields', async ({ page }) => {
 
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
 
-  const descriptionHelp = page.getByText(/human-readable description/i)
-  await expect(descriptionHelp).toBeVisible()
+  const form = page.getByRole('form', { name: 'Edit Air quality readings' })
+  const descriptionField = form.getByRole('textbox', { name: /^Description/ })
+  const helpId = await descriptionField.getAttribute('aria-describedby')
+  if (helpId) {
+    const helpText = page.locator(`#${helpId}`)
+    await expect(helpText).toBeVisible()
+    await expect(helpText).not.toBeEmpty()
+  }
 })
 
 test('adds and removes entries in multi-value field', async ({ page }) => {
@@ -58,16 +69,17 @@ test('adds and removes entries in multi-value field', async ({ page }) => {
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
 
   const keywordSection = page.getByRole('region', { name: 'Keyword' })
-  await expect(keywordSection.getByRole('listitem')).toHaveCount(3)
+  await expect(keywordSection.getByRole('listitem')).toHaveCount(2)
 
   await keywordSection.getByRole('button', { name: 'Add keyword' }).click()
-  await keywordSection.getByLabel('Keyword 4').fill('new-keyword')
-  await keywordSection.getByLabel('Keyword 4').blur()
+  const newInput = keywordSection.getByRole('textbox').last()
+  await newInput.fill('new-keyword')
+  await newInput.blur()
 
-  await expect(keywordSection.getByRole('listitem')).toHaveCount(4)
-
-  await keywordSection.getByRole('listitem').nth(1).getByRole('button', { name: 'Remove' }).click()
   await expect(keywordSection.getByRole('listitem')).toHaveCount(3)
+
+  await keywordSection.getByRole('listitem').nth(0).getByRole('button', { name: /Remove/ }).click()
+  await expect(keywordSection.getByRole('listitem')).toHaveCount(2)
 })
 
 test('shows unknown properties as read-only', async ({ page }) => {

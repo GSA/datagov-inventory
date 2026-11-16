@@ -26,9 +26,9 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
   }
 
-  const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'single' && !f.allowedValues)
-  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'multiple' && f.type !== 'object')
-  const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.cardinality === 'single' && f.allowedValues)
+  const textFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && !f.allowedValues)
+  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'array')
+  const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
