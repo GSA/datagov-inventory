@@ -7,6 +7,7 @@ import type { FormModel, FormField } from './schema'
 import { useValidation } from './validation/useValidation'
 import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
 import { useValidationContext } from './validation/ValidationContext'
+import { ValidationDisclaimer } from './validation/ValidationDisclaimer'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -80,16 +81,19 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       </div>
 
       {validationErrors.length > 0 && (
-        <Alert type="error" headingLevel="h3" role="alert" aria-live="polite">
-          <strong>Validation errors:</strong>
-          <ul className="margin-top-1">
-            {validationErrors.map((error, idx) => (
-              <li key={idx}>
-                <strong>{error.field}:</strong> {error.message}
-              </li>
-            ))}
-          </ul>
-        </Alert>
+        <>
+          <Alert type="error" headingLevel="h3" role="alert" aria-live="polite">
+            <strong>Validation errors:</strong>
+            <ul className="margin-top-1">
+              {validationErrors.map((error, idx) => (
+                <li key={idx}>
+                  <strong>{error.field}:</strong> {error.message}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+          <ValidationDisclaimer />
+        </>
       )}
 
       {textFields.map(field => (
