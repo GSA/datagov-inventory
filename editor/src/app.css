@@ -54,6 +54,27 @@ a:focus-visible {
   overflow-y: auto;
   border: 1px solid #dfe1e2;
 }
+/*
+ * Beside the form (tablet and up), the tree stays in view while a long form scrolls: its column sticks to the top of
+ * the viewport, at most the viewport's height, and the tree takes what the heading and filter leave.
+ */
+@media (min-width: 40em) {
+  .editor-nav {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    max-height: 100vh;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  .editor-nav .catalog-tree {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
 .catalog-tree [role='tree'] {
   margin: 0;
   padding: 0;

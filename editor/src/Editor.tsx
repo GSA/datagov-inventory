@@ -334,14 +334,14 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <AlertText>{exportStatus.message}</AlertText>
         </Alert>
       )}
-      <div className="grid-row grid-gap-lg margin-top-4">
-        <nav aria-labelledby="tree-heading" className="tablet:grid-col-5 desktop:grid-col-4">
+      <div className="grid-row grid-gap-lg margin-top-3">
+        <nav aria-labelledby="tree-heading" className="editor-nav tablet:grid-col-5 desktop:grid-col-4">
           <h2 id="tree-heading" className="font-heading-md margin-top-0">
             Catalog contents
           </h2>
           <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />
         </nav>
-        <div className="tablet:grid-col-7 desktop:grid-col-8">
+        <div className="tablet:grid-col-7 desktop:grid-col-8 tablet:padding-top-2">
           {object ? (
             <ObjectDetail key={object.id} object={object} catalog={open.catalog} parents={parents} />
           ) : (
