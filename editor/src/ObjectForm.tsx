@@ -147,8 +147,9 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     )
   }
 
+  // One width (a USWDS tablet, 40rem) for fields, hints, rows and rules, so lines stay readable on a wide screen.
   return (
-    <form aria-label={`Edit ${labelOf(object)}`} className="object-form">
+    <form aria-label={`Edit ${labelOf(object)}`} className="object-form maxw-tablet">
       {/* The note on a new object or a copy is read with the heading that focus moves to. */}
       <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined} className="margin-top-1 margin-bottom-0">
         {labelOf(object)}

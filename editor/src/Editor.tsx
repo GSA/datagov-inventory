@@ -110,7 +110,7 @@ function DeleteObject({ object, catalog }: { object: CatalogObject; catalog: Cat
   }
 
   return (
-    <div className="margin-top-5 padding-top-3 border-top-1px border-base-lighter">
+    <div className="maxw-tablet margin-top-5 padding-top-3 border-top-1px border-base-lighter">
       {confirming ? (
         <Alert type="warning" className="margin-top-0">
           <AlertHeading level="h3" id="delete-heading" tabIndex={-1}>

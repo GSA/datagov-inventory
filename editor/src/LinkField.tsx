@@ -83,7 +83,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
         </Alert>
       )}
       {ids.length > 0 && (
-        <ul className="usa-list usa-list--unstyled maxw-tablet">
+        <ul className="usa-list usa-list--unstyled">
           {ids.map((childId, index) => {
             const child = catalog.objects.get(childId)
             const label = child ? labelOf(child) : childId
