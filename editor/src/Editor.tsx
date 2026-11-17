@@ -283,7 +283,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
                   type="button"
                   onClick={handleValidateCatalog}
                   disabled={isValidatingCatalog}
-                  secondary
+                  outline
                 >
                   {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
                 </Button>,

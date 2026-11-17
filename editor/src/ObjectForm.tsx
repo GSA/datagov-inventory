@@ -104,7 +104,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
           <Button
             type="button"
             onClick={handleValidate}
-            secondary
+            outline
             disabled={isValidating}
             className="width-auto margin-y-0 margin-left-1"
             aria-label={`Validate ${labelOf(object)}`}
