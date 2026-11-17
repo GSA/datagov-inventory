@@ -140,7 +140,7 @@ export default function ImportPage() {
             <Button
               type="button"
               outline
-              className="margin-top-1"
+              className="margin-top-2"
               onClick={() => {
                 active.current?.abort()
                 stopLoading()
@@ -204,7 +204,7 @@ export default function ImportPage() {
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
           />
-          <Button type="button" className="margin-top-1" onClick={() => void load('Pasted JSON', pasted)}>
+          <Button type="button" className="margin-top-2" onClick={() => void load('Pasted JSON', pasted)}>
             Load pasted JSON
           </Button>
         </div>
@@ -219,7 +219,7 @@ export default function ImportPage() {
           </Select>
           <Button
             type="button"
-            className="margin-top-1"
+            className="margin-top-2"
             onClick={() => void load(sample, samples.find(({ name }) => name === sample)!.text)}
           >
             Load sample

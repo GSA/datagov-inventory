@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Alert, Button, Label } from '@trussworks/react-uswds'
+import { Alert, Button, ButtonGroup, Label } from '@trussworks/react-uswds'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './links'
@@ -156,14 +156,14 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
             />
           )}
           {mode !== 'select' && (
-            <div className="display-flex flex-wrap flex-gap-1 margin-top-1">
+            <ButtonGroup className="margin-top-105">
               {classes.map((dcatClass) => (
                 <Button key={dcatClass} type="button" outline onClick={() => handleCreate(dcatClass)}>
                   Create new {dcatClass}
                   <span className="usa-sr-only"> in {field.label}</span>
                 </Button>
               ))}
-            </div>
+            </ButtonGroup>
           )}
           {mode === 'select' && (
             <p className="usa-hint">These belong to the catalog, so pick one that is already in it.</p>

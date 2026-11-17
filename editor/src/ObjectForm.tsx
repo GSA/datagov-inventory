@@ -97,7 +97,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       </p>
       {open && <UsedIn object={object} catalog={open.catalog} />}
 
-      <div className="margin-top-2 margin-bottom-2">
+      {/* The badge and its button on one line, even on a phone, where USWDS buttons are otherwise full width. */}
+      <div className="display-flex flex-wrap flex-align-center margin-y-2">
         <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
         {isReady && (
           <Button
@@ -105,7 +106,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
             onClick={handleValidate}
             secondary
             disabled={isValidating}
-            className="margin-left-1"
+            className="width-auto margin-y-0 margin-left-1"
             aria-label={`Validate ${labelOf(object)}`}
           >
             {isValidating ? 'Validating...' : 'Validate'}
@@ -321,7 +322,7 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
               value={typeof item === 'string' ? item : ''}
               onChange={e => handleChange(index, e.target.value)}
               onBlur={onBlur}
-              className="flex-fill margin-right-1"
+              className="flex-fill margin-top-0 margin-right-1"
               aria-label={`${field.label} ${index + 1}`}
             />
             <Button
@@ -336,7 +337,7 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
           </li>
         ))}
       </ul>
-      <Button type="button" onClick={handleAdd} outline>
+      <Button type="button" onClick={handleAdd} outline className="margin-top-2">
         Add {field.label.toLowerCase()}
       </Button>
     </section>

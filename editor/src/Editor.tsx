@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
+import { Alert, AlertText, Button, ButtonGroup, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { getFormModel } from './schema'
@@ -270,24 +270,30 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         From <bdi>{open.name}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
-      <div className="margin-top-2 display-flex flex-gap-1">
-        <Button type="button" onClick={initiateExport}>
-          Export catalog
-        </Button>
-        {isReady && (
-          <Button
-            type="button"
-            onClick={handleValidateCatalog}
-            disabled={isValidatingCatalog}
-            secondary
-          >
-            {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
-          </Button>
-        )}
-        <Button type="button" onClick={undoRemoval} disabled={!canUndo} outline>
-          Undo
-        </Button>
-      </div>
+      {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
+      <ButtonGroup className="margin-top-105">
+        {[
+          <Button key="export" type="button" onClick={initiateExport}>
+            Export catalog
+          </Button>,
+          ...(isReady
+            ? [
+                <Button
+                  key="validate"
+                  type="button"
+                  onClick={handleValidateCatalog}
+                  disabled={isValidatingCatalog}
+                  secondary
+                >
+                  {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
+                </Button>,
+              ]
+            : []),
+          <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+            Undo
+          </Button>,
+        ]}
+      </ButtonGroup>
       {validationState === 'validating' && (
         <div className="margin-top-2">
           <ValidationProgress progress={validationProgress} total={objects.size} />
