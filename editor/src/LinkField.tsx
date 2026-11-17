@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Alert, Button, ButtonGroup, Label } from '@trussworks/react-uswds'
+import { Alert, AlertText, Button, ButtonGroup, Label } from '@trussworks/react-uswds'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './links'
@@ -95,7 +95,7 @@ export function LinkField({
       )}
       {field.required && ids.length === 0 && !error && (
         <Alert type="warning" slim className="margin-top-1">
-          This required field has no values
+          <AlertText>This required field has no values</AlertText>
         </Alert>
       )}
       {ids.length > 0 && (

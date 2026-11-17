@@ -371,7 +371,7 @@ function MultiValueField({ field, value, error, onChange, onBlur }: MultiValueFi
       <FieldError id={`field-${field.name}-error`} error={error} />
       {field.required && items.length === 0 && !error && (
         <Alert type="warning" slim className="margin-top-1">
-          This required field has no values
+          <AlertText>This required field has no values</AlertText>
         </Alert>
       )}
       <ul className="usa-list usa-list--unstyled margin-top-1">
