@@ -89,3 +89,75 @@ a:focus-visible {
 .catalog-tree [aria-selected='true'] .catalog-tree__class {
   color: #fff;
 }
+
+/* A linked object in a class-valued field (#25): its name and class, then its actions, wrapping on narrow screens. */
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f0f0f0;
+}
+.link-row__actions {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+/* "Add an existing …" (#25): the options float over the form below, under the input. */
+.object-picker__box {
+  position: relative;
+  max-width: 30rem;
+}
+.object-picker__popup {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+}
+.object-picker__list {
+  max-height: 20rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  background-color: #fff;
+  border: 1px solid #565c65;
+  border-top: 0;
+}
+.object-picker__status:not(:empty) {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.87rem;
+  color: #565c65;
+  background-color: #f0f0f0;
+  border: 1px solid #565c65;
+  border-top: 0;
+}
+.object-picker__option {
+  padding: 0.5rem;
+  cursor: pointer;
+  border-bottom: 1px solid #dfe1e2;
+}
+.object-picker__option:hover {
+  background-color: #f0f0f0;
+}
+.object-picker__option[aria-selected='true'],
+.object-picker__option[aria-selected='true'] span {
+  color: #fff;
+  background-color: #1a4480;
+}
+
+/* Long labels with no spaces (in rows, options, Back to, notes, Used in) wrap instead of running off the pane. */
+.object-form {
+  overflow-wrap: anywhere;
+}
+/*
+ * Focus shows on the form's links and buttons (WCAG 2.4.7), where #25 moves it: to a new row, or back to a row. This
+ * overrides the rule above for the form only; #30 can remove that rule.
+ */
+.object-form a:focus-visible,
+.object-form button:focus-visible {
+  outline: 0.25rem solid #2491ff !important;
+  outline-offset: 0.25rem;
+}

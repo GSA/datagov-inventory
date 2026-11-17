@@ -84,7 +84,8 @@ export function assemble(catalog: CatalogGraph): AssembleResult {
     for (const [property, childIds] of Object.entries(object.links)) {
       const children = childIds.map(childId => assembleObject(childId, newPath))
 
-      if (object.singleLinks.includes(property)) {
+      // A list field read as one object is written as one only while it holds one.
+      if (object.singleLinks.includes(property) && children.length === 1) {
         result[property] = children[0]
       } else {
         result[property] = children

@@ -93,7 +93,9 @@ test('edits class fields given as text and string-only fields', async ({ page })
   await expect(form.getByRole('textbox', { name: /^Identifier/ })).toHaveValue('example-air-quality')
   await expect(form.getByRole('textbox', { name: /^Issued/ })).toHaveValue('2024-01-15')
   // Distributions are linked objects, not text.
-  await expect(form.getByRole('region', { name: 'Distribution' }).getByRole('textbox')).toHaveCount(0)
+  const distributions = form.getByRole('group', { name: 'Distribution', exact: true })
+  await expect(distributions).toBeVisible()
+  await expect(distributions.getByRole('textbox')).toHaveCount(0)
 })
 
 test('shows unknown properties as read-only', async ({ page }) => {
