@@ -32,7 +32,8 @@
 
 /* Headings that take focus when a page or object opens are not controls, so they show no focus ring. */
 h1[tabindex="-1"]:focus,
-h2[tabindex="-1"]:focus {
+h2[tabindex="-1"]:focus,
+h3[tabindex="-1"]:focus {
   outline: none;
 }
 

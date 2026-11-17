@@ -92,3 +92,37 @@ test('passes accessibility checks', async ({ page }) => {
 
   expect(results.violations).toEqual([])
 })
+
+test('asks in place, with no dialog, before deleting an object used in several places', async ({ page }) => {
+  await loadSample(page)
+  // The catalog and the dataset share the dataset's contact.
+  const contacts = page.getByRole('group', { name: 'Contact Point' })
+  await contacts.getByRole('combobox').fill('air')
+  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await contacts.getByRole('link', { name: 'Air Quality Team' }).click()
+
+  await page.getByRole('button', { name: 'Delete object' }).click()
+  const question = page.getByRole('heading', { name: 'Delete this shared object?' })
+  await expect(question).toBeFocused()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.locator('.usa-alert--warning .usa-list > li')).toHaveText([
+    'Example Agency Catalog › Contact Point',
+    'Air quality readings › Contact Point',
+  ])
+  const AxeBuilder = (await import('@axe-core/playwright')).default
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
+  expect(results.violations).toEqual([])
+
+  // Cancel keeps it, and focus returns to Delete.
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(question).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Delete object' })).toBeFocused()
+
+  await page.getByRole('button', { name: 'Delete object' }).click()
+  await page.getByRole('button', { name: 'Delete from all 2 places' }).click()
+  await expect(page).toHaveURL('/editor')
+  await expect(page.getByRole('treeitem', { name: /^Air Quality Team/ })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect(contacts.getByRole('link', { name: 'Air Quality Team' })).toBeVisible()
+})

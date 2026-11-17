@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { Alert, AlertText, Button, ButtonGroup, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { getFormModel } from './schema'
@@ -69,23 +69,20 @@ function Breadcrumb({
   )
 }
 
-function ObjectDetail({
-  object,
-  catalog,
-  parents,
-}: {
-  object: CatalogObject
-  catalog: CatalogGraph
-  parents: Map<string, string[]>
-}) {
+/** Deletes the open object. One used in several places asks first, in place (no dialog), listing the places. */
+function DeleteObject({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{
-    objectId: string
-    parents: Array<{ id: string; label: string }>
-  } | undefined>(undefined)
-
-  const model = getFormModel(object.dcatClass)
+  const [places, setPlaces] = useState<{ key: string; parent: string; field: string }[]>()
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  const confirming = places !== undefined
+  // Focus follows the question: to its heading when it opens, and back to Delete when it is cancelled.
+  const opened = useRef(false)
+  useEffect(() => {
+    if (confirming) document.getElementById('delete-heading')?.focus()
+    else if (opened.current) deleteButton.current?.focus()
+    opened.current = confirming
+  }, [confirming])
 
   const handleDeleteClick = () => {
     const parentLinks = findParentLinks(catalog, object.id)
@@ -95,24 +92,68 @@ function ObjectDetail({
       deleteObject(object.id)
       navigate({ to: '/editor/$', params: { _splat: firstParentId === catalog.rootId ? '' : pathOf(firstParentId) } })
     } else {
-      const parents = parentLinks.map(link => {
-        const parent = catalog.objects.get(link.parentId)!
-        return { id: parent.id, label: labelOf(parent) }
-      })
-      setDeleteConfirmation({ objectId: object.id, parents })
+      setPlaces(
+        parentLinks.map((link) => {
+          const parent = catalog.objects.get(link.parentId)!
+          const field = getFormModel(parent.dcatClass)?.fields.find((f) => f.name === link.property)?.label
+          return { key: `${link.parentId} ${link.property} ${link.position}`, parent: labelOf(parent), field: field ?? link.property }
+        }),
+      )
     }
   }
 
   const handleConfirmDelete = () => {
-    if (!deleteConfirmation) return
-    deleteObject(deleteConfirmation.objectId)
-    setDeleteConfirmation(undefined)
+    deleteObject(object.id)
+    setPlaces(undefined)
     navigate({ to: '/editor' })
   }
 
-  const handleCancelDelete = () => {
-    setDeleteConfirmation(undefined)
-  }
+  return (
+    <div className="margin-top-5 padding-top-3 border-top-1px border-base-lighter">
+      {confirming ? (
+        <Alert type="warning" className="margin-top-0">
+          <AlertHeading level="h3" id="delete-heading" tabIndex={-1}>
+            Delete this shared object?
+          </AlertHeading>
+          <AlertText>
+            <bdi>{labelOf(object)}</bdi> is used in {count(places.length)} places:
+          </AlertText>
+          <ul className="usa-list">
+            {places.map((place) => (
+              <li key={place.key}>
+                <bdi>{place.parent}</bdi> › {place.field}
+              </li>
+            ))}
+          </ul>
+          <AlertText>Deleting it removes it from all of them. Undo, at the top of the page, puts it back.</AlertText>
+          <ButtonGroup className="margin-top-2">
+            <Button type="button" secondary onClick={handleConfirmDelete}>
+              Delete from all {count(places.length)} places
+            </Button>
+            <Button type="button" outline onClick={() => setPlaces(undefined)}>
+              Cancel
+            </Button>
+          </ButtonGroup>
+        </Alert>
+      ) : (
+        <Button ref={deleteButton} type="button" onClick={handleDeleteClick} secondary>
+          Delete object
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function ObjectDetail({
+  object,
+  catalog,
+  parents,
+}: {
+  object: CatalogObject
+  catalog: CatalogGraph
+  parents: Map<string, string[]>
+}) {
+  const model = getFormModel(object.dcatClass)
 
   if (!model) {
     return (
@@ -122,11 +163,7 @@ function ObjectDetail({
           {labelOf(object)}
         </h2>
         <p>No form model available for {object.dcatClass}</p>
-        <div className="margin-top-2">
-          <Button type="button" onClick={handleDeleteClick} secondary>
-            Delete object
-          </Button>
-        </div>
+        <DeleteObject object={object} catalog={catalog} />
       </section>
     )
   }
@@ -135,46 +172,7 @@ function ObjectDetail({
     <>
       <Breadcrumb object={object} catalog={catalog} parents={parents} />
       <ObjectForm object={object} model={model} />
-      <div className="margin-top-5 padding-top-3 border-top-1px border-base-lighter">
-        <Button type="button" onClick={handleDeleteClick} secondary>
-          Delete object
-        </Button>
-      </div>
-      {deleteConfirmation && (
-        <Modal
-          forceAction
-          aria-labelledby="delete-modal-heading"
-          aria-describedby="delete-modal-description"
-          id="delete-confirmation-modal"
-        >
-          <ModalHeading id="delete-modal-heading">
-            Delete shared object?
-          </ModalHeading>
-          <div id="delete-modal-description">
-            <p>
-              This object is used in {deleteConfirmation.parents.length} places:
-            </p>
-            <ul>
-              {deleteConfirmation.parents.map(parent => (
-                <li key={parent.id}>
-                  <bdi>{parent.label}</bdi>
-                </li>
-              ))}
-            </ul>
-            <p>
-              Deleting it will remove it from all of these locations. This action can be undone.
-            </p>
-          </div>
-          <ModalFooter>
-            <Button type="button" onClick={handleConfirmDelete}>
-              Delete
-            </Button>
-            <Button type="button" onClick={handleCancelDelete} unstyled>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </Modal>
-      )}
+      <DeleteObject object={object} catalog={catalog} />
     </>
   )
 }
