@@ -13,6 +13,9 @@ if (!productionHeaders['Content-Security-Policy']) throw new Error('No CSP found
 
 export default defineConfig({
   plugins: [react()],
+  worker: {
+    format: 'es'
+  },
   server: {
     port: 5173,
     headers: {

@@ -28,7 +28,7 @@ describe('DatasetModel', () => {
     expect(descField?.type).toBe('string')
   })
 
-  it('has contactPoint field marked as required', () => {
+  it('has contactPoint, a Kind or a list of them, as required and multiple', () => {
     const contactField = DatasetModel.fields.find(
       (f) => f.name === 'contactPoint',
     )
@@ -36,6 +36,7 @@ describe('DatasetModel', () => {
     expect(contactField).toBeDefined()
     expect(contactField?.required).toBe(true)
     expect(contactField?.type).toBe('object')
+    expect(contactField?.cardinality).toBe('multiple')
     expect(contactField?.allowedClasses).toContain('Kind')
   })
 
@@ -48,12 +49,41 @@ describe('DatasetModel', () => {
     expect(idField?.allowedClasses).toContain('Identifier')
   })
 
-  it('has keyword field as array type', () => {
+  it('has keyword, a nullable list of strings, as multiple strings', () => {
     const keywordField = DatasetModel.fields.find((f) => f.name === 'keyword')
 
-    if (keywordField) {
-      expect(keywordField.type).toBe('array')
-    }
+    expect(keywordField?.type).toBe('string')
+    expect(keywordField?.cardinality).toBe('multiple')
+  })
+
+  it('has temporal, a nullable list of PeriodOfTime, as multiple objects', () => {
+    const temporalField = DatasetModel.fields.find((f) => f.name === 'temporal')
+
+    expect(temporalField?.type).toBe('object')
+    expect(temporalField?.cardinality).toBe('multiple')
+    expect(temporalField?.allowedClasses).toEqual(['PeriodOfTime'])
+  })
+
+  it('has language, a string or a list of strings (anyOf), as multiple strings', () => {
+    const languageField = DatasetModel.fields.find((f) => f.name === 'language')
+
+    expect(languageField?.type).toBe('string')
+    expect(languageField?.cardinality).toBe('multiple')
+  })
+
+  it('has issued, a choice of date strings (anyOf), as a single string', () => {
+    const issuedField = DatasetModel.fields.find((f) => f.name === 'issued')
+
+    expect(issuedField?.type).toBe('string')
+    expect(issuedField?.cardinality).toBe('single')
+  })
+
+  it('has spatial, a Location or a list of them (anyOf), as multiple objects', () => {
+    const spatialField = DatasetModel.fields.find((f) => f.name === 'spatial')
+
+    expect(spatialField?.type).toBe('object')
+    expect(spatialField?.cardinality).toBe('multiple')
+    expect(spatialField?.allowedClasses).toEqual(['Location'])
   })
 
   it('has publisher field referencing Organization', () => {

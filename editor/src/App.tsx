@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { GovBanner, Header, NavMenuButton, PrimaryNav, Title } from '@trussworks/react-uswds'
 import {
   createRootRoute,
@@ -9,7 +9,8 @@ import {
   RouterProvider,
   useRouter,
 } from '@tanstack/react-router'
-import { CatalogContext, type OpenCatalog } from './session'
+import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
+import type { CatalogObject } from './catalog/decompose'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
@@ -122,9 +123,89 @@ declare module '@tanstack/react-router' {
 }
 
 export default function App() {
-  const [open, setOpen] = useState<OpenCatalog>()
+  const [open, setOpen] = useState<OpenCatalog | undefined>()
+  const [removalHistory, setRemovalHistory] = useState<RemovalRecord | undefined>()
+
+  const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
+    if (!open) return
+
+    const object = open.catalog.objects.get(id)
+    if (!object) return
+
+    const updated = {
+      ...object,
+      ...updates,
+      properties: { ...object.properties, ...updates.properties }
+    }
+
+    const newObjects = new Map(open.catalog.objects)
+    newObjects.set(id, updated)
+
+    setOpen({
+      ...open,
+      catalog: {
+        ...open.catalog,
+        objects: newObjects
+      }
+    })
+  }, [open])
+
+  const handleRemoveLink = useCallback((parentId: string, property: string, childId: string) => {
+    if (!open) return
+
+    const { catalog: updatedCatalog, undoRecord } = removeLink(
+      open.catalog,
+      parentId,
+      property,
+      childId
+    )
+
+    setOpen({
+      ...open,
+      catalog: updatedCatalog,
+    })
+    setRemovalHistory(undoRecord)
+  }, [open])
+
+  const handleDeleteObject = useCallback((id: string) => {
+    if (!open) return
+
+    const { catalog: updatedCatalog, undoRecord } = deleteObject(
+      open.catalog,
+      id
+    )
+
+    setOpen({
+      ...open,
+      catalog: updatedCatalog,
+    })
+    setRemovalHistory(undoRecord)
+  }, [open])
+
+  const handleUndoRemoval = useCallback(() => {
+    if (!open || !removalHistory) return
+
+    const updatedCatalog = undoRemoval(open.catalog, removalHistory)
+
+    setOpen({
+      ...open,
+      catalog: updatedCatalog,
+    })
+    setRemovalHistory(undefined)
+  }, [open, removalHistory])
+
   return (
-    <CatalogContext.Provider value={{ open, setOpen }}>
+    <CatalogContext.Provider
+      value={{
+        open,
+        setOpen,
+        updateObject,
+        removeLink: handleRemoveLink,
+        deleteObject: handleDeleteObject,
+        undoRemoval: handleUndoRemoval,
+        canUndo: removalHistory !== undefined,
+      }}
+    >
       <RouterProvider router={router} />
     </CatalogContext.Provider>
   )

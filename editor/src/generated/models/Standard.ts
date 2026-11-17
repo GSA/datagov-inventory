@@ -20,7 +20,7 @@ export const StandardModel: FormModel = {
 {
       name: 'created',
       label: 'Created',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The date on which the Standard has been first created',
@@ -45,15 +45,16 @@ export const StandardModel: FormModel = {
 {
       name: 'otherIdentifier',
       label: 'Other Identifier',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'A list of identifiers for the Standard besides the main identifier, e.g. the URI or other unique identifiers in the context of the Catalog',
+      allowedClasses: ['Identifier'],
     },
 {
       name: 'issued',
       label: 'Issued',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The date of formal issuance (e.g., publication) of the Standard',
@@ -61,7 +62,7 @@ export const StandardModel: FormModel = {
 {
       name: 'modified',
       label: 'Modified',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'The most recent date on which the Standard was changed or modified',
@@ -77,10 +78,11 @@ export const StandardModel: FormModel = {
 {
       name: 'category',
       label: 'Category',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'List of categories for the Standard',
+      allowedClasses: ['Concept'],
     },
 {
       name: 'inScheme',
@@ -89,7 +91,7 @@ export const StandardModel: FormModel = {
       required: false,
       cardinality: 'single',
       helpText: 'The reference register to which the Standard belongs',
-      allowedClasses: ['Conceptscheme'],
+      allowedClasses: ['ConceptScheme'],
     }
   ],
 }

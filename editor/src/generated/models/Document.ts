@@ -20,7 +20,7 @@ export const DocumentModel: FormModel = {
 {
       name: 'accessURL',
       label: 'Access U R L',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'A URL that gives access to the Document',
@@ -28,7 +28,7 @@ export const DocumentModel: FormModel = {
 {
       name: 'downloadURL',
       label: 'Download U R L',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'A URL that is a direct link to a downloadable file of the Document in a given format',
@@ -36,10 +36,11 @@ export const DocumentModel: FormModel = {
 {
       name: 'creator',
       label: 'Creator',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'The individual(s) responsible for creating the Document',
+      allowedClasses: ['Kind'],
     },
 {
       name: 'mediaType',
@@ -68,18 +69,20 @@ export const DocumentModel: FormModel = {
 {
       name: 'conformsTo',
       label: 'Conforms To',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'List of standards or specifications the document follows',
+      allowedClasses: ['Standard'],
     },
 {
       name: 'corporateCreator',
       label: 'Corporate Creator',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'The corporate organization(s) responsible for creating the Document',
+      allowedClasses: ['Organization'],
     },
 {
       name: 'description',
@@ -101,15 +104,16 @@ export const DocumentModel: FormModel = {
 {
       name: 'otherIdentifier',
       label: 'Other Identifier',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'A list of identifiers for the Document besides the main identifier, e.g. the URI or other unique identifiers in the context of the Catalog',
+      allowedClasses: ['Identifier'],
     },
 {
       name: 'issued',
       label: 'Issued',
-      type: 'object',
+      type: 'string',
       required: false,
       cardinality: 'single',
       helpText: 'Publication date of the Document',
@@ -117,10 +121,11 @@ export const DocumentModel: FormModel = {
 {
       name: 'publisher',
       label: 'Publisher',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'The organization(s) that published the Document',
+      allowedClasses: ['Organization'],
     },
 {
       name: 'title',
@@ -133,10 +138,11 @@ export const DocumentModel: FormModel = {
 {
       name: 'category',
       label: 'Category',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'List of categories/genres for the Document',
+      allowedClasses: ['Concept'],
     }
   ],
 }
