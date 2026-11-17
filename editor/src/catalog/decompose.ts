@@ -160,7 +160,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /** In FOAF, which DCAT-US 3.0 uses, an Organization is an Agent: the only subclass pair among its classes. */
-const subclasses = new Map([['Agent', ['Organization']]])
+export const subclasses: ReadonlyMap<string, readonly string[]> = new Map([['Agent', ['Organization']]])
 
 /** The class for an object where `allowed` classes may stand: its `@type` if that fits, else the first allowed. */
 function classIn(node: Record<string, unknown>, allowed: readonly string[]): string {
