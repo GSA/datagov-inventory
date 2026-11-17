@@ -10,6 +10,12 @@ async function loadSample(page: Page) {
   await expect(page).toHaveURL('/editor')
 }
 
+/** On the catalog: adds the dataset's contact to the catalog's Contact Point, so the two share it. */
+async function shareContact(page: Page) {
+  await field(page, 'Contact Point').getByRole('combobox').fill('air')
+  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+}
+
 /** A label as notes and announcements write it: isolated, so right-to-left text in it can't reverse the sentence. */
 const iso = (label: string) => `\u2068${label}\u2069`
 
@@ -188,8 +194,7 @@ test('creates an Organization in a field that allows Agents', async ({ page }) =
 
 test('edits a copy of a shared object for one place only', async ({ page }) => {
   await loadSample(page)
-  await field(page, 'Contact Point').getByRole('combobox').fill('air')
-  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await shareContact(page)
 
   // From the catalog's field: the copy takes the shared contact's place there only.
   await field(page, 'Contact Point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
@@ -209,8 +214,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
 
   // From the shared object's own list of places.
   await page.getByRole('treeitem', { name: 'Example Agency Catalog' }).click()
-  await field(page, 'Contact Point').getByRole('combobox').fill('air')
-  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await shareContact(page)
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
   // The place the user came from (the dataset) is listed first. By keyboard: Enter on the button.
@@ -221,8 +225,6 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page).toHaveURL('/editor/dataset/0/contactPoint/1')
   await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
-  await page.getByRole('link', { name: 'Back to Air quality readings' }).click()
-  await expect(field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' })).toBeFocused()
 })
 
 test('has no accessibility violations axe can find: the open list, a new object, a shared object', async ({ page }) => {
@@ -250,8 +252,7 @@ test('has no accessibility violations axe can find: the open list, a new object,
 
 test('goes back to the place it came from when an object is used in several', async ({ page }) => {
   await loadSample(page)
-  await field(page, 'Contact Point').getByRole('combobox').fill('air')
-  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await shareContact(page)
 
   // Shared by the catalog and the dataset: opened from the dataset, Back goes to the dataset, by keyboard alone.
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()

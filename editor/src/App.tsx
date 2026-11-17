@@ -12,6 +12,7 @@ import {
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { copyFor, createLinked, keepIndex, linkObject } from './links'
+import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
@@ -257,7 +258,9 @@ export default function App() {
         copyObject: handleCopyObject,
       }}
     >
-      <RouterProvider router={router} />
+      <ValidationProvider>
+        <RouterProvider router={router} />
+      </ValidationProvider>
     </CatalogContext.Provider>
   )
 }

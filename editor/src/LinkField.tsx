@@ -5,9 +5,9 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
+import { useValidationContext } from './validation/ValidationContext'
 import { count, isolate, labelOf, pathOf } from './tree'
 
-const NO_CLASSES: readonly string[] = []
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
 /** "Kind", "Agent or Organization": class names as the schema writes them. */
 const classList = (classes: readonly string[]) => classes.join(' or ')
@@ -20,8 +20,10 @@ const classList = (classes: readonly string[]) => classes.join(' or ')
 export function LinkField({ field, object, catalog }: { field: FormField; object: CatalogObject; catalog: DecomposedCatalog }) {
   const { removeLink, linkObject, createObject } = useCatalog()
   const editCopy = useEditCopy()
+  // A changed field makes the object's schema check (#27) out of date.
+  const { markStale } = useValidationContext()
   const navigate = useNavigate()
-  const allowed = field.allowedClasses ?? NO_CLASSES
+  const allowed = field.allowedClasses!
   const classes = classesFor(allowed)
   const ids = object.links[field.name] ?? []
   const uses = usesOf(catalog)
@@ -34,11 +36,9 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
   /** The row to focus once it renders: the object just added. */
   const focusRow = useRef<string>(undefined)
 
-  const open = (id: string, notice?: string) =>
-    navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
-
   const handleRemove = (index: number, childId: string, label: string) => {
     removeLink(object.id, field.name, childId)
+    markStale(object.id)
     setStatus(`Removed ${isolate(label)} from ${field.label}.`)
     // The next row's Remove, the previous one's if it was last, or, once the field is empty, its first input or button.
     setTimeout(() => {
@@ -49,6 +49,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   const handlePick = (picked: CatalogObject) => {
     linkObject(object.id, field.name, picked.id, single)
+    markStale(object.id)
     focusRow.current = picked.id
     const n = (uses.get(picked.id)?.length ?? 0) + 1
     setStatus(`Added ${isolate(labelOf(picked))} to ${field.label}.${n > 1 ? ` It is now used in ${places(n)}.` : ''}`)
@@ -56,7 +57,11 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   const handleCreate = (dcatClass: string) => {
     const id = createObject(object.id, field.name, dcatClass, single)
-    if (id) open(id, `New ${dcatClass}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`)
+    markStale(object.id)
+    if (id) {
+      const notice = `New ${dcatClass}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
+      navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
+    }
   }
 
   const pool = useCallback(() => candidatesFor(catalog, object, field.name, allowed), [catalog, object, field.name, allowed])
@@ -139,7 +144,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
       {single && ids.length > 0 ? (
         <p className="usa-hint">Holds one {classList(classes)}. To use a different one, remove this one first.</p>
       ) : (
-        <div className="link-add">
+        <div>
           {mode !== 'create' && (
             <ObjectPicker
               id={`pick-${field.name}`}
@@ -257,7 +262,7 @@ function ObjectPicker({ id, label, fieldLabel, pool, catalog, onPick }: ObjectPi
     }
   }
   return (
-    <div className="object-picker">
+    <div>
       <Label htmlFor={id} className="margin-top-1">
         {label}
         <span className="usa-sr-only"> to {fieldLabel}</span>
@@ -297,40 +302,39 @@ function ObjectPicker({ id, label, fieldLabel, pool, catalog, onPick }: ObjectPi
             // Pressing the list's scrollbar keeps focus in the input, so the list stays open.
             onMouseDown={(event) => event.preventDefault()}
           >
-            {showList &&
-              items.map((object, i) => {
-                const objectUses = uses.get(object.id) ?? []
-                const parent = objectUses.length === 1 ? catalog.objects.get(objectUses[0].parentId) : undefined
-                return (
-                  <li
-                    key={object.id}
-                    id={optionId(i)}
-                    role="option"
-                    aria-selected={i === current}
-                    className="object-picker__option"
-                    // Picks on mousedown, before the input loses focus and closes the list.
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                      pick(object)
-                    }}
-                  >
-                    <bdi className="text-bold">{labelOf(object)}</bdi>
-                    <span className="display-block font-sans-3xs text-base-dark">
-                      {/* Where it is used tells apart objects with the same name, such as a contact written out per dataset. */}
-                      {object.dcatClass} ·{' '}
-                      {parent ? (
-                        <>
-                          used in <bdi>{labelOf(parent)}</bdi>
-                        </>
-                      ) : objectUses.length > 0 ? (
-                        `used in ${places(objectUses.length)}`
-                      ) : (
-                        'not linked anywhere'
-                      )}
-                    </span>
-                  </li>
-                )
-              })}
+            {items.map((object, i) => {
+              const objectUses = uses.get(object.id) ?? []
+              const parent = objectUses.length === 1 ? catalog.objects.get(objectUses[0].parentId) : undefined
+              return (
+                <li
+                  key={object.id}
+                  id={optionId(i)}
+                  role="option"
+                  aria-selected={i === current}
+                  className="object-picker__option"
+                  // Picks on mousedown, before the input loses focus and closes the list.
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    pick(object)
+                  }}
+                >
+                  <bdi className="text-bold">{labelOf(object)}</bdi>
+                  <span className="display-block font-sans-3xs text-base-dark">
+                    {/* Where it is used tells apart objects with the same name, such as a contact written out per dataset. */}
+                    {object.dcatClass} ·{' '}
+                    {parent ? (
+                      <>
+                        used in <bdi>{labelOf(parent)}</bdi>
+                      </>
+                    ) : objectUses.length > 0 ? (
+                      `used in ${places(objectUses.length)}`
+                    ) : (
+                      'not linked anywhere'
+                    )}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
           <div id={statusId} className="object-picker__status" aria-live="polite">
             {expanded &&

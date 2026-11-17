@@ -7,6 +7,10 @@ import { count, labelOf, pathOf } from './tree'
 import { getFormModel, type FormModel, type FormField } from './schema'
 import { rowId, usesOf, type Use } from './links'
 import { LinkField } from './LinkField'
+import { useValidation } from './validation/useValidation'
+import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
+import { useValidationContext } from './validation/ValidationContext'
+import { ValidationDisclaimer } from './validation/ValidationDisclaimer'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -17,10 +21,27 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const { updateObject, open } = useCatalog()
   const notice = useRouterState({ select: s => s.location.state.notice })
   const [formState, setFormState] = useState(object.properties)
+  const { validateObject, getObjectState, getObjectErrors, isReady } = useValidation()
+  const { markStale } = useValidationContext()
+  const [isValidating, setIsValidating] = useState(false)
+
+  const validationState = getObjectState(object.id)
+  const validationErrors = getObjectErrors(object.id)
 
   useEffect(() => {
     setFormState(object.properties)
   }, [object.id, object.properties])
+
+  const handleValidate = async () => {
+    setIsValidating(true)
+    try {
+      await validateObject(object.id)
+    } catch (error) {
+      console.error('Validation failed:', error)
+    } finally {
+      setIsValidating(false)
+    }
+  }
 
   const handleFieldChange = (fieldName: string, value: unknown) => {
     setFormState(prev => ({ ...prev, [fieldName]: value }))
@@ -28,7 +49,20 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 
   const handleFieldBlur = (fieldName: string) => {
     updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
+    markStale(object.id)
   }
+
+  useEffect(() => {
+    if (validationState === 'stale' && isReady) {
+      const timer = setTimeout(() => {
+        validateObject(object.id).catch((error) => {
+          console.error('Auto-revalidation failed:', error)
+        })
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [validationState, isReady, object.id, validateObject])
 
   // A class field can also hold strings (a Concept or Identifier given as text), which decompose keeps as properties.
   // An empty list ([]) in a class field holds no text: it shows as the field's (empty) objects instead.
@@ -38,16 +72,24 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
   const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
-  // A class field holding something else as written (text, null, a mixed list) shows that instead, above or below.
+  // A class field holding text shows as a text field above; anything else as written (null, a mixed list) is left
+  // alone, with no pick or create.
   const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && (object.properties[f.name] === undefined || emptyList(object.properties[f.name])))
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
 
+  const getFieldError = (fieldName: string) => {
+    return validationErrors.find(e =>
+      e.instancePath === `/${fieldName}` ||
+      e.field.toLowerCase() === fieldName.split(':')[1]?.toLowerCase()
+    )
+  }
+
   return (
     <form aria-label={`Edit ${labelOf(object)}`} className="object-form">
       {/* The note on a new object or a copy is read with the heading that focus moves to. */}
-      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice && object.id !== open?.catalog.rootId ? 'object-notice' : undefined}>
+      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined}>
         {labelOf(object)}
       </h2>
       <p className="text-base-dark">
@@ -55,37 +97,96 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       </p>
       {open && <UsedIn object={object} catalog={open.catalog} />}
 
-      {textFields.map(field => (
-        <TextField
-          key={field.name}
-          field={field}
-          value={formState[field.name]}
-          onChange={value => handleFieldChange(field.name, value)}
-          onBlur={() => handleFieldBlur(field.name)}
-        />
-      ))}
+      <div className="margin-top-2 margin-bottom-2">
+        <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
+        {isReady && (
+          <Button
+            type="button"
+            onClick={handleValidate}
+            secondary
+            disabled={isValidating}
+            className="margin-left-1"
+            aria-label={`Validate ${labelOf(object)}`}
+          >
+            {isValidating ? 'Validating...' : 'Validate'}
+          </Button>
+        )}
+      </div>
 
-      {multiFields.map(field => (
-        <MultiValueField
-          key={field.name}
-          field={field}
-          value={formState[field.name]}
-          onChange={value => handleFieldChange(field.name, value)}
-          onBlur={() => handleFieldBlur(field.name)}
-        />
-      ))}
+      {validationErrors.length > 0 && (
+        <>
+          <Alert type="error" role="alert" aria-live="polite">
+            <strong>Validation errors:</strong>
+            <ul className="margin-top-1">
+              {validationErrors.map((error, idx) => (
+                <li key={idx}>
+                  <strong>{error.field}:</strong> {error.message}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+          <ValidationDisclaimer />
+        </>
+      )}
 
-      {controlledFields.map(field => (
-        <ControlledValueField
-          key={field.name}
-          field={field}
-          value={formState[field.name]}
-          onChange={value => {
-            handleFieldChange(field.name, value)
-            handleFieldBlur(field.name)
-          }}
-        />
-      ))}
+      {textFields.map(field => {
+        const fieldError = getFieldError(field.name)
+        return (
+          <div key={field.name}>
+            <TextField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => handleFieldChange(field.name, value)}
+              onBlur={() => handleFieldBlur(field.name)}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {multiFields.map(field => {
+        const fieldError = getFieldError(field.name)
+        return (
+          <div key={field.name}>
+            <MultiValueField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => handleFieldChange(field.name, value)}
+              onBlur={() => handleFieldBlur(field.name)}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {controlledFields.map(field => {
+        const fieldError = getFieldError(field.name)
+        return (
+          <div key={field.name}>
+            <ControlledValueField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => {
+                handleFieldChange(field.name, value)
+                handleFieldBlur(field.name)
+              }}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {open && linkFields.map(field => (
         <LinkField key={field.name} field={field} object={object} catalog={open.catalog} />
@@ -301,7 +402,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: Decompose
   // The place the user came from first, so its "Edit a copy" is at hand among many.
   const all = usesOf(catalog).get(object.id) ?? []
   const uses = [...all.filter(use => use.parentId === from), ...all.filter(use => use.parentId !== from)]
-  const back = uses.find(use => use.parentId === from) ?? uses[0]
+  const back = uses[0]
   const parentOf = (use: Use) => catalog.objects.get(use.parentId)!
   const place = (use: Use) => (
     <>

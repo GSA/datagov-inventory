@@ -4,6 +4,7 @@ import { classSchemas, getClassProperties } from './schema'
 import {
   CATALOG_MEMBERS,
   CREATE_ONLY_CLASSES,
+  CREATE_ONLY_FIELDS,
   PICK_LIMIT,
   candidatesFor,
   copyFor,
@@ -56,12 +57,9 @@ describe('linkModeOf', () => {
 
   it('names only classes and properties the schema has', () => {
     for (const name of [...CREATE_ONLY_CLASSES, ...CATALOG_MEMBERS]) expect(classSchemas.has(name), name).toBe(true)
-    for (const [cls, prop] of [
-      ['Catalog', 'catalog'], ['Catalog', 'dataset'], ['Catalog', 'datasetSeries'], ['Catalog', 'hasPart'],
-      ['Catalog', 'record'], ['Catalog', 'service'], ['Dataset', 'distribution'], ['Dataset', 'metadataDistribution'],
-      ['Dataset', 'sample'],
-    ]) {
-      expect(getClassProperties(cls).get(prop)?.length, `${cls}.${prop}`).toBeGreaterThan(0)
+    for (const field of CREATE_ONLY_FIELDS) {
+      const [cls, prop] = field.split('.')
+      expect(getClassProperties(cls).get(prop)?.length, field).toBeGreaterThan(0)
     }
   })
 })
@@ -81,9 +79,7 @@ describe('usesOf', () => {
     expect(usesOf(catalog)).toBe(usesOf({ ...catalog }))
     expect(usesOf(linkObject(catalog, '#', 'contactPoint', '#/dataset/0/contactPoint/0'))).not.toBe(usesOf(catalog))
   })
-})
 
-describe('usesOf and removed objects', () => {
   it('counts only places in the catalog, not objects removed from their field', () => {
     const catalog = catalogOf(
       object('#', 'Catalog', {}, { dataset: ['#/d1'] }),
@@ -187,21 +183,6 @@ describe('linkObject', () => {
   })
 })
 
-describe('a list field read as one object', () => {
-  it('becomes a list when it holds two, and an empty list as written gives way to the links', () => {
-    const start = catalogOf(
-      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
-      { ...object('#/d', 'Dataset', { sample: [] }, { distribution: ['#/d/distribution'] }), singleLinks: ['distribution'] },
-      object('#/d/distribution', 'Distribution', { title: 'one' }),
-    )
-    const { catalog } = createLinked(start, '#/d', 'distribution', 'Distribution')
-    expect(catalog.objects.get('#/d')!.singleLinks).toEqual([])
-    const withSample = createLinked(catalog, '#/d', 'sample', 'Distribution').catalog
-    expect(withSample.objects.get('#/d')!.properties).toEqual({})
-    expect(withSample.objects.get('#/d')!.links.sample).toHaveLength(1)
-  })
-})
-
 describe('createLinked', () => {
   it('creates a blank object with an address under its parent, and links it', () => {
     const { catalog, id } = createLinked(shared(), '#/dataset/0', 'contactPoint', 'Kind')
@@ -217,6 +198,19 @@ describe('createLinked', () => {
     const { catalog, id } = createLinked(start, '#', 'publisher', 'Organization', true)
     expect(id).toBe('#/publisher/0')
     expect(catalog.objects.get('#')!.singleLinks).toEqual(['publisher'])
+  })
+
+  it('turns a list field read as one object into a list at two, and an empty list as written gives way to the links', () => {
+    const start = catalogOf(
+      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
+      { ...object('#/d', 'Dataset', { sample: [] }, { distribution: ['#/d/distribution'] }), singleLinks: ['distribution'] },
+      object('#/d/distribution', 'Distribution', { title: 'one' }),
+    )
+    const { catalog } = createLinked(start, '#/d', 'distribution', 'Distribution')
+    expect(catalog.objects.get('#/d')!.singleLinks).toEqual([])
+    const withSample = createLinked(catalog, '#/d', 'sample', 'Distribution').catalog
+    expect(withSample.objects.get('#/d')!.properties).toEqual({})
+    expect(withSample.objects.get('#/d')!.links.sample).toHaveLength(1)
   })
 })
 

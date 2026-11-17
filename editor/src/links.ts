@@ -6,10 +6,10 @@ import { subclasses, type CatalogObject, type DecomposedCatalog } from './catalo
 import { labelOf } from './tree'
 
 /** What a field offers: "Create new" only, "Add an existing" only, or both. */
-export type LinkMode = 'create' | 'select' | 'both'
+type LinkMode = 'create' | 'select' | 'both'
 
 /** Fields whose objects belong to their parent alone: a catalog's datasets, a dataset's distributions. */
-const CREATE_ONLY_FIELDS = new Set([
+export const CREATE_ONLY_FIELDS = new Set([
   'Catalog.catalog',
   'Catalog.dataset',
   'Catalog.datasetSeries',
@@ -158,15 +158,15 @@ export function candidatesFor(
 /** Options shown at most: thousands would take long to render, and nobody scans them. */
 export const PICK_LIMIT = 25
 
-/** The first `limit` of `pool` whose label contains every word of `query` (any case), and how many match in all. */
-export function search(pool: readonly CatalogObject[], query: string, limit = PICK_LIMIT) {
+/** The first PICK_LIMIT of `pool` whose label contains every word of `query` (any case), and how many match in all. */
+export function search(pool: readonly CatalogObject[], query: string) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const items: CatalogObject[] = []
   let total = 0
   for (const object of pool) {
     const label = labelOf(object).toLowerCase()
     if (!words.every((word) => label.includes(word))) continue
-    if (++total <= limit) items.push(object)
+    if (++total <= PICK_LIMIT) items.push(object)
   }
   return { items, total }
 }
@@ -187,11 +187,8 @@ function freeId(objects: DecomposedCatalog['objects'], base: string, start: numb
  * (`"distribution": []`) gives way to the links.
  */
 function withLinks(catalog: DecomposedCatalog, parent: CatalogObject, property: string, ids: string[], single: boolean) {
-  const singleLinks = single
-    ? [...parent.singleLinks.filter((p) => p !== property), property]
-    : ids.length > 1
-      ? parent.singleLinks.filter((p) => p !== property)
-      : parent.singleLinks
+  const others = parent.singleLinks.filter((p) => p !== property)
+  const singleLinks = single ? [...others, property] : ids.length > 1 ? others : parent.singleLinks
   const properties = record(parent.properties)
   const value = properties[property]
   if (Array.isArray(value) && value.length === 0) delete properties[property]
@@ -307,9 +304,8 @@ export function copyFor(
     return newId
   }
   const id = copy(targetId, freeId(objects, `${parentId}/${property}`, ids.length))
-  const repointed = { ...catalog, objects }
   return {
-    catalog: withLinks(repointed, objects.get(parentId)!, property, ids.map((child) => (child === targetId ? id : child)), false),
+    catalog: withLinks({ ...catalog, objects }, parent, property, ids.map((child) => (child === targetId ? id : child)), false),
     id,
   }
 }

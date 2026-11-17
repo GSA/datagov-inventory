@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import type { DecomposedCatalog, CatalogObject } from './catalog/decompose'
 import { usesOf } from './links'
+import { useValidationContext } from './validation/ValidationContext'
 import { count, isolate, labelOf, pathOf } from './tree'
 
 /** The catalog open in the editor: the one working copy (#15). */
@@ -80,11 +81,13 @@ export function usePageTitle(title: string) {
  */
 export function useEditCopy() {
   const { open, copyObject } = useCatalog()
+  const { markStale } = useValidationContext()
   const navigate = useNavigate()
   return (parent: CatalogObject, property: string, original: CatalogObject) => {
-    const others = (open ? (usesOf(open.catalog).get(original.id)?.length ?? 1) : 1) - 1
     const id = copyObject(parent.id, property, original.id)
-    if (!id) return
+    if (!id || !open) return
+    const others = (usesOf(open.catalog).get(original.id)?.length ?? 1) - 1
+    markStale(parent.id)
     const rest = others === 1 ? 'The other place still uses' : `The other ${count(others)} places still use`
     navigate({
       to: '/editor/$',

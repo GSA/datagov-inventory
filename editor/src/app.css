@@ -98,7 +98,6 @@ a:focus-visible {
   column-gap: 0.5rem;
   padding: 0.5rem;
   background-color: #f0f0f0;
-  overflow-wrap: anywhere;
 }
 .link-row__actions {
   display: flex;
@@ -116,7 +115,6 @@ a:focus-visible {
   z-index: 10;
   left: 0;
   right: 0;
-  background-color: #fff;
 }
 .object-picker__list {
   max-height: 20rem;
@@ -138,7 +136,6 @@ a:focus-visible {
 }
 .object-picker__option {
   padding: 0.5rem;
-  overflow-wrap: anywhere;
   cursor: pointer;
   border-bottom: 1px solid #dfe1e2;
 }
@@ -151,14 +148,14 @@ a:focus-visible {
   background-color: #1a4480;
 }
 
+/* Long labels with no spaces (in rows, options, Back to, notes, Used in) wrap instead of running off the pane. */
+.object-form {
+  overflow-wrap: anywhere;
+}
 /*
  * Focus shows on the form's links and buttons (WCAG 2.4.7), where #25 moves it: to a new row, or back to a row. This
  * overrides the rule above for the form only; #30 can remove that rule.
  */
-/* Long labels with no spaces (in Back to, notes, Used in) wrap instead of running off the pane. */
-.object-form {
-  overflow-wrap: anywhere;
-}
 .object-form a:focus-visible,
 .object-form button:focus-visible {
   outline: 0.25rem solid #2491ff !important;
