@@ -193,10 +193,13 @@ export default function ImportPage() {
         </Alert>
       )}
 
-      <h2 className="margin-top-6">Other ways to start</h2>
+      {/* Three columns on desktops; stacked on phones and tablets, where three would squeeze the controls. */}
+      <h2 className="margin-top-6 margin-bottom-0">Other ways to start</h2>
       <div className="grid-row grid-gap">
-        <div className="tablet:grid-col-4">
-          <Label htmlFor="catalog-json">Paste JSON</Label>
+        <div className="desktop:grid-col-4 margin-top-3">
+          <Label htmlFor="catalog-json" className="margin-top-0">
+            Paste JSON
+          </Label>
           <Textarea
             id="catalog-json"
             name="catalog-json"
@@ -204,12 +207,14 @@ export default function ImportPage() {
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
           />
-          <Button type="button" className="margin-top-2" onClick={() => void load('Pasted JSON', pasted)}>
+          <Button type="button" outline className="margin-top-2" onClick={() => void load('Pasted JSON', pasted)}>
             Load pasted JSON
           </Button>
         </div>
-        <div className="tablet:grid-col-4">
-          <Label htmlFor="catalog-sample">Sample catalog</Label>
+        <div className="desktop:grid-col-4 margin-top-3">
+          <Label htmlFor="catalog-sample" className="margin-top-0">
+            Sample catalog
+          </Label>
           <Select id="catalog-sample" name="catalog-sample" value={sample} onChange={(e) => setSample(e.target.value)}>
             {samples.map(({ name }) => (
               <option key={name} value={name}>
@@ -219,16 +224,17 @@ export default function ImportPage() {
           </Select>
           <Button
             type="button"
+            outline
             className="margin-top-2"
             onClick={() => void load(sample, samples.find(({ name }) => name === sample)!.text)}
           >
             Load sample
           </Button>
         </div>
-        <div className="tablet:grid-col-4">
-          <p className="usa-label margin-top-3">Start from scratch</p>
-          <p className="margin-top-1">An empty catalog for you to fill in.</p>
-          <Button type="button" outline onClick={() => void load('Blank catalog', BLANK_CATALOG)}>
+        <div className="desktop:grid-col-4 margin-top-3">
+          <p className="usa-label margin-y-0">Start from scratch</p>
+          <p className="usa-hint margin-top-05 margin-bottom-0">An empty catalog for you to fill in.</p>
+          <Button type="button" outline className="margin-top-2" onClick={() => void load('Blank catalog', BLANK_CATALOG)}>
             Start a blank catalog
           </Button>
         </div>
