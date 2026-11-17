@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
@@ -6,7 +6,7 @@ import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
-import { count, labelOf, pathOf } from './tree'
+import { ancestorIds, count, labelOf, parentsOf, pathOf } from './tree'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
@@ -36,7 +36,48 @@ function ObjectLink({
   )
 }
 
-function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
+/**
+ * The objects above the open one, from the catalog down. Followed through links, not guessed from the id: a single
+ * link's id has no index (`#/dataset/0/publisher`).
+ */
+function Breadcrumb({
+  object,
+  catalog,
+  parents,
+}: {
+  object: CatalogObject
+  catalog: CatalogGraph
+  parents: Map<string, string[]>
+}) {
+  const ancestors = ancestorIds(object.id, parents).map((id) => catalog.objects.get(id)!)
+  if (ancestors.length === 0) return null
+  return (
+    <nav className="usa-breadcrumb padding-top-0" aria-label="Where this object is">
+      <ol className="usa-breadcrumb__list">
+        {ancestors.map((ancestor) => (
+          <li key={ancestor.id} className="usa-breadcrumb__list-item">
+            <ObjectLink object={ancestor} className="usa-breadcrumb__link">
+              <bdi>{labelOf(ancestor)}</bdi>
+            </ObjectLink>
+          </li>
+        ))}
+        <li className="usa-breadcrumb__list-item usa-current" aria-current="page">
+          <bdi>{labelOf(object)}</bdi>
+        </li>
+      </ol>
+    </nav>
+  )
+}
+
+function ObjectDetail({
+  object,
+  catalog,
+  parents,
+}: {
+  object: CatalogObject
+  catalog: CatalogGraph
+  parents: Map<string, string[]>
+}) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -76,6 +117,7 @@ function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: Cat
   if (!model) {
     return (
       <section aria-labelledby="detail-heading">
+        <Breadcrumb object={object} catalog={catalog} parents={parents} />
         <h2 id="detail-heading" tabIndex={-1}>
           {labelOf(object)}
         </h2>
@@ -91,6 +133,7 @@ function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: Cat
 
   return (
     <>
+      <Breadcrumb object={object} catalog={catalog} parents={parents} />
       <ObjectForm object={object} model={model} />
       <div className="margin-top-3">
         <Button type="button" onClick={handleDeleteClick} secondary>
@@ -141,6 +184,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const { objects, rootId } = open.catalog
   const root = objects.get(rootId)!
   const object = objects.get(id)
+  const parents = useMemo(() => parentsOf(open.catalog), [open.catalog])
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
@@ -295,11 +339,11 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <h2 id="tree-heading" className="font-heading-md margin-top-0">
             Catalog contents
           </h2>
-          <CatalogTree catalog={open.catalog} selectedId={id} />
+          <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />
         </nav>
         <div className="tablet:grid-col-8">
           {object ? (
-            <ObjectDetail key={object.id} object={object} catalog={open.catalog} />
+            <ObjectDetail key={object.id} object={object} catalog={open.catalog} parents={parents} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">
