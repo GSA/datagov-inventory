@@ -72,11 +72,12 @@ test('imports a sample and opens each object at its own address', async ({ page 
   // Issue #24: Now shows editable form instead of property tables and links.
   await expect(detail.getByRole('textbox', { name: /^Title/ })).toBeVisible()
 
-  // Opening an object shows the path to it in a breadcrumb, which leads back up. (Following a link from the form
-  // returns with #25, so this opens the object from the tree.)
-  await page.keyboard.press('ArrowRight')
-  await tree(page).getByRole('treeitem', { name: 'Readings as CSV distribution · Distribution' }).click()
+  // Following a link opens that object, with the path to it in a breadcrumb that leads back up, and shows it in the tree.
+  await detail.getByRole('link', { name: 'Readings as CSV', exact: true }).click()
   await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText(
+    'Readings as CSV distribution · Distribution',
+  )
   const breadcrumb = page.getByRole('navigation', { name: 'Where this object is' })
   await expect(breadcrumb).toHaveText(/Example Agency Catalog\s*Air quality readings\s*Readings as CSV/)
   expect((await axe(page).analyze()).violations).toEqual([])
