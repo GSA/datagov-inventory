@@ -1,7 +1,7 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
-import type { DecomposedCatalog } from './catalog/decompose'
+import type { CatalogGraph } from './catalog/types'
 import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, parentsOf, pathOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
@@ -18,7 +18,7 @@ function revealSelected(pane: HTMLElement | null) {
  * (https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop; arrow keys move, open and close; Home and End
  * move; Enter, Space or a click opens the object. Selection does not follow focus, and focus stays in the tree.
  */
-export function CatalogTree({ catalog, selectedId }: { catalog: DecomposedCatalog; selectedId: string }) {
+export function CatalogTree({ catalog, selectedId }: { catalog: CatalogGraph; selectedId: string }) {
   const navigate = useNavigate()
   const parents = useMemo(() => parentsOf(catalog), [catalog])
   // Open at first down to the selected object, so the first render needs no adjusting.

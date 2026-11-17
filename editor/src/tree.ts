@@ -2,7 +2,7 @@
  * The catalog tree's rows (#23): the catalog, and each expanded object's children in link order. Rows follow
  * `links` by id, so an object linked from several places shows as the same object in each.
  */
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 
 const LABEL_LENGTH = 200
 
@@ -65,7 +65,7 @@ export interface TreeRow {
  *   catalog, which nothing links to, has no entry.
  * @example parentsOf(catalog).get('#/dataset/0/distribution/1') // ['#/dataset/0']
  */
-export function parentsOf({ objects }: DecomposedCatalog): Map<string, string[]> {
+export function parentsOf({ objects }: CatalogGraph): Map<string, string[]> {
   const parents = new Map<string, string[]>()
   for (const object of objects.values()) {
     for (const ids of Object.values(object.links)) {
@@ -96,7 +96,7 @@ export function ancestorIds(id: string, parents: Map<string, string[]>): string[
 export const FILTER_LIMIT = 200
 
 /** The objects whose label contains `needle` (lower case), the first FILTER_LIMIT in document order, and every object above them. */
-export function filterTree(catalog: DecomposedCatalog, parents: Map<string, string[]>, needle: string) {
+export function filterTree(catalog: CatalogGraph, parents: Map<string, string[]>, needle: string) {
   let matches = 0
   const shown = new Set<string>()
   const show = (id: string) => {
@@ -118,7 +118,7 @@ export function filterTree(catalog: DecomposedCatalog, parents: Map<string, stri
  * below it, so a cycle cannot recurse.
  */
 export function treeRows(
-  { objects, rootId }: DecomposedCatalog,
+  { objects, rootId }: CatalogGraph,
   expanded: ReadonlySet<string>,
   shown?: ReadonlySet<string>,
 ): TreeRow[] {

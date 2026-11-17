@@ -1,7 +1,8 @@
 // @vitest-environment node
 // Runs without a DOM, which proves decompose needs none (it must also run in a worker).
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_LIMITS, DecomposeError, checkSize, decompose, type DecomposedCatalog } from './decompose'
+import type { CatalogGraph } from './types'
+import { DEFAULT_LIMITS, DecomposeError, checkSize, decompose } from './decompose'
 import { largeCatalog } from '../../fixtures/largeCatalog'
 
 const load = (files: Record<string, string>) =>
@@ -9,7 +10,7 @@ const load = (files: Record<string, string>) =>
 const valid = load(import.meta.glob<string>('../../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }))
 const invalid = load(import.meta.glob<string>('../../fixtures/catalogs/invalid/*.json', { eager: true, query: '?raw', import: 'default' }))
 
-const countByClass = ({ objects }: DecomposedCatalog) => {
+const countByClass = ({ objects }: CatalogGraph) => {
   const counts: Record<string, number> = {}
   for (const { dcatClass } of objects.values()) counts[dcatClass] = (counts[dcatClass] ?? 0) + 1
   return counts
@@ -27,8 +28,8 @@ const failure = (run: () => unknown) => {
 }
 
 /** The plain JSON form of a decomposed catalog, as stored in fixtures/decomposed for other implementations to share. */
-const plainForm = ({ rootId, objects }: DecomposedCatalog) => ({
-  rootId,
+const plainForm = ({ rootId, objects }: CatalogGraph) => ({
+  rootId: rootId,
   objects: [...objects.values()].map((o) => ({ ...o, properties: { ...o.properties }, links: { ...o.links } })),
 })
 

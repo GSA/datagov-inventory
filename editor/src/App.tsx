@@ -10,7 +10,7 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
-import type { CatalogObject } from './catalog/decompose'
+import type { CatalogObject } from './catalog/types'
 import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'

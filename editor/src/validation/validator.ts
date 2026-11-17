@@ -1,6 +1,6 @@
 import type { ErrorObject } from 'ajv'
 import { assemble } from '../catalog/assemble'
-import type { DecomposedCatalog } from '../catalog/decompose'
+import type { CatalogGraph } from '../catalog/types'
 import { validateDocument } from '../generated/validateDocument'
 import { humanizeError } from './messages'
 import type { CatalogValidationResult, ObjectValidationResult, ValidationError } from './types'
@@ -8,7 +8,7 @@ import type { CatalogValidationResult, ObjectValidationResult, ValidationError }
 export const SCHEMA_VERSION = '3.0.0'
 
 /** Each object's JSON Pointer in the assembled document, nested as `assemble` nests links. A shared object has several. */
-export function pointersOf(catalog: DecomposedCatalog): Map<string, string> {
+export function pointersOf(catalog: CatalogGraph): Map<string, string> {
   const owners = new Map<string, string>()
   const visit = (id: string, pointer: string) => {
     owners.set(pointer, id)
@@ -42,7 +42,7 @@ function withoutBranchErrors(errors: ErrorObject[]): ErrorObject[] {
 }
 
 /** Validates the catalog as it would export, and gives each error to the object it is in, with a path relative to that object. */
-export function validateCatalog(catalog: DecomposedCatalog): CatalogValidationResult {
+export function validateCatalog(catalog: CatalogGraph): CatalogValidationResult {
   const owners = pointersOf(catalog)
   const errorsByObject = new Map<string, ValidationError[]>()
 

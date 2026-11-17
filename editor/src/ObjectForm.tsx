@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Label, TextInput, Textarea, Button, Alert } from '@trussworks/react-uswds'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { useCatalog } from './session'
 import { labelOf } from './tree'
 import type { FormModel, FormField } from './schema'
@@ -381,7 +381,7 @@ function ControlledValueField({ field, value, onChange }: ControlledValueFieldPr
 interface LinkFieldProps {
   field: FormField
   object: CatalogObject
-  catalog: DecomposedCatalog | undefined
+  catalog: CatalogGraph | undefined
   onRemove: (childId: string) => void
 }
 
