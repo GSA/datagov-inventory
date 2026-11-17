@@ -93,7 +93,7 @@ test.describe('Validation', () => {
     await page.getByRole('treeitem', { name: 'Example Agency Catalog', exact: true }).click()
 
     await page.getByRole('button', { name: 'Validate catalog' }).click()
-    await page.getByRole('button', { name: /^#\/dataset\/0 \(\d+ errors?\)$/ }).click()
+    await page.getByRole('button', { name: /^Air quality readings #\/dataset\/0 \(\d+ errors?\)$/ }).click()
 
     await expect(page).toHaveURL('/editor/dataset/0')
     await expect(page.getByRole('form', { name: `Edit ${DATASET}` })).toBeVisible()

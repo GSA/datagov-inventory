@@ -40,30 +40,33 @@
 .validation-summary {
   border: 1px solid #dfe1e2;
   border-radius: 0.25rem;
-  padding: 1rem;
-  background-color: #f9f9f9;
+  padding: 1rem 1.5rem;
+  background-color: #fff;
 }
 
 .validation-summary__header h2 {
   margin-top: 0;
-  margin-bottom: 0.5rem;
-  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+  font-size: 1.34rem;
 }
 
 .validation-summary__disclaimer {
+  margin-top: 0;
   font-size: 0.875rem;
   color: #565c65;
-  font-style: italic;
+}
+
+.validation-summary__success p {
+  margin: 0;
 }
 
 .validation-summary__success {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 1rem;
+  padding: 0.5rem 1rem;
   background-color: #ecf3ec;
-  border: 1px solid #00a91c;
-  border-radius: 0.25rem;
+  border-left: 0.5rem solid #00a91c;
   color: #154c21;
 }
 
@@ -73,14 +76,13 @@
 }
 
 .validation-summary__errors {
-  padding: 1rem;
+  padding: 0.5rem 1rem;
+  border-left: 0.5rem solid #d54309;
   background-color: #f4e3db;
-  border: 1px solid #b50909;
-  border-radius: 0.25rem;
 }
 
 .validation-summary__total {
-  margin-bottom: 1rem;
+  margin: 0 0 0.5rem;
   color: #1b1b1b;
 }
 
@@ -91,13 +93,8 @@
 }
 
 .validation-summary__item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  background-color: white;
-  border-radius: 0.25rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #dfe1e2;
 }
 
 .validation-summary__count {
@@ -106,25 +103,15 @@
 
 .validation-summary__objects {
   list-style: none;
-  padding-left: 1rem;
+  padding-left: 0;
   margin: 0;
 }
 
 .validation-summary__object-link {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  background-color: transparent;
-  color: #005ea2;
-  border: none;
-  text-decoration: underline;
-  cursor: pointer;
+  margin-top: 0.25rem;
   text-align: left;
 }
 
-.validation-summary__object-link:hover {
-  color: #1a4480;
-  background-color: #e7f6f8;
-}
 
 .validation-progress {
   padding: 1rem;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { Label, TextInput, Textarea, Button, Alert, AlertText } from '@trussworks/react-uswds'
+import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } from '@trussworks/react-uswds'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
@@ -117,8 +117,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       {validationErrors.length > 0 && (
         <>
           <Alert type="error" role="alert" aria-live="polite">
-            <strong>Validation errors:</strong>
-            <ul className="margin-top-1">
+            <AlertHeading level="h3">Validation errors</AlertHeading>
+            <ul className="usa-list margin-y-1">
               {validationErrors.map((error, idx) => (
                 <li key={idx}>
                   <strong>{error.field}:</strong> {error.message}

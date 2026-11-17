@@ -308,6 +308,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
                 const errors = validationContext.getObjectErrors(obj.id)
                 return {
                   objectId: obj.id,
+                  label: labelOf(obj),
                   objectType: obj.dcatClass,
                   valid: errors.length === 0,
                   errors,
