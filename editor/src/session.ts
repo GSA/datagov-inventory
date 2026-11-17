@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import type { DecomposedCatalog, CatalogObject } from './catalog/decompose'
 import { usesOf } from './links'
-import { count, labelOf, pathOf } from './tree'
+import { count, isolate, labelOf, pathOf } from './tree'
 
 /** The catalog open in the editor: the one working copy (#15). */
 export interface OpenCatalog {
@@ -89,7 +89,7 @@ export function useEditCopy() {
     navigate({
       to: '/editor/$',
       params: { _splat: pathOf(id) },
-      state: { from: parent.id, notice: `This is a copy of ${labelOf(original)} for ${labelOf(parent)} only. ${rest} the original.` },
+      state: { from: parent.id, notice: `This is a copy of ${isolate(labelOf(original))} for ${isolate(labelOf(parent))} only. ${rest} the original.` },
     })
   }
 }

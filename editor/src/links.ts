@@ -97,6 +97,15 @@ function indexOf({ objects, rootId }: DecomposedCatalog): Index {
 }
 
 /**
+ * Carries the index over to a new version of the catalog whose links are unchanged (a field's text was edited), so
+ * saving a field doesn't rebuild it.
+ */
+export function keepIndex(from: DecomposedCatalog['objects'], to: DecomposedCatalog['objects']) {
+  const index = indexCache.get(from)
+  if (index) indexCache.set(to, index)
+}
+
+/**
  * Where each object is used, in document order: the objects in the catalog that link to it, and the field. Cached
  * per version of the catalog, so counts and lists cost a lookup.
  */
@@ -162,6 +171,9 @@ export function search(pool: readonly CatalogObject[], query: string, limit = PI
   return { items, total }
 }
 
+/** A copy of `records` merged, without a prototype, as decompose makes them, so a `__proto__` key stays data. */
+const record = <T,>(...records: Record<string, T>[]): Record<string, T> => Object.assign(Object.create(null), ...records)
+
 /** `${base}/${n}` for the first n from `start` that no object has. */
 function freeId(objects: DecomposedCatalog['objects'], base: string, start: number): string {
   let n = start
@@ -180,11 +192,11 @@ function withLinks(catalog: DecomposedCatalog, parent: CatalogObject, property: 
     : ids.length > 1
       ? parent.singleLinks.filter((p) => p !== property)
       : parent.singleLinks
-  const properties = { ...parent.properties }
+  const properties = record(parent.properties)
   const value = properties[property]
   if (Array.isArray(value) && value.length === 0) delete properties[property]
   const objects = new Map(catalog.objects)
-  objects.set(parent.id, { ...parent, properties, links: { ...parent.links, [property]: ids }, singleLinks })
+  objects.set(parent.id, { ...parent, properties, links: record(parent.links, { [property]: ids }), singleLinks })
   return { ...catalog, objects }
 }
 
@@ -227,10 +239,14 @@ export function createLinked(
   single = false,
 ): { catalog: DecomposedCatalog; id: string } {
   const parent = get(catalog, parentId)
-  const id = freeId(catalog.objects, `${parentId}/${property}`, parent.links[property]?.length ?? 0)
-  const object: CatalogObject = { id, dcatClass, properties: { '@type': dcatClass }, links: {}, singleLinks: [] }
-  const objects = new Map(catalog.objects).set(id, object)
-  return { catalog: linkObject({ ...catalog, objects }, parentId, property, id, single), id }
+  const ids = parent.links[property] ?? []
+  if (single && ids.length > 0) throw new Error(`${parentId}.${property} holds one object already`)
+  const id = freeId(catalog.objects, `${parentId}/${property}`, ids.length)
+  const object: CatalogObject = { id, dcatClass, properties: record({ '@type': dcatClass }), links: record({}), singleLinks: [] }
+  // A new object links to nothing, so it cannot make a loop: no loop check, and no index built for nothing.
+  const linked = withLinks(catalog, parent, property, [...ids, id], single)
+  linked.objects.set(id, object)
+  return { catalog: linked, id }
 }
 
 /**
@@ -276,7 +292,7 @@ export function copyFor(
   const copy = (id: string, newId: string) => {
     copies.set(id, newId)
     const original = get(catalog, id)
-    const links: Record<string, string[]> = {}
+    const links: Record<string, string[]> = record({})
     for (const [link, children] of Object.entries(original.links)) {
       links[link] = children.map(
         (child) =>
@@ -285,7 +301,7 @@ export function copyFor(
       )
     }
     // Not the `@id`: two objects with one IRI are one node to JSON-LD, which would undo "for this one only".
-    const properties = { ...original.properties }
+    const properties = record(original.properties)
     delete properties['@id']
     objects.set(newId, { ...original, id: newId, properties, links })
     return newId

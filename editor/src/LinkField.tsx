@@ -5,7 +5,7 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
-import { count, labelOf, pathOf } from './tree'
+import { count, isolate, labelOf, pathOf } from './tree'
 
 const NO_CLASSES: readonly string[] = []
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
@@ -39,7 +39,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   const handleRemove = (index: number, childId: string, label: string) => {
     removeLink(object.id, field.name, childId)
-    setStatus(`Removed ${label} from ${field.label}.`)
+    setStatus(`Removed ${isolate(label)} from ${field.label}.`)
     // The next row's Remove, the previous one's if it was last, or, once the field is empty, its first input or button.
     setTimeout(() => {
       const next = ids.length > 1 ? removeRefs.current[Math.min(index, ids.length - 2)] : undefined
@@ -51,12 +51,12 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
     linkObject(object.id, field.name, picked.id, single)
     focusRow.current = picked.id
     const n = (uses.get(picked.id)?.length ?? 0) + 1
-    setStatus(`Added ${labelOf(picked)} to ${field.label}.${n > 1 ? ` It is now used in ${places(n)}.` : ''}`)
+    setStatus(`Added ${isolate(labelOf(picked))} to ${field.label}.${n > 1 ? ` It is now used in ${places(n)}.` : ''}`)
   }
 
   const handleCreate = (dcatClass: string) => {
     const id = createObject(object.id, field.name, dcatClass, single)
-    if (id) open(id, `New ${dcatClass}, linked to ${labelOf(object)} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`)
+    if (id) open(id, `New ${dcatClass}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`)
   }
 
   const pool = useCallback(() => candidatesFor(catalog, object, field.name, allowed), [catalog, object, field.name, allowed])

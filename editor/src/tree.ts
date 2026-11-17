@@ -34,6 +34,12 @@ export function labelOf(object: CatalogObject): string {
   return label
 }
 
+/**
+ * A label inside a sentence, isolated (FSI … PDI) for text that can't use <bdi>, such as a notice built as one
+ * string: a right-to-left override in the label then can't reverse the sentence around it.
+ */
+export const isolate = (label: string) => `\u2068${label}\u2069`
+
 /** A count for people: `3,000`. */
 export const count = (n: number) => n.toLocaleString('en-US')
 

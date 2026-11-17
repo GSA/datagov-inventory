@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
-import { copyFor, createLinked, linkObject } from './links'
+import { copyFor, createLinked, keepIndex, linkObject } from './links'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
@@ -156,6 +156,8 @@ export default function App() {
 
     const newObjects = new Map(open.catalog.objects)
     newObjects.set(id, updated)
+    // Saving a field's text leaves every link as it was, so the usage index stays valid.
+    if (!updates.links) keepIndex(open.catalog.objects, newObjects)
 
     setOpen({
       ...open,

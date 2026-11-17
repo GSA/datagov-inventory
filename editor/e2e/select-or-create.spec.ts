@@ -10,6 +10,9 @@ async function loadSample(page: Page) {
   await expect(page).toHaveURL('/editor')
 }
 
+/** A label as notes and announcements write it: isolated, so right-to-left text in it can't reverse the sentence. */
+const iso = (label: string) => `\u2068${label}\u2069`
+
 /** A class-valued field (a group) by its label; a required one's name ends in " *". */
 const field = (page: Page, name: string) => page.getByRole('group', { name: new RegExp(`^${name}( \\*)?$`) })
 
@@ -31,7 +34,7 @@ test('searches by keyword and selects an existing object, which is then shared, 
   const row = contacts.getByRole('link', { name: 'Air Quality Team' })
   await expect(row).toBeFocused()
   await expect(contacts.getByText('Kind · Used in 2 places')).toBeVisible()
-  await expect(contacts.getByRole('status')).toHaveText('Added Air Quality Team to Contact Point. It is now used in 2 places.')
+  await expect(contacts.getByRole('status')).toHaveText(`Added ${iso('Air Quality Team')} to Contact Point. It is now used in 2 places.`)
   await expect(picker).toHaveValue('')
   await expect(page.getByRole('treeitem', { name: 'Air Quality Team contactPoint · Kind' })).toBeVisible()
 
@@ -126,7 +129,7 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   await expect(page).toHaveURL('/editor/dataset/0/distribution/2')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toBeFocused()
-  await expect(page.getByText('New Distribution, linked to Air quality, hourly › Distribution.')).toBeVisible()
+  await expect(page.getByText(`New Distribution, linked to ${iso('Air quality, hourly')} › Distribution.`)).toBeVisible()
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toHaveAccessibleDescription(/^New Distribution, linked to/)
   await expect(page.getByText('Used in 1 place: Air quality, hourly › Distribution')).toBeVisible()
   await expect(page.getByRole('treeitem', { name: /^Untitled Distribution/ })).toHaveAttribute('aria-selected', 'true')
@@ -192,7 +195,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await field(page, 'Contact Point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
   await expect(page).toHaveURL('/editor/contactPoint/1')
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
-  await expect(page.getByText('This is a copy of Air Quality Team for Example Agency Catalog only. The other place still uses the original.')).toBeVisible()
+  await expect(page.getByText(`This is a copy of ${iso('Air Quality Team')} for ${iso('Example Agency Catalog')} only. The other place still uses the original.`)).toBeVisible()
   await expect(page.getByText('Used in 1 place: Example Agency Catalog › Contact Point')).toBeVisible()
   const name = page.getByRole('textbox', { name: /^Fn/ })
   await name.fill('Catalog contact')
@@ -316,7 +319,7 @@ test('counts only places still in the catalog, and keeps focus in a field emptie
   await page.getByRole('link', { name: 'Example Agency Catalog › Publisher' }).click()
   await field(page, 'Dataset').getByRole('button', { name: 'Remove Air quality readings from Dataset' }).click()
   await expect(field(page, 'Dataset').getByRole('button', { name: /^Create new Dataset/ })).toBeFocused()
-  await expect(field(page, 'Dataset').getByRole('status')).toHaveText('Removed Air quality readings from Dataset.')
+  await expect(field(page, 'Dataset').getByRole('status')).toHaveText(`Removed ${iso('Air quality readings')} from Dataset.`)
   await expect(field(page, 'Publisher').getByText('Organization · Used in 2 places')).toHaveCount(0)
   await expect(field(page, 'Publisher').getByText('Organization', { exact: true })).toBeVisible()
   await expect(field(page, 'Publisher').getByRole('button', { name: /^Edit a copy/ })).toHaveCount(0)

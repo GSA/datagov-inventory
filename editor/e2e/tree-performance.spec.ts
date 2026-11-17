@@ -110,7 +110,7 @@ test('tree interactions on 3,000 datasets', async ({ page }) => {
 
 test('select and create in a field on 3,000 datasets', async ({ page }) => {
   const { record, report } = await openLargeCatalog(page)
-  const field = (name: string) => page.getByRole('region', { name: new RegExp(`^${name}( \\*)?$`) })
+  const field = (name: string) => page.getByRole('group', { name: new RegExp(`^${name}( \\*)?$`) })
 
   for (let i = 0; i < 5; i++) {
     await page.getByRole('tree').getByRole('treeitem', { name: new RegExp(`^Water use ${i * 600 + 1} `) }).click()

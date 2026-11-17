@@ -155,6 +155,10 @@ a:focus-visible {
  * Focus shows on the form's links and buttons (WCAG 2.4.7), where #25 moves it: to a new row, or back to a row. This
  * overrides the rule above for the form only; #30 can remove that rule.
  */
+/* Long labels with no spaces (in Back to, notes, Used in) wrap instead of running off the pane. */
+.object-form {
+  overflow-wrap: anywhere;
+}
 .object-form a:focus-visible,
 .object-form button:focus-visible {
   outline: 0.25rem solid #2491ff !important;
