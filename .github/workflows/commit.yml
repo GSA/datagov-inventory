@@ -188,5 +188,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: editor/package-lock.json
 
+      # Audit runtime dependencies strictly. Dev tooling (vite, vitest,
+      # typescript-eslint, ...) isn't shipped in the static bundle, so dev-only
+      # advisories such as the picomatch ReDoS
+      # (https://github.com/advisories/GHSA-fc5q-39xc-vjpf) don't block PRs.
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=moderate
