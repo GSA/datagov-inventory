@@ -73,15 +73,72 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const emptyList = (value: unknown) => Array.isArray(value) && value.length === 0
   const holdsText = (f: FormField) =>
     f.type === 'string' || (!!f.allowedClasses && isText(object.properties[f.name]) && !emptyList(object.properties[f.name]))
-  const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
-  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
-  const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
+  const fields = byImportance(model.fields)
+  const textFields = fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
+  const multiFields = fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
+  const controlledFields = fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
   // A class field holding text shows as a text field above; anything else as written (null, a mixed list) is left
   // alone, with no pick or create.
-  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && (object.properties[f.name] === undefined || emptyList(object.properties[f.name])))
+  const linkFields = fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && (object.properties[f.name] === undefined || emptyList(object.properties[f.name])))
+  // Required fields first, whatever their kind, so a form opens on what it must have; then the rest by kind.
+  const kinds = [
+    ...textFields.map(field => ({ kind: 'text' as const, field })),
+    ...multiFields.map(field => ({ kind: 'multi' as const, field })),
+    ...controlledFields.map(field => ({ kind: 'controlled' as const, field })),
+    ...linkFields.map(field => ({ kind: 'link' as const, field })),
+  ]
+  const ordered = [...kinds.filter(({ field }) => field.required), ...kinds.filter(({ field }) => !field.required)]
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
+
+  /** One field, as its kind shows it. */
+  const renderField = (kind: (typeof ordered)[number]['kind'], field: FormField, fieldError?: { message: string }) => {
+    switch (kind) {
+      case 'text':
+        return (
+          <TextField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => handleFieldChange(field.name, value)}
+            onBlur={() => handleFieldBlur(field.name)}
+          />
+        )
+      case 'multi':
+        return (
+          <div key={field.name}>
+            <MultiValueField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => handleFieldChange(field.name, value)}
+              onBlur={value => handleFieldBlur(field.name, value)}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      case 'controlled':
+        return (
+          <ControlledValueField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => {
+              handleFieldChange(field.name, value)
+              handleFieldBlur(field.name, value)
+            }}
+          />
+        )
+      case 'link':
+        return open && <LinkField key={field.name} field={field} object={object} catalog={open.catalog} />
+    }
+  }
 
   const getFieldError = (fieldName: string) => {
     return validationErrors.find(e =>
@@ -134,58 +191,23 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         </>
       )}
 
-      {textFields.map(field => {
+      {fields.some(f => f.required) && (
+        <p className="usa-hint margin-top-3 margin-bottom-0">
+          Required fields are marked with an asterisk (<abbr title="required" className="usa-hint--required">*</abbr>).
+        </p>
+      )}
+      {ordered.map(({ kind, field }, index) => {
         const fieldError = getFieldError(field.name)
-        return (
-          <TextField
-            key={field.name}
-            field={field}
-            value={formState[field.name]}
-            error={fieldError?.message}
-            onChange={value => handleFieldChange(field.name, value)}
-            onBlur={() => handleFieldBlur(field.name)}
-          />
-        )
-      })}
-
-      {multiFields.map(field => {
-        const fieldError = getFieldError(field.name)
-        return (
-          <div key={field.name}>
-            <MultiValueField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => handleFieldChange(field.name, value)}
-              onBlur={value => handleFieldBlur(field.name, value)}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
+        const rendered = renderField(kind, field, fieldError)
+        // A rule between the required fields and the rest.
+        return index > 0 && !field.required && ordered[index - 1].field.required ? (
+          <div key={field.name} className="margin-top-4 padding-top-1 border-top-1px border-base-lighter">
+            {rendered}
           </div>
+        ) : (
+          rendered
         )
       })}
-
-      {controlledFields.map(field => {
-        const fieldError = getFieldError(field.name)
-        return (
-          <ControlledValueField
-            key={field.name}
-            field={field}
-            value={formState[field.name]}
-            error={fieldError?.message}
-            onChange={value => {
-              handleFieldChange(field.name, value)
-              handleFieldBlur(field.name, value)
-            }}
-          />
-        )
-      })}
-
-      {open && linkFields.map(field => (
-        <LinkField key={field.name} field={field} object={object} catalog={open.catalog} />
-      ))}
 
       {unknownProperties.length > 0 && (
         <section aria-labelledby="other-props-heading" className="margin-top-4">
@@ -206,6 +228,28 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     </form>
   )
 }
+
+/** Fields people look for first: an object's name and description, ahead of the rest in schema order. */
+const LEAD_FIELDS = ['title', 'name', 'fn', 'prefLabel', 'label', 'description']
+
+/** Required fields first, then within each the lead fields, then the schema's order (the sort is stable). */
+function byImportance(fields: readonly FormField[]): FormField[] {
+  const lead = (f: FormField) => (LEAD_FIELDS.includes(f.name) ? LEAD_FIELDS.indexOf(f.name) : LEAD_FIELDS.length)
+  return [...fields].sort((a, b) => Number(b.required) - Number(a.required) || lead(a) - lead(b))
+}
+
+/** Free-text properties that hold sentences or paragraphs, so they get a multi-line box even when empty. */
+const LONG_TEXT = new Set([
+  'description',
+  'abstract',
+  'scopeNote',
+  'versionNotes',
+  'liabilityStatement',
+  'purpose',
+  'definition',
+  'restrictionNote',
+  'bibliographicCitation',
+])
 
 interface TextFieldProps {
   field: FormField
@@ -237,7 +281,8 @@ function TextField({ field, value, error, onChange, onBlur }: TextFieldProps) {
   const inputId = `field-${field.name}`
   const helpId = field.helpText ? `${inputId}-help` : undefined
   const errorId = error ? `${inputId}-error` : undefined
-  const isTextarea = typeof value === 'string' && value.length > 100
+  // Decided once: switching from an input to a textarea while typing past 100 characters would lose focus.
+  const [isTextarea] = useState(() => LONG_TEXT.has(field.name) || (typeof value === 'string' && value.length > 100))
 
   return (
     <div className={groupClass(error)}>
@@ -255,6 +300,7 @@ function TextField({ field, value, error, onChange, onBlur }: TextFieldProps) {
       {isTextarea ? (
         <Textarea
           id={inputId}
+          className="height-15"
           name={field.name}
           value={typeof value === 'string' ? value : ''}
           onChange={e => onChange(e.target.value)}

@@ -140,3 +140,23 @@ test('form passes accessibility checks', async ({ page }) => {
 
   expect(results.violations).toEqual([])
 })
+
+test('opens on the required fields, and long text keeps its box while typing', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  const form = page.getByRole('form', { name: 'Edit Air quality readings' })
+
+  // Required fields first, whatever their kind: the three text fields, then Contact Point.
+  const labels = form.locator('label.usa-label, h3')
+  await expect(labels.nth(0)).toHaveText(/^Title/)
+  await expect(labels.nth(1)).toHaveText(/^Description/)
+  await expect(labels.nth(2)).toHaveText(/^Identifier/)
+  await expect(labels.nth(3)).toHaveText(/^Contact Point/)
+
+  // Description is a multi-line box even when short; a short text field stays one line past 100 characters, with focus.
+  await expect(form.locator('textarea#field-description')).toBeVisible()
+  const identifier = form.getByRole('textbox', { name: /^Identifier/ })
+  await identifier.fill('x'.repeat(120))
+  await expect(identifier).toBeFocused()
+  await expect(form.locator('input#field-identifier')).toHaveValue('x'.repeat(120))
+})
