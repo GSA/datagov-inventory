@@ -210,12 +210,16 @@ export default function App() {
     setRemovalHistory(undefined)
   }, [open, removalHistory])
 
-  /** Applies a change that returns the new catalog and an id, and returns the id. */
+  /**
+   * Applies a change that returns the new catalog and an id, and returns the id. It ends the last removal's undo:
+   * undoing a removal after a pick, create or copy could restore an id that is in use again.
+   */
   const change = useCallback(
     (apply: (catalog: DecomposedCatalog) => { catalog: DecomposedCatalog; id: string }) => {
       if (!open) return undefined
       const { catalog, id } = apply(open.catalog)
       setOpen({ ...open, catalog })
+      setRemovalHistory(undefined)
       return id
     },
     [open],

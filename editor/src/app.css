@@ -150,3 +150,13 @@ a:focus-visible {
   color: #fff;
   background-color: #1a4480;
 }
+
+/*
+ * Focus shows on the form's links and buttons (WCAG 2.4.7), where #25 moves it: to a new row, or back to a row. This
+ * overrides the rule above for the form only; #30 can remove that rule.
+ */
+.object-form a:focus-visible,
+.object-form button:focus-visible {
+  outline: 0.25rem solid #2491ff !important;
+  outline-offset: 0.25rem;
+}

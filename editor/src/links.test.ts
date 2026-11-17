@@ -130,8 +130,14 @@ describe('search', () => {
     expect(search(pool, '')).toMatchObject({ total: 30 })
     expect(search(pool, '').items).toHaveLength(PICK_LIMIT)
     const { items, total } = search(pool, ' CONTACT 2')
-    expect(total).toBe(11)
+    expect(total).toBe(12) // 2, 12 and 20-29
     expect(items.map((o) => o.properties.fn)[0]).toBe('Contact 2')
+  })
+
+  it('matches every word, in any order', () => {
+    expect(search(pool, '1 contact').total).toBe(12)
+    expect(search(pool, 'contact 2 1').items.map((o) => o.properties.fn)).toEqual(['Contact 12', 'Contact 21'])
+    expect(search(pool, 'contact x').total).toBe(0)
   })
 })
 

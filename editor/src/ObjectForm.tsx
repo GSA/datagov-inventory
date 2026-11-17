@@ -41,7 +41,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   )
 
   return (
-    <form aria-label={`Edit ${labelOf(object)}`}>
+    <form aria-label={`Edit ${labelOf(object)}`} className="object-form">
       <h2 id="detail-heading" tabIndex={-1}>
         {labelOf(object)}
       </h2>

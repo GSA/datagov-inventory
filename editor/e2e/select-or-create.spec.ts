@@ -67,6 +67,11 @@ test('offers only objects of the field\'s classes, and none already in it', asyn
   // A dataset's distributions belong to it: Create new only.
   await expect(field(page, 'Distribution').getByRole('combobox')).toHaveCount(0)
   await expect(field(page, 'Distribution').getByRole('button', { name: 'Create new Distribution' })).toBeVisible()
+
+  // A distribution's data service belongs to the catalog's list of services: Add an existing only.
+  await field(page, 'Distribution').getByRole('link', { name: 'Readings as CSV' }).click()
+  await expect(field(page, 'Access Service').getByRole('combobox', { name: 'Add an existing DataService' })).toBeVisible()
+  await expect(field(page, 'Access Service').getByRole('button', { name: /^Create new/ })).toHaveCount(0)
 })
 
 test('picks with the keyboard alone', async ({ page }) => {
@@ -95,6 +100,12 @@ test('picks with the keyboard alone', async ({ page }) => {
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
   await expect(picker).toHaveValue('')
+
+  // Alt+Down opens the list without choosing an option.
+  await page.keyboard.press('Alt+ArrowDown')
+  await expect(picker).toHaveAttribute('aria-expanded', 'true')
+  await expect(picker).not.toHaveAttribute('aria-activedescendant')
+  await page.keyboard.press('Escape')
 
   // Up opens on the last option; Enter picks it, and focus moves to the new row.
   await page.keyboard.press('ArrowUp')
@@ -197,4 +208,45 @@ test('has no accessibility violations axe can find: the open list, a new object,
   await field(page, 'Address').getByRole('button', { name: /^Create new Address/ }).click()
   await expect(page.getByText(/^New Address, linked to/)).toBeVisible()
   await expectNoViolations()
+})
+
+test('goes back to the place it came from when an object is used in several', async ({ page }) => {
+  await loadSample(page)
+  await field(page, 'Contact Point').getByRole('combobox').fill('air')
+  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+
+  // Shared by the catalog and the dataset: opened from the dataset, Back goes to the dataset, by keyboard alone.
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL('/editor/dataset/0/contactPoint/0')
+  const back = page.getByRole('link', { name: 'Back to Air quality readings' })
+  await back.focus()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL('/editor/dataset/0')
+  await expect(field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' })).toBeFocused()
+
+  // Create new by keyboard, then Back by keyboard.
+  await field(page, 'Distribution').getByRole('button', { name: /^Create new Distribution/ }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('link', { name: 'Back to Air quality readings' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(field(page, 'Distribution').getByRole('link', { name: 'Untitled Distribution' })).toBeFocused()
+})
+
+test('ends the undo of a removal once something is added, so ids cannot clash', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Distribution').getByRole('link', { name: 'Readings API' }).click()
+  await page.getByRole('button', { name: 'Delete object' }).click()
+  const undo = page.getByRole('button', { name: 'Undo' })
+  await expect(undo).toBeEnabled()
+
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Distribution').getByRole('button', { name: /^Create new Distribution/ }).click()
+  // The new distribution takes the deleted one's id; undoing the delete now would put two objects at it.
+  await expect(page).toHaveURL('/editor/dataset/0/distribution/1')
+  await expect(undo).toBeDisabled()
 })

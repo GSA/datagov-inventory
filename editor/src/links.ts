@@ -121,13 +121,14 @@ export function candidatesFor(
 /** Options shown at most: thousands would take long to render, and nobody scans them. */
 export const PICK_LIMIT = 25
 
-/** The first `limit` of `pool` whose label contains `query` (any case), and how many match in all. */
+/** The first `limit` of `pool` whose label contains every word of `query` (any case), and how many match in all. */
 export function search(pool: readonly CatalogObject[], query: string, limit = PICK_LIMIT) {
-  const needle = query.trim().toLowerCase()
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const items: CatalogObject[] = []
   let total = 0
   for (const object of pool) {
-    if (needle && !labelOf(object).toLowerCase().includes(needle)) continue
+    const label = labelOf(object).toLowerCase()
+    if (!words.every((word) => label.includes(word))) continue
     if (++total <= limit) items.push(object)
   }
   return { items, total }
