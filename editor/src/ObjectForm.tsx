@@ -133,19 +133,14 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       {textFields.map(field => {
         const fieldError = getFieldError(field.name)
         return (
-          <div key={field.name}>
-            <TextField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => handleFieldChange(field.name, value)}
-              onBlur={() => handleFieldBlur(field.name)}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
-          </div>
+          <TextField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => handleFieldChange(field.name, value)}
+            onBlur={() => handleFieldBlur(field.name)}
+          />
         )
       })}
 
@@ -171,21 +166,16 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       {controlledFields.map(field => {
         const fieldError = getFieldError(field.name)
         return (
-          <div key={field.name}>
-            <ControlledValueField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => {
-                handleFieldChange(field.name, value)
-                handleFieldBlur(field.name)
-              }}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
-          </div>
+          <ControlledValueField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => {
+              handleFieldChange(field.name, value)
+              handleFieldBlur(field.name)
+            }}
+          />
         )
       })}
 
@@ -216,6 +206,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 interface TextFieldProps {
   field: FormField
   value: unknown
+  /** The schema check's message for this field, shown the USWDS way: between the hint and the input. */
+  error?: string
   onChange: (value: unknown) => void
   onBlur: () => void
 }
@@ -224,14 +216,28 @@ function isText(value: unknown): boolean {
   return typeof value === 'string' || (Array.isArray(value) && value.every(item => typeof item === 'string'))
 }
 
-function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
+/** The USWDS error pattern: a form group with a red bar, the message under the hint, and the input outlined in red. */
+function FieldError({ id, error }: { id: string; error?: string }) {
+  if (!error) return null
+  return (
+    <span id={id} className="usa-error-message" role="alert">
+      {error}
+    </span>
+  )
+}
+
+const groupClass = (error?: string) => (error ? 'usa-form-group usa-form-group--error margin-top-3' : 'margin-top-3')
+const describedBy = (...ids: (string | undefined)[]) => ids.filter(Boolean).join(' ') || undefined
+
+function TextField({ field, value, error, onChange, onBlur }: TextFieldProps) {
   const inputId = `field-${field.name}`
   const helpId = field.helpText ? `${inputId}-help` : undefined
+  const errorId = error ? `${inputId}-error` : undefined
   const isTextarea = typeof value === 'string' && value.length > 100
 
   return (
-    <div className="margin-top-3">
-      <Label htmlFor={inputId}>
+    <div className={groupClass(error)}>
+      <Label htmlFor={inputId} error={!!error}>
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </Label>
@@ -241,6 +247,7 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
         </div>
       )}
 
+      <FieldError id={`${inputId}-error`} error={error} />
       {isTextarea ? (
         <Textarea
           id={inputId}
@@ -248,7 +255,8 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
           value={typeof value === 'string' ? value : ''}
           onChange={e => onChange(e.target.value)}
           onBlur={onBlur}
-          aria-describedby={helpId}
+          error={!!error}
+          aria-describedby={describedBy(helpId, errorId)}
         />
       ) : (
         <TextInput
@@ -258,7 +266,8 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
           value={typeof value === 'string' ? value : ''}
           onChange={e => onChange(e.target.value)}
           onBlur={onBlur}
-          aria-describedby={helpId}
+          validationStatus={error ? 'error' : undefined}
+          aria-describedby={describedBy(helpId, errorId)}
         />
       )}
     </div>
@@ -347,16 +356,18 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
 interface ControlledValueFieldProps {
   field: FormField
   value: unknown
+  error?: string
   onChange: (value: unknown) => void
 }
 
-function ControlledValueField({ field, value, onChange }: ControlledValueFieldProps) {
+function ControlledValueField({ field, value, error, onChange }: ControlledValueFieldProps) {
   const inputId = `field-${field.name}`
   const helpId = field.helpText ? `${inputId}-help` : undefined
+  const errorId = error ? `${inputId}-error` : undefined
 
   return (
-    <div className="margin-top-3">
-      <Label htmlFor={inputId}>
+    <div className={groupClass(error)}>
+      <Label htmlFor={inputId} error={!!error}>
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </Label>
@@ -366,13 +377,14 @@ function ControlledValueField({ field, value, onChange }: ControlledValueFieldPr
         </div>
       )}
 
+      <FieldError id={`${inputId}-error`} error={error} />
       <select
         id={inputId}
         name={field.name}
         value={typeof value === 'string' ? value : ''}
         onChange={e => onChange(e.target.value)}
-        aria-describedby={helpId}
-        className="usa-select"
+        aria-describedby={describedBy(helpId, errorId)}
+        className={error ? 'usa-select usa-input--error' : 'usa-select'}
       >
         <option value="">- Select -</option>
         {field.allowedValues?.map(option => (
