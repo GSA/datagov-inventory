@@ -84,6 +84,9 @@ jobs:
       - name: Check model generation is current
         run: npm run generate:models:check
 
+      - name: Check validator generation is current
+        run: npm run generate:validator:check
+
       - name: Run unit tests
         run: npm run test -- --run
 

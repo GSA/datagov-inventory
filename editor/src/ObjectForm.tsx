@@ -4,6 +4,10 @@ import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
 import { useCatalog } from './session'
 import { labelOf } from './tree'
 import type { FormModel, FormField } from './schema'
+import { useValidation } from './validation/useValidation'
+import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
+import { useValidationContext } from './validation/ValidationContext'
+import { ValidationDisclaimer } from './validation/ValidationDisclaimer'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -13,10 +17,27 @@ interface ObjectFormProps {
 export function ObjectForm({ object, model }: ObjectFormProps) {
   const { updateObject, removeLink, open } = useCatalog()
   const [formState, setFormState] = useState(object.properties)
+  const { validateObject, getObjectState, getObjectErrors, isReady } = useValidation()
+  const { markStale } = useValidationContext()
+  const [isValidating, setIsValidating] = useState(false)
+
+  const validationState = getObjectState(object.id)
+  const validationErrors = getObjectErrors(object.id)
 
   useEffect(() => {
     setFormState(object.properties)
   }, [object.id, object.properties])
+
+  const handleValidate = async () => {
+    setIsValidating(true)
+    try {
+      await validateObject(object.id)
+    } catch (error) {
+      console.error('Validation failed:', error)
+    } finally {
+      setIsValidating(false)
+    }
+  }
 
   const handleFieldChange = (fieldName: string, value: unknown) => {
     setFormState(prev => ({ ...prev, [fieldName]: value }))
@@ -24,9 +45,21 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 
   const handleFieldBlur = (fieldName: string) => {
     updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
+    markStale(object.id)
   }
 
-  // A class field can also hold strings (a Concept or Identifier given as text), which decompose keeps as properties.
+  useEffect(() => {
+    if (validationState === 'stale' && isReady) {
+      const timer = setTimeout(() => {
+        validateObject(object.id).catch((error) => {
+          console.error('Auto-revalidation failed:', error)
+        })
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [validationState, isReady, object.id, validateObject])
+
   const holdsText = (f: FormField) => f.type === 'string' || (!!f.allowedClasses && isText(object.properties[f.name]))
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
@@ -35,6 +68,13 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
+
+  const getFieldError = (fieldName: string) => {
+    return validationErrors.find(e =>
+      e.instancePath === `/${fieldName}` ||
+      e.field.toLowerCase() === fieldName.split(':')[1]?.toLowerCase()
+    )
+  }
 
   return (
     <form aria-label={`Edit ${labelOf(object)}`}>
@@ -45,37 +85,96 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
 
-      {textFields.map(field => (
-        <TextField
-          key={field.name}
-          field={field}
-          value={formState[field.name]}
-          onChange={value => handleFieldChange(field.name, value)}
-          onBlur={() => handleFieldBlur(field.name)}
-        />
-      ))}
+      <div className="margin-top-2 margin-bottom-2">
+        <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
+        {isReady && (
+          <Button
+            type="button"
+            onClick={handleValidate}
+            secondary
+            disabled={isValidating}
+            className="margin-left-1"
+            aria-label={`Validate ${labelOf(object)}`}
+          >
+            {isValidating ? 'Validating...' : 'Validate'}
+          </Button>
+        )}
+      </div>
 
-      {multiFields.map(field => (
-        <MultiValueField
-          key={field.name}
-          field={field}
-          value={formState[field.name]}
-          onChange={value => handleFieldChange(field.name, value)}
-          onBlur={() => handleFieldBlur(field.name)}
-        />
-      ))}
+      {validationErrors.length > 0 && (
+        <>
+          <Alert type="error" role="alert" aria-live="polite">
+            <strong>Validation errors:</strong>
+            <ul className="margin-top-1">
+              {validationErrors.map((error, idx) => (
+                <li key={idx}>
+                  <strong>{error.field}:</strong> {error.message}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+          <ValidationDisclaimer />
+        </>
+      )}
 
-      {controlledFields.map(field => (
-        <ControlledValueField
-          key={field.name}
-          field={field}
-          value={formState[field.name]}
-          onChange={value => {
-            handleFieldChange(field.name, value)
-            handleFieldBlur(field.name)
-          }}
-        />
-      ))}
+      {textFields.map(field => {
+        const fieldError = getFieldError(field.name)
+        return (
+          <div key={field.name}>
+            <TextField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => handleFieldChange(field.name, value)}
+              onBlur={() => handleFieldBlur(field.name)}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {multiFields.map(field => {
+        const fieldError = getFieldError(field.name)
+        return (
+          <div key={field.name}>
+            <MultiValueField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => handleFieldChange(field.name, value)}
+              onBlur={() => handleFieldBlur(field.name)}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {controlledFields.map(field => {
+        const fieldError = getFieldError(field.name)
+        return (
+          <div key={field.name}>
+            <ControlledValueField
+              field={field}
+              value={formState[field.name]}
+              onChange={value => {
+                handleFieldChange(field.name, value)
+                handleFieldBlur(field.name)
+              }}
+            />
+            {fieldError && (
+              <div className="usa-error-message" role="alert">
+                {fieldError.message}
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {linkFields.map(field => (
         <LinkField
