@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { DecomposedCatalog } from '../catalog/decompose'
+import type { CatalogGraph } from '../catalog/types'
 import type { CatalogValidationResult } from './types'
 
 interface WorkerMessage {
   id: string
   type: 'validateCatalog'
-  payload: DecomposedCatalog
+  payload: CatalogGraph
 }
 
 interface WorkerResponse {
@@ -66,7 +66,7 @@ export function useValidationWorker() {
   }, [])
 
   const validateCatalog = useCallback(
-    (catalog: DecomposedCatalog, onProgress?: (progress: number) => void): Promise<CatalogValidationResult> => {
+    (catalog: CatalogGraph, onProgress?: (progress: number) => void): Promise<CatalogValidationResult> => {
       return new Promise<CatalogValidationResult>((resolve, reject) => {
         if (!workerRef.current || !isReady) {
           reject(new Error('Worker not ready'))
