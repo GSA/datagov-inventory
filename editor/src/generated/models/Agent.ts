@@ -20,10 +20,11 @@ export const AgentModel: FormModel = {
 {
       name: 'category',
       label: 'Category',
-      type: 'array',
+      type: 'object',
       required: false,
-      cardinality: 'single',
+      cardinality: 'multiple',
       helpText: 'The type of the agent that makes the item available',
+      allowedClasses: ['Concept'],
     },
 {
       name: 'name',

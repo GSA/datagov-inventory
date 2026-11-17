@@ -21,6 +21,8 @@ env:
 jobs:
   deploy-development:
     name: deploy (development)
+    # Only main deploys. workflow_dispatch can be run on any branch; this skips the job there.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: development

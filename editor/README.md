@@ -270,7 +270,7 @@ Generated models are committed to the repo (not in `.gitignore`) to avoid rebuil
 
 ## Deployment
 
-The [Deploy editor](../.github/workflows/deploy-editor.yml) workflow builds the app, copies `dist/` into `cf/public/` and pushes it to the cloud.gov `development` space as a static site served by nginx (`manifest.yml`, `cf/`). It runs on every push to `main` that touches `editor/` or the workflow, or by hand from the Actions tab. To roll back, revert the bad commit on `main`; the revert redeploys.
+The [Deploy editor](../.github/workflows/deploy-editor.yml) workflow builds the app, copies `dist/` into `cf/public/` and pushes it to the cloud.gov `development` space as a static site served by nginx (`manifest.yml`, `cf/`). It runs on every push to `main` that touches `editor/` or the workflow, or by hand from the Actions tab (on `main` only: the job is skipped for any other branch). To roll back, revert the bad commit on `main`; the revert redeploys.
 
 The security headers, including the CSP, are set in [`cf/security-headers.conf`](cf/security-headers.conf). Paths outside `/assets/` that don't match a file serve `index.html`, so deep links work; missing files under `/assets/` return 404.
 

@@ -1,7 +1,7 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
-import type { DecomposedCatalog } from './catalog/decompose'
+import type { CatalogGraph } from './catalog/types'
 import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, pathOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
@@ -23,7 +23,7 @@ export function CatalogTree({
   parents,
   selectedId,
 }: {
-  catalog: DecomposedCatalog
+  catalog: CatalogGraph
   /** `parentsOf(catalog)`, built once by the editor and shared with the breadcrumb. */
   parents: Map<string, string[]>
   selectedId: string

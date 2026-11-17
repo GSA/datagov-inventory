@@ -1,75 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Alert, AlertText, Button, Table } from '@trussworks/react-uswds'
-import { Link, useParams, useRouterState } from '@tanstack/react-router'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
-import { getClassProperties } from './schema'
-import { type OpenCatalog, useCatalog, usePageTitle } from './session'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
+import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
+import { getFormModel } from './schema'
+import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
+import { ObjectForm } from './ObjectForm'
 import { ancestorIds, count, labelOf, parentsOf, pathOf } from './tree'
-
-/** Rows rendered at a time, so a big catalog or a huge object cannot freeze the tab. */
-const PAGE_SIZE = 500
-const VALUE_LENGTH = 2_000
-
-/**
- * Shows the first PAGE_SIZE items, and more on request. After "Show more", focus moves to
- * the first new item (the element children mark `data-paged-item`) and the new total is announced.
- */
-function Paged<T>({ items, noun, children }: { items: T[]; noun: string; children: (shown: T[]) => ReactNode }) {
-  const [shown, setShown] = useState(PAGE_SIZE)
-  const container = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (shown > PAGE_SIZE) {
-      container.current?.querySelectorAll<HTMLElement>('[data-paged-item]')[shown - PAGE_SIZE]?.focus()
-    }
-  }, [shown])
-  return (
-    <div ref={container}>
-      {children(items.slice(0, shown))}
-      <p className="usa-sr-only" role="status">
-        {shown > PAGE_SIZE && `Showing ${count(Math.min(shown, items.length))} of ${count(items.length)} ${noun}.`}
-      </p>
-      {shown < items.length && (
-        <Button type="button" outline onClick={() => setShown(shown + PAGE_SIZE)}>
-          Show more {noun} ({count(shown)} of {count(items.length)} shown)
-        </Button>
-      )}
-    </div>
-  )
-}
-
-/** Values are untrusted: they are only ever rendered as React text, cut to 2,000 characters so a huge one cannot stall the page. */
-function textOf(value: unknown): string {
-  const text = typeof value === 'string' ? value : JSON.stringify(value)
-  return text.length > VALUE_LENGTH ? `${text.slice(0, VALUE_LENGTH)}… (${count(text.length)} characters in all)` : text
-}
-
-function PropertyTable({ caption, entries }: { caption: string; entries: [string, unknown][] }) {
-  return (
-    <Paged items={entries} noun="properties">
-      {(shown) => (
-        <Table caption={caption} fullWidth compact>
-          <thead>
-            <tr>
-              <th scope="col">Property</th>
-              <th scope="col">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map(([key, value]) => (
-              <tr key={key}>
-                <th scope="row" className="text-break" tabIndex={-1} data-paged-item>
-                  {key}
-                </th>
-                <td className="text-break">{textOf(value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-    </Paged>
-  )
-}
+import { useValidation } from './validation/useValidation'
+import { useValidationContext } from './validation/ValidationContext'
+import { ValidationSummary } from './validation/ValidationSummary'
+import { ValidationProgress } from './validation/ValidationProgress'
+import { ExportWarningDialog } from './validation/ExportWarningDialog'
 
 /** A link to an object. */
 function ObjectLink({
@@ -94,80 +36,146 @@ function ObjectLink({
   )
 }
 
-function ObjectDetail({
+/**
+ * The objects above the open one, from the catalog down. Followed through links, not guessed from the id: a single
+ * link's id has no index (`#/dataset/0/publisher`).
+ */
+function Breadcrumb({
   object,
-  objects,
+  catalog,
   parents,
 }: {
   object: CatalogObject
-  objects: DecomposedCatalog['objects']
+  catalog: CatalogGraph
   parents: Map<string, string[]>
 }) {
-  const known = getClassProperties(object.dcatClass)
-  const entries = Object.entries(object.properties)
-  const own = entries.filter(([key]) => known.has(key))
-  const other = entries.filter(([key]) => !known.has(key))
-  const links = Object.entries(object.links)
-  // Followed through links, not guessed from the id: a single link's id has no index (`#/dataset/0/publisher`).
-  const ancestors = ancestorIds(object.id, parents).map((id) => objects.get(id)!)
+  const ancestors = ancestorIds(object.id, parents).map((id) => catalog.objects.get(id)!)
+  if (ancestors.length === 0) return null
+  return (
+    <nav className="usa-breadcrumb padding-top-0" aria-label="Where this object is">
+      <ol className="usa-breadcrumb__list">
+        {ancestors.map((ancestor) => (
+          <li key={ancestor.id} className="usa-breadcrumb__list-item">
+            <ObjectLink object={ancestor} className="usa-breadcrumb__link">
+              <bdi>{labelOf(ancestor)}</bdi>
+            </ObjectLink>
+          </li>
+        ))}
+        <li className="usa-breadcrumb__list-item usa-current" aria-current="page">
+          <bdi>{labelOf(object)}</bdi>
+        </li>
+      </ol>
+    </nav>
+  )
+}
+
+function ObjectDetail({
+  object,
+  catalog,
+  parents,
+}: {
+  object: CatalogObject
+  catalog: CatalogGraph
+  parents: Map<string, string[]>
+}) {
+  const { deleteObject } = useCatalog()
+  const navigate = useNavigate()
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    objectId: string
+    parents: Array<{ id: string; label: string }>
+  } | undefined>(undefined)
+
+  const model = getFormModel(object.dcatClass)
+
+  const handleDeleteClick = () => {
+    const parentLinks = findParentLinks(catalog, object.id)
+
+    if (parentLinks.length <= 1) {
+      const firstParentId = parentLinks[0]?.parentId || catalog.rootId
+      deleteObject(object.id)
+      navigate({ to: '/editor/$', params: { _splat: firstParentId === catalog.rootId ? '' : pathOf(firstParentId) } })
+    } else {
+      const parents = parentLinks.map(link => {
+        const parent = catalog.objects.get(link.parentId)!
+        return { id: parent.id, label: labelOf(parent) }
+      })
+      setDeleteConfirmation({ objectId: object.id, parents })
+    }
+  }
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmation) return
+    deleteObject(deleteConfirmation.objectId)
+    setDeleteConfirmation(undefined)
+    navigate({ to: '/editor' })
+  }
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmation(undefined)
+  }
+
+  if (!model) {
+    return (
+      <section aria-labelledby="detail-heading">
+        <Breadcrumb object={object} catalog={catalog} parents={parents} />
+        <h2 id="detail-heading" tabIndex={-1}>
+          {labelOf(object)}
+        </h2>
+        <p>No form model available for {object.dcatClass}</p>
+        <div className="margin-top-2">
+          <Button type="button" onClick={handleDeleteClick} secondary>
+            Delete object
+          </Button>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section aria-labelledby="detail-heading">
-      {ancestors.length > 0 && (
-        <nav className="usa-breadcrumb padding-top-0" aria-label="Where this object is">
-          <ol className="usa-breadcrumb__list">
-            {ancestors.map((ancestor) => (
-              <li key={ancestor.id} className="usa-breadcrumb__list-item">
-                <ObjectLink object={ancestor} className="usa-breadcrumb__link">
-                  <bdi>{labelOf(ancestor)}</bdi>
-                </ObjectLink>
-              </li>
-            ))}
-            <li className="usa-breadcrumb__list-item usa-current" aria-current="page">
-              <bdi>{labelOf(object)}</bdi>
-            </li>
-          </ol>
-        </nav>
-      )}
-      <h2 id="detail-heading" tabIndex={-1} aria-describedby="detail-class" className="margin-top-0 text-break">
-        <bdi>{labelOf(object)}</bdi>
-      </h2>
-      <p id="detail-class">
-        {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
-      </p>
-      {own.length > 0 ? <PropertyTable caption="Properties" entries={own} /> : <p>No DCAT-US 3.0 properties.</p>}
-
-      <section aria-labelledby="links-heading">
-        <h3 id="links-heading">Links</h3>
-        {links.length === 0 && <p>No links to other objects.</p>}
-        {links.map(([property, ids]) => (
-          <div key={property}>
-            <h4 className="margin-bottom-0">{property}</h4>
-            <Paged items={ids.map((id) => objects.get(id)!)} noun={`${property} links`}>
-              {(shown) => (
-                <ol className="margin-top-05">
-                  {shown.map((child) => (
-                    <li key={child.id}>
-                      <ObjectLink object={child} className="usa-link target-size text-break">
-                        <bdi>{labelOf(child)}</bdi> ({child.dcatClass})
-                      </ObjectLink>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </Paged>
+    <>
+      <Breadcrumb object={object} catalog={catalog} parents={parents} />
+      <ObjectForm object={object} model={model} />
+      <div className="margin-top-3">
+        <Button type="button" onClick={handleDeleteClick} secondary>
+          Delete object
+        </Button>
+      </div>
+      {deleteConfirmation && (
+        <Modal
+          forceAction
+          aria-labelledby="delete-modal-heading"
+          aria-describedby="delete-modal-description"
+          id="delete-confirmation-modal"
+        >
+          <ModalHeading id="delete-modal-heading">
+            Delete shared object?
+          </ModalHeading>
+          <div id="delete-modal-description">
+            <p>
+              This object is used in {deleteConfirmation.parents.length} places:
+            </p>
+            <ul>
+              {deleteConfirmation.parents.map(parent => (
+                <li key={parent.id}>
+                  <bdi>{parent.label}</bdi>
+                </li>
+              ))}
+            </ul>
+            <p>
+              Deleting it will remove it from all of these locations. This action can be undone.
+            </p>
           </div>
-        ))}
-      </section>
-
-      {other.length > 0 && (
-        <>
-          <h3>Other properties</h3>
-          <p>The DCAT-US 3.0 schema does not define these for {object.dcatClass}. They are kept as they are.</p>
-          <PropertyTable caption="Other properties" entries={other} />
-        </>
+          <ModalFooter>
+            <Button type="button" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+            <Button type="button" onClick={handleCancelDelete} unstyled>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
-    </section>
+    </>
   )
 }
 
@@ -177,11 +185,40 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const root = objects.get(rootId)!
   const object = objects.get(id)
   const parents = useMemo(() => parentsOf(open.catalog), [open.catalog])
+  const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
+  const [showExportWarning, setShowExportWarning] = useState(false)
+  const [showValidationSummary, setShowValidationSummary] = useState(false)
+  const { validateCatalog, catalogSummary, validationProgress, validationState, isReady } = useValidation()
+  const validationContext = useValidationContext()
+  const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
+  const navigate = useNavigate()
+
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
 
-  async function handleExport() {
+  const handleValidateCatalog = async () => {
+    setIsValidatingCatalog(true)
+    setShowValidationSummary(true)
+    try {
+      await validateCatalog()
+    } catch (error) {
+      console.error('Catalog validation failed:', error)
+    } finally {
+      setIsValidatingCatalog(false)
+    }
+  }
+
+  function initiateExport() {
+    if (catalogSummary && !catalogSummary.valid) {
+      setShowExportWarning(true)
+      return
+    }
+    performExport()
+  }
+
+  async function performExport() {
     setExportStatus(undefined)
+    setShowExportWarning(false)
 
     try {
       const { assemble } = await import('./catalog/assemble')
@@ -207,6 +244,9 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
       URL.revokeObjectURL(url)
 
       let message = 'Catalog exported successfully'
+      if (catalogSummary && !catalogSummary.valid) {
+        message += ` (with ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'})`
+      }
       if (result.sharedObjects.length > 0) {
         message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
       }
@@ -230,9 +270,59 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         From <bdi>{open.name}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
-      <Button type="button" onClick={handleExport} className="margin-top-2">
-        Export catalog
-      </Button>
+      <div className="margin-top-2 display-flex flex-gap-1">
+        <Button type="button" onClick={initiateExport}>
+          Export catalog
+        </Button>
+        {isReady && (
+          <Button
+            type="button"
+            onClick={handleValidateCatalog}
+            disabled={isValidatingCatalog}
+            secondary
+          >
+            {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
+          </Button>
+        )}
+        <Button type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+          Undo
+        </Button>
+      </div>
+      {validationState === 'validating' && (
+        <div className="margin-top-2">
+          <ValidationProgress progress={validationProgress} total={objects.size} />
+        </div>
+      )}
+      {showValidationSummary && catalogSummary && (
+        <div className="margin-top-2">
+          <ValidationSummary
+            catalogSummary={catalogSummary}
+            objectResults={Array.from(open.catalog.objects.values())
+              .map((obj) => {
+                const errors = validationContext.getObjectErrors(obj.id)
+                return {
+                  objectId: obj.id,
+                  objectType: obj.dcatClass,
+                  valid: errors.length === 0,
+                  errors,
+                }
+              })
+              .filter((r) => !r.valid)}
+            onNavigateToObject={(objectId) => {
+              const path = objectId.replace(/^#\//, '')
+              navigate({ to: '/editor/$', params: { _splat: path } })
+            }}
+          />
+        </div>
+      )}
+      {catalogSummary && (
+        <ExportWarningDialog
+          isOpen={showExportWarning}
+          catalogSummary={catalogSummary}
+          onCancel={() => setShowExportWarning(false)}
+          onExport={performExport}
+        />
+      )}
       {exportStatus && (
         <Alert
           id="export-status"
@@ -253,7 +343,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         </nav>
         <div className="tablet:grid-col-8">
           {object ? (
-            <ObjectDetail key={object.id} object={object} objects={objects} parents={parents} />
+            <ObjectDetail key={object.id} object={object} catalog={open.catalog} parents={parents} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">

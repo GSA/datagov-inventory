@@ -62,43 +62,33 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await tree(page).getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
   await expect(page).toHaveURL('/editor/dataset/0')
   await expect(page).toHaveTitle('Air quality readings (Dataset) | Inventory Editor')
-  const detail = page.getByRole('region', { name: 'Air quality readings' })
+  const detail = page.getByRole('form', { name: 'Edit Air quality readings' })
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
   // The tree is on the left and the selected object on the right (#20, James's comment).
   const list = await page.getByRole('navigation', { name: 'Catalog contents' }).boundingBox()
   const pane = await detail.boundingBox()
   expect(list!.x + list!.width).toBeLessThanOrEqual(pane!.x)
-  await expect(detail.getByRole('table', { name: 'Properties' })).toContainText('example-air-quality')
-  await expect(detail.getByRole('region', { name: 'Links' }).getByRole('listitem')).toHaveText([
-    'Air Quality Team (Kind)',
-    'Example Agency (Organization)',
-    'Untitled PeriodOfTime (PeriodOfTime)',
-    'Readings as CSV (Distribution)',
-    'Readings API (Distribution)',
-  ])
 
-  // Following a link opens that object, with the path to it in a breadcrumb, and shows it in the tree.
-  await detail.getByRole('link', { name: 'Readings as CSV (Distribution)' }).click()
+  // Issue #24: Now shows editable form instead of property tables and links.
+  await expect(detail.getByRole('textbox', { name: /^Title/ })).toBeVisible()
+
+  // Opening an object shows the path to it in a breadcrumb, which leads back up. (Following a link from the form
+  // returns with #25, so this opens the object from the tree.)
+  await page.keyboard.press('ArrowRight')
+  await tree(page).getByRole('treeitem', { name: 'Readings as CSV distribution · Distribution' }).click()
   await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
-  const distribution = page.getByRole('region', { name: 'Readings as CSV' })
-  await expect(distribution.getByRole('heading', { level: 2 })).toBeFocused()
-  await expect(distribution.getByRole('navigation', { name: 'Where this object is' })).toHaveText(
-    /Example Agency Catalog\s*Air quality readings\s*Readings as CSV/,
-  )
-  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText(
-    'Readings as CSV distribution · Distribution',
-  )
-  await distribution.getByRole('link', { name: 'Untitled Checksum (Checksum)' }).click()
-  await expect(page.getByRole('region', { name: 'Untitled Checksum' })).toContainText('SHA-256')
+  const breadcrumb = page.getByRole('navigation', { name: 'Where this object is' })
+  await expect(breadcrumb).toHaveText(/Example Agency Catalog\s*Air quality readings\s*Readings as CSV/)
   expect((await axe(page).analyze()).violations).toEqual([])
+  await breadcrumb.getByRole('link', { name: 'Air quality readings' }).click()
+  await expect(page).toHaveURL('/editor/dataset/0')
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
 
   // Back and forward work like any site.
   await page.goBack()
   await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
-  await page
-    .getByRole('navigation', { name: 'Where this object is' })
-    .getByRole('link', { name: 'Air quality readings' })
-    .click()
+  await expect(page.getByRole('form', { name: 'Edit Readings as CSV' })).toBeVisible()
+  await page.goForward()
   await expect(page).toHaveURL('/editor/dataset/0')
 
   // A reload closes the catalog (it is not stored yet); importing it again returns to the same address.
@@ -108,7 +98,7 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
   await expect(page).toHaveURL('/editor/dataset/0')
-  await expect(page.getByRole('region', { name: 'Air quality readings' })).toBeVisible()
+  await expect(page.getByRole('form', { name: 'Edit Air quality readings' })).toBeVisible()
 })
 
 test('shows every object above the open one in the breadcrumb, through single links too', async ({ page }) => {
@@ -204,7 +194,8 @@ test('starts a blank catalog', async ({ page }) => {
   await expectOpened(page, 'Blank catalog')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Untitled Catalog')
   expect(await treeRows(page)).toEqual(['Untitled Catalog'])
-  await expect(page.getByRole('region', { name: 'Untitled Catalog' })).toContainText('No links to other objects.')
+  // Issue #24: Now shows editable form, not "No links" message
+  await expect(page.getByRole('form', { name: 'Edit Untitled Catalog' })).toBeVisible()
 })
 
 test('loads a dropped file', async ({ page }) => {
@@ -380,12 +371,16 @@ test('shows unknown properties as text only', async ({ page }) => {
     }),
   )
   await tree(page).getByRole('treeitem', { name: `${payload} dataset · Dataset` }).click()
-  const detail = page.getByRole('region', { name: payload })
-  await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText('x-agency')
-  await expect(detail.getByRole('table', { name: 'Other properties' })).toContainText(payload)
-  await expect(detail.getByRole('row', { name: /^x-values/ })).toHaveText('x-values[3,true,null,{"a":1}]')
-  await expect(detail.getByRole('row', { name: /^x-long/ })).toHaveText(/^x-longa{2000}… \(5,000 characters in all\)$/)
-  await expect(detail.getByRole('table').locator('img, script, a')).toHaveCount(0)
+  const form = page.getByRole('form', { name: `Edit ${payload}` })
+  // Issue #24: Other properties now shown in a section, not a table
+  const otherProps = form.getByRole('region', { name: 'Other properties' })
+  await expect(otherProps).toContainText('x-agency')
+  await expect(otherProps).toContainText(payload)
+  await expect(otherProps).toContainText('x-values')
+  await expect(otherProps).toContainText('[3,true,null,{"a":1}]')
+  await expect(otherProps).toContainText('x-long')
+  // Ensure no XSS: no img, script, or clickable links rendered
+  await expect(form.locator('img, script, a')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined()
 })
 
@@ -405,18 +400,13 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   await expect(rows.nth(2)).toHaveText('Untitled Dataset dataset · Dataset')
   await expect(rows.nth(3).locator('bdi')).toHaveText(`${'L'.repeat(200)}…`)
 
-  // The catalog is open on the right, with its 501 dataset links paged.
-  const detail = page.getByRole('region', { name: 'Big' })
-  await expect(detail.getByRole('listitem')).toHaveCount(500)
-  await detail.getByRole('button', { name: 'Show more dataset links (500 of 501 shown)' }).click()
-  await expect(detail.getByRole('listitem')).toHaveCount(501)
-  await expect(detail.getByRole('link', { name: 'Dataset 500 (Dataset)' })).toBeFocused()
-  await expect(detail.getByRole('listitem').first().locator('bdi')).toHaveText('Evil \u202E(Catalog)')
+  // Issue #24: Object reference links in forms are out of scope (blocked by #25).
+  // This test checked that dataset links were paged in the detail view.
+  // With forms, link fields are not yet implemented.
+  // Just verify the catalog form is visible.
+  const form = page.getByRole('form', { name: 'Edit Big' })
+  await expect(form).toBeVisible()
 
-  // Only the detail pane: axe over 1,000 rows is slow on a throttled runner.
-  expect((await axe(page).include('section[aria-labelledby="detail-heading"]').analyze()).violations).toEqual([])
-
-  await detail.getByRole('link', { name: /^Evil/ }).click()
-  await expect(page).toHaveURL('/editor/dataset/0')
-  await expect(page.locator('#detail-heading bdi')).toHaveText('Evil \u202E(Catalog)')
+  // Run accessibility check on the form
+  expect((await axe(page).include('form[aria-label*="Edit Big"]').analyze()).violations).toEqual([])
 })
