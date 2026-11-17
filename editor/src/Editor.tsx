@@ -342,7 +342,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
       )}
       <div className="grid-row grid-gap-lg margin-top-3">
         <nav aria-labelledby="tree-heading" className="editor-nav tablet:grid-col-5 desktop:grid-col-4">
-          <h2 id="tree-heading" className="font-heading-md margin-top-0">
+          <h2 id="tree-heading" className="font-sans-md margin-top-0">
             Catalog contents
           </h2>
           <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />

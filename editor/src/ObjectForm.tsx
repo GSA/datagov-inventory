@@ -89,10 +89,10 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   return (
     <form aria-label={`Edit ${labelOf(object)}`} className="object-form">
       {/* The note on a new object or a copy is read with the heading that focus moves to. */}
-      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined}>
+      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined} className="margin-top-1 margin-bottom-0">
         {labelOf(object)}
       </h2>
-      <p className="text-base-dark">
+      <p className="text-base-dark margin-top-05">
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
       {open && <UsedIn object={object} catalog={open.catalog} />}
@@ -202,7 +202,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
           {unknownProperties.map(([key, value]) => (
             <div key={key} className="margin-top-2">
               <Label htmlFor={`unknown-${key}`}>{key}</Label>
-              <div id={`unknown-${key}`} className="usa-input text-base-darker bg-base-lightest" style={{ padding: '0.5rem' }}>
+              <div id={`unknown-${key}`} className="usa-input height-auto padding-1 text-base-darker bg-base-lightest">
                 {typeof value === 'string' ? value : JSON.stringify(value)}
               </div>
             </div>
@@ -298,20 +298,20 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
   }
 
   return (
-    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-3">
-      <h3 id={`field-${field.name}-heading`} className="font-sans-md">
+    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-4 padding-top-3 border-top-1px border-base-lighter">
+      <h3 id={`field-${field.name}-heading`} className="font-sans-md margin-y-0">
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </h3>
       {field.helpText && (
-        <p className="usa-hint">{field.helpText}</p>
+        <p className="usa-hint margin-top-05 margin-bottom-0">{field.helpText}</p>
       )}
       {field.required && items.length === 0 && (
         <Alert type="warning" slim className="margin-top-1">
           This required field has no values
         </Alert>
       )}
-      <ul className="usa-list usa-list--unstyled">
+      <ul className="usa-list usa-list--unstyled margin-top-1">
         {items.map((item, index) => (
           <li key={index} className="display-flex flex-align-center margin-top-1">
             <TextInput

@@ -68,13 +68,13 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   return (
     // A group, not a region: a form with 40 class-valued fields would fill the landmarks list.
-    <div ref={section} role="group" aria-labelledby={headingId} className="margin-top-3">
-      <h3 id={headingId} className="font-sans-md margin-bottom-0">
+    <div ref={section} role="group" aria-labelledby={headingId} className="margin-top-4 padding-top-3 border-top-1px border-base-lighter">
+      <h3 id={headingId} className="font-sans-md margin-y-0">
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </h3>
-      {field.helpText && <p className="usa-hint margin-top-05">{field.helpText}</p>}
-      <p className="usa-hint margin-top-05">
+      {field.helpText && <p className="usa-hint margin-y-05">{field.helpText}</p>}
+      <p className="usa-hint margin-top-05 margin-bottom-0">
         Holds {single ? 'one' : 'one or more'}: {classList(classes)}.
       </p>
       {field.required && ids.length === 0 && (
