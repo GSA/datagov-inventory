@@ -1,5 +1,5 @@
 /**
- * Measures how long the catalog tree takes to respond on a generated catalog of 3,000 datasets (18,001 objects),
+ * Measures how long the catalog tree, and picking or creating objects in a field (#25), take to respond on a generated catalog of 3,000 datasets (18,001 objects),
  * as INP does: from each input to the next paint, with the Event Timing API. Target (#23): 100 ms, the limit for a
  * response to feel immediate (https://web.dev/articles/rail). Opt-in, since timings vary by machine:
  *
@@ -34,7 +34,8 @@ async function measure(page: Page, action: () => Promise<unknown>) {
   return page.evaluate(() => Math.max(16, ...(window as unknown as { durations: number[] }).durations))
 }
 
-test('tree interactions on 3,000 datasets', async ({ page }) => {
+/** Opens the generated catalog of 3,000 datasets, with the CPU slowed by CPU_THROTTLE. */
+async function openLargeCatalog(page: Page) {
   const throttle = Number(process.env.CPU_THROTTLE ?? 1)
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle })
@@ -45,11 +46,21 @@ test('tree interactions on 3,000 datasets', async ({ page }) => {
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(largeCatalog())),
   })
-  const tree = page.getByRole('tree')
-  await tree.getByRole('treeitem').nth(3000).waitFor()
-
+  await page.getByRole('tree').getByRole('treeitem').nth(3000).waitFor()
   const results: Record<string, number[]> = {}
   const record = (name: string, ms: number) => (results[name] ??= []).push(ms)
+  const report = () => {
+    const summary = Object.entries(results).map(
+      ([name, ms]) => `${name.padEnd(56)} max ${Math.round(Math.max(...ms))} ms, median ${Math.round(ms.sort((a, b) => a - b)[ms.length >> 1])} ms (n=${ms.length})`,
+    )
+    console.log(`CPU throttle ${throttle}×\n${summary.join('\n')}`)
+  }
+  return { record, report }
+}
+
+test('tree interactions on 3,000 datasets', async ({ page }) => {
+  const { record, report } = await openLargeCatalog(page)
+  const tree = page.getByRole('tree')
   const item = (label: string) => tree.getByRole('treeitem').filter({ has: page.getByText(label, { exact: true }) })
 
   for (let i = 0; i < 5; i++) {
@@ -94,8 +105,26 @@ test('tree interactions on 3,000 datasets', async ({ page }) => {
     record(`filter: type "${text}", last key to tree painted`, shown)
   }
 
-  const summary = Object.entries(results).map(
-    ([name, ms]) => `${name.padEnd(56)} max ${Math.round(Math.max(...ms))} ms, median ${Math.round(ms.sort((a, b) => a - b)[ms.length >> 1])} ms (n=${ms.length})`,
-  )
-  console.log(`CPU throttle ${throttle}×\n${summary.join('\n')}`)
+  report()
+})
+
+test('select and create in a field on 3,000 datasets', async ({ page }) => {
+  const { record, report } = await openLargeCatalog(page)
+  const field = (name: string) => page.getByRole('group', { name: new RegExp(`^${name}( \\*)?$`) })
+
+  for (let i = 0; i < 5; i++) {
+    await page.getByRole('tree').getByRole('treeitem', { name: new RegExp(`^Water use ${i * 600 + 1} `) }).click()
+    const picker = field('Contact Point').getByRole('combobox')
+    record('pick: open the list (3,000 contacts)', await measure(page, () => picker.click()))
+    for (const key of 'team 4') record('pick: type a key', await measure(page, () => page.keyboard.press(key)))
+    record('pick: Down arrow', await measure(page, () => page.keyboard.press('ArrowDown')))
+    record('pick: Enter adds the contact', await measure(page, () => page.keyboard.press('Enter')))
+    const copy = field('Contact Point').getByRole('button', { name: /^Edit a copy for this one/ }).first()
+    record('edit a copy (opens the copy)', await measure(page, () => copy.click()))
+    await page.getByRole('link', { name: /^Back to / }).click()
+    const create = field('Distribution').getByRole('button', { name: /^Create new Distribution/ })
+    record('create new distribution (opens its form)', await measure(page, () => create.click()))
+    record('back to the dataset', await measure(page, () => page.getByRole('link', { name: /^Back to / }).click()))
+  }
+  report()
 })

@@ -59,6 +59,17 @@ virtualization: with 3,000 datasets (18,001 objects) each action paints in about
 re-renders only the rows it changes, and a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
 a float before the tree made each change lay out every row again.
 
+Class-valued fields (`src/LinkField.tsx`, with the logic in `src/links.ts`) list the objects they link to and offer
+"Add an existing …" and "Create new …" (#25). There are no dialogs. "Add an existing …" is a
+[WAI-ARIA combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) that shows the first 25 matches of an allowed
+class, A to Z, so it stays fast with thousands of contacts. Picking links the same object, so it is shared, not copied:
+each object's form says where it is used, and "Edit a copy for this one" gives one place a copy of its own (with copies
+of the objects used only inside it). "Create new …" links a blank object at once and opens its form in place of the
+parent's, with "Back to …", which returns focus to the new object's row. The schema can't say which fields should offer
+reuse, so `linkModeOf` follows the 2026-11-06 huddle: Create new only for a catalog's datasets, a dataset's
+distributions and value-like classes (a period of time, a checksum), and Add an existing only for datasets, series and
+services outside the catalog's own lists.
+
 The catalog is held in memory only until #28 stores it, so after a reload an editor address says "No catalog open"
 and links to Import, which returns to that address once the catalog is imported again. When the path changes, focus
 moves to the new page's `h1` (or, within the editor, to the object's heading) and the tab title changes.

@@ -81,6 +81,16 @@ describe('assemble: basic structure', () => {
     expect(datasets[0].contactPoint).toEqual({ fn: 'John' })
   })
 
+  it('writes a field read as one object as a list once it holds more than one, so none is lost', () => {
+    const decomposed = decompose(json({ '@type': 'Catalog', dataset: [{ '@type': 'Dataset', distribution: { title: 'one' } }] }))
+    const dataset = decomposed.objects.get('#/dataset/0')!
+    decomposed.objects.set('#/two', { id: '#/two', dcatClass: 'Distribution', properties: { title: 'two' }, links: {}, singleLinks: [] })
+    decomposed.objects.set(dataset.id, { ...dataset, links: { distribution: [...dataset.links.distribution, '#/two'] } })
+
+    const datasets = (assemble(decomposed).output as Record<string, unknown>).dataset as Array<Record<string, unknown>>
+    expect(datasets[0].distribution).toEqual([{ title: 'one' }, { title: 'two' }])
+  })
+
   it('outputs arrays for multi-valued links', () => {
     const text = json({
       '@type': 'Catalog',
