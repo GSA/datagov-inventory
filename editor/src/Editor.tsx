@@ -135,7 +135,7 @@ function ObjectDetail({
     <>
       <Breadcrumb object={object} catalog={catalog} parents={parents} />
       <ObjectForm object={object} model={model} />
-      <div className="margin-top-3">
+      <div className="margin-top-5 padding-top-3 border-top-1px border-base-lighter">
         <Button type="button" onClick={handleDeleteClick} secondary>
           Delete object
         </Button>
@@ -348,7 +348,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           </h2>
           <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />
         </nav>
-        <div className="tablet:grid-col-7 desktop:grid-col-8 tablet:padding-top-2">
+        <div className="tablet:grid-col-7 desktop:grid-col-8 margin-top-4 tablet:margin-top-0 tablet:padding-top-2">
           {object ? (
             <ObjectDetail key={object.id} object={object} catalog={open.catalog} parents={parents} />
           ) : (

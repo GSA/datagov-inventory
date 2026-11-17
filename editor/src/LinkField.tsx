@@ -83,7 +83,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
         </Alert>
       )}
       {ids.length > 0 && (
-        <ul className="usa-list usa-list--unstyled">
+        <ul className="usa-list usa-list--unstyled maxw-tablet">
           {ids.map((childId, index) => {
             const child = catalog.objects.get(childId)
             const label = child ? labelOf(child) : childId
@@ -145,6 +145,9 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
         <p className="usa-hint">Holds one {classList(classes)}. To use a different one, remove this one first.</p>
       ) : (
         <div>
+          {mode === 'select' && (
+            <p className="usa-hint margin-top-05 margin-bottom-0">These belong to the catalog, so pick one that is already in it.</p>
+          )}
           {mode !== 'create' && (
             <ObjectPicker
               id={`pick-${field.name}`}
@@ -164,9 +167,6 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
                 </Button>
               ))}
             </ButtonGroup>
-          )}
-          {mode === 'select' && (
-            <p className="usa-hint">These belong to the catalog, so pick one that is already in it.</p>
           )}
         </div>
       )}

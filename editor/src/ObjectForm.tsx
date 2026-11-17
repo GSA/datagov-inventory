@@ -447,6 +447,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
                 <Button
                   type="button"
                   unstyled
+                  className="margin-left-1"
                   onClick={() => editCopy(parentOf(use), use.property, object)}
                   aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(parentOf(use).dcatClass, use.property)}`}
                 >
