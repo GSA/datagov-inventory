@@ -55,7 +55,7 @@ test('every page and state has no WCAG 2.1 AA violations axe can find', async ({
     await item(page, 'Air quality readings dataset · Dataset').locator('.catalog-tree__toggle').click()
     await item(page, 'Readings as CSV distribution · Distribution').locator('.catalog-tree__toggle').click()
     await item(page, 'Untitled Checksum checksum · Checksum').click()
-    await expect(page.getByRole('navigation', { name: 'Where this object is' })).toBeVisible()
+    await expect(page.locator('#detail-heading')).toHaveText('Untitled Checksum')
     await expectNoAxeViolations(page)
   })
 
