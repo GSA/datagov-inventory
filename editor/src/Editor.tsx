@@ -1,12 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
 import { count, labelOf, pathOf } from './tree'
+import { useValidation } from './validation/useValidation'
+import { useValidationContext } from './validation/ValidationContext'
+import { ValidationSummary } from './validation/ValidationSummary'
+import { ValidationProgress } from './validation/ValidationProgress'
+import { ExportWarningDialog } from './validation/ExportWarningDialog'
 
 /** A link to an object. */
 function ObjectLink({
@@ -31,7 +36,7 @@ function ObjectLink({
   )
 }
 
-function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: DecomposedCatalog }) {
+function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -138,10 +143,38 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const object = objects.get(id)
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
+  const [showExportWarning, setShowExportWarning] = useState(false)
+  const [showValidationSummary, setShowValidationSummary] = useState(false)
+  const { validateCatalog, catalogSummary, validationProgress, validationState, isReady } = useValidation()
+  const validationContext = useValidationContext()
+  const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
+  const navigate = useNavigate()
+
   usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
 
-  async function handleExport() {
+  const handleValidateCatalog = async () => {
+    setIsValidatingCatalog(true)
+    setShowValidationSummary(true)
+    try {
+      await validateCatalog()
+    } catch (error) {
+      console.error('Catalog validation failed:', error)
+    } finally {
+      setIsValidatingCatalog(false)
+    }
+  }
+
+  function initiateExport() {
+    if (catalogSummary && !catalogSummary.valid) {
+      setShowExportWarning(true)
+      return
+    }
+    performExport()
+  }
+
+  async function performExport() {
     setExportStatus(undefined)
+    setShowExportWarning(false)
 
     try {
       const { assemble } = await import('./catalog/assemble')
@@ -167,6 +200,9 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
       URL.revokeObjectURL(url)
 
       let message = 'Catalog exported successfully'
+      if (catalogSummary && !catalogSummary.valid) {
+        message += ` (with ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'})`
+      }
       if (result.sharedObjects.length > 0) {
         message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
       }
@@ -191,13 +227,58 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         tab only (nothing is uploaded)
       </p>
       <div className="margin-top-2 display-flex flex-gap-1">
-        <Button type="button" onClick={handleExport}>
+        <Button type="button" onClick={initiateExport}>
           Export catalog
         </Button>
+        {isReady && (
+          <Button
+            type="button"
+            onClick={handleValidateCatalog}
+            disabled={isValidatingCatalog}
+            secondary
+          >
+            {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
+          </Button>
+        )}
         <Button type="button" onClick={undoRemoval} disabled={!canUndo} outline>
           Undo
         </Button>
       </div>
+      {validationState === 'validating' && (
+        <div className="margin-top-2">
+          <ValidationProgress progress={validationProgress} total={objects.size} />
+        </div>
+      )}
+      {showValidationSummary && catalogSummary && (
+        <div className="margin-top-2">
+          <ValidationSummary
+            catalogSummary={catalogSummary}
+            objectResults={Array.from(open.catalog.objects.values())
+              .map((obj) => {
+                const errors = validationContext.getObjectErrors(obj.id)
+                return {
+                  objectId: obj.id,
+                  objectType: obj.dcatClass,
+                  valid: errors.length === 0,
+                  errors,
+                }
+              })
+              .filter((r) => !r.valid)}
+            onNavigateToObject={(objectId) => {
+              const path = objectId.replace(/^#\//, '')
+              navigate({ to: '/editor/$', params: { _splat: path } })
+            }}
+          />
+        </div>
+      )}
+      {catalogSummary && (
+        <ExportWarningDialog
+          isOpen={showExportWarning}
+          catalogSummary={catalogSummary}
+          onCancel={() => setShowExportWarning(false)}
+          onExport={performExport}
+        />
+      )}
       {exportStatus && (
         <Alert
           id="export-status"

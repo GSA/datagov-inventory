@@ -1,4 +1,5 @@
-import { decompose, DecomposeError, type CatalogObject, type DecomposeErrorCode } from './decompose'
+import { decompose, DecomposeError, type DecomposeErrorCode } from './decompose'
+import type { CatalogObject } from './types'
 
 /** What the parse worker posts: the objects in batches, then the root's id; or else one error (with its code, if any). */
 export type ParseMessage = { objects: CatalogObject[] } | { rootId: string } | { error: string; code?: DecomposeErrorCode }

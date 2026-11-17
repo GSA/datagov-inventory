@@ -48,6 +48,10 @@ export default tseslint.config(
           message: 'dangerouslySetInnerHTML is banned per SI-15 control',
         },
       ],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
     },
     settings: {
       react: {
