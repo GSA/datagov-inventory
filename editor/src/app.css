@@ -14,6 +14,16 @@
   max-width: 68ex;
 }
 
+/* The catalog's actions keep their own width on phones (USWDS makes grouped buttons full width there). */
+.catalog-actions .usa-button {
+  width: auto;
+}
+
+/* The catalog's actions keep their own width on phones (USWDS makes grouped buttons full width there). */
+.catalog-actions .usa-button {
+  width: auto;
+}
+
 /* Long untrusted values (URLs, ids) wrap instead of widening the layout. */
 .text-break {
   overflow-wrap: anywhere;

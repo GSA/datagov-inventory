@@ -485,10 +485,17 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
     </Link>
   )
   return (
-    <div className="margin-bottom-2">
+    <div className="margin-bottom-1">
+      {/* The one way back on a phone, where the breadcrumb is hidden; a link, not a button, beside it on wider screens. */}
       {back && (
-        <p className="margin-y-1">
-          {linkTo(back, <span>Back to <bdi>{labelOf(parentOf(back))}</bdi></span>, 'usa-button usa-button--outline usa-button--small')}
+        <p className="margin-top-1 margin-bottom-05">
+          {linkTo(
+            back,
+            <>
+              <span aria-hidden="true">← </span>Back to <bdi>{labelOf(parentOf(back))}</bdi>
+            </>,
+            'usa-link text-bold',
+          )}
         </p>
       )}
       {notice && (
@@ -497,7 +504,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
         </Alert>
       )}
       {uses.length === 0 && <p className="text-base-dark">Not linked anywhere.</p>}
-      {uses.length === 1 && <p className="text-base-dark margin-y-1">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
+      {uses.length === 1 && <p className="text-base-dark margin-top-05 margin-bottom-0">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
       {uses.length > 1 && (
         <div role="group" aria-labelledby="used-in-heading">
           <h3 id="used-in-heading" className="font-sans-sm margin-bottom-0">

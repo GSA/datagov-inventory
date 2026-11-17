@@ -52,7 +52,8 @@ function Breadcrumb({
   const ancestors = ancestorIds(object.id, parents).map((id) => catalog.objects.get(id)!)
   if (ancestors.length === 0) return null
   return (
-    <nav className="usa-breadcrumb padding-top-0" aria-label="Where this object is">
+    // Hidden on phones, where USWDS shows only its last link, "← parent", beside the form's own "← Back to …".
+    <nav className="usa-breadcrumb padding-top-0 display-none tablet:display-block" aria-label="Where this object is">
       <ol className="usa-breadcrumb__list">
         {ancestors.map((ancestor) => (
           <li key={ancestor.id} className="usa-breadcrumb__list-item">
@@ -269,7 +270,8 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         tab only (nothing is uploaded)
       </p>
       {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
-      <ButtonGroup className="margin-top-105">
+      {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
+      <ButtonGroup className="catalog-actions flex-row flex-wrap margin-top-105">
         {[
           <Button key="export" type="button" onClick={initiateExport}>
             Export catalog
