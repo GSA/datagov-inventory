@@ -1,3 +1,19 @@
+/*
+ * The page is a tree beside a form, so it uses the widescreen container (main in App.tsx). The banner and header
+ * line up with it: their containers are 64rem wide by default, and 87.5rem is USWDS's widescreen width.
+ */
+.usa-banner__inner,
+.usa-banner__content,
+.usa-header .usa-nav-container {
+  max-width: 87.5rem;
+}
+
+/* The form column is wide; its notes and hints keep to USWDS's prose measure so lines stay readable. */
+.object-form p,
+.object-form .usa-hint {
+  max-width: 68ex;
+}
+
 /* Long untrusted values (URLs, ids) wrap instead of widening the layout. */
 .text-break {
   overflow-wrap: anywhere;

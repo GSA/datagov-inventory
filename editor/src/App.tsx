@@ -81,7 +81,7 @@ function Layout() {
           />
         </div>
       </Header>
-      <main id="main-content" className="grid-container padding-bottom-8">
+      <main id="main-content" className="grid-container-widescreen padding-bottom-8">
         <Outlet />
       </main>
     </>
