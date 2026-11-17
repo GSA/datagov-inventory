@@ -1,10 +1,10 @@
-import type { DecomposedCatalog } from '../catalog/decompose'
+import type { CatalogGraph } from '../catalog/types'
 import { validateCatalog } from './validator'
 
 interface WorkerMessage {
   id: string
   type: 'validateCatalog'
-  payload: DecomposedCatalog
+  payload: CatalogGraph
 }
 
 interface WorkerResponse {

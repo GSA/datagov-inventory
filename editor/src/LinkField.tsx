@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Alert, Button, Label } from '@trussworks/react-uswds'
 import { Link, useNavigate } from '@tanstack/react-router'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
@@ -17,7 +17,7 @@ const classList = (classes: readonly string[]) => classes.join(' or ')
  * link mode allows. Create new opens the new object's form in place of this one (no dialog); its "Back to …"
  * returns here.
  */
-export function LinkField({ field, object, catalog }: { field: FormField; object: CatalogObject; catalog: DecomposedCatalog }) {
+export function LinkField({ field, object, catalog }: { field: FormField; object: CatalogObject; catalog: CatalogGraph }) {
   const { removeLink, linkObject, createObject } = useCatalog()
   const editCopy = useEditCopy()
   // A changed field makes the object's schema check (#27) out of date.
@@ -184,7 +184,7 @@ interface ObjectPickerProps {
   fieldLabel: string
   /** The objects it can offer, A to Z; called when the list first opens, not on every render of the form. */
   pool: () => CatalogObject[]
-  catalog: DecomposedCatalog
+  catalog: CatalogGraph
   onPick: (object: CatalogObject) => void
 }
 

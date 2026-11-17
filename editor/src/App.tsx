@@ -10,7 +10,7 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { copyFor, createLinked, keepIndex, linkObject } from './links'
 import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
@@ -218,7 +218,7 @@ export default function App() {
    * undoing a removal after a pick, create or copy could restore an id that is in use again.
    */
   const change = useCallback(
-    (apply: (catalog: DecomposedCatalog) => { catalog: DecomposedCatalog; id: string }) => {
+    (apply: (catalog: CatalogGraph) => { catalog: CatalogGraph; id: string }) => {
       if (!open) return undefined
       const { catalog, id } = apply(open.catalog)
       setOpen({ ...open, catalog })

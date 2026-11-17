@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { classSchemas, getClassProperties } from './schema'
 import {
   CATALOG_MEMBERS,
@@ -23,7 +23,7 @@ const object = (id: string, dcatClass: string, properties: Record<string, unknow
   links,
   singleLinks: [],
 })
-const catalogOf = (...objects: CatalogObject[]): DecomposedCatalog => ({
+const catalogOf = (...objects: CatalogObject[]): CatalogGraph => ({
   rootId: objects[0].id,
   objects: new Map(objects.map((o) => [o.id, o])),
 })

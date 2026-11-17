@@ -1,7 +1,8 @@
 // @vitest-environment node
 // Runs without a DOM, which proves validation needs none (it runs in a worker).
 import { describe, it, expect } from 'vitest'
-import { decompose, type DecomposedCatalog } from '../catalog/decompose'
+import { decompose } from '../catalog/decompose'
+import type { CatalogGraph } from '../catalog/types'
 import { validateDocument as runtimeValidator } from '../schema/validator'
 import { validateDocument as precompiledValidator } from '../generated/validateDocument'
 import { pointersOf, validateCatalog } from './validator'
@@ -12,7 +13,7 @@ const valid = load(import.meta.glob<string>('../../fixtures/catalogs/valid/*.jso
 const invalid = load(import.meta.glob<string>('../../fixtures/catalogs/invalid/*.json', { eager: true, query: '?raw', import: 'default' }))
 const fixture = (name: string) => [...valid, ...invalid].find(([file]) => file === name)![1]
 
-const resultFor = (catalog: DecomposedCatalog, objectId: string) =>
+const resultFor = (catalog: CatalogGraph, objectId: string) =>
   validateCatalog(catalog).objectResults.find((r) => r.objectId === objectId)!
 
 describe('precompiled validator', () => {

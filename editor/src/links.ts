@@ -2,7 +2,8 @@
  * Picking, creating and copying the objects a class-valued field links to (#25). Linking an existing object adds its
  * id, so every parent shows the same object (ADR 0005); nothing is copied unless the user asks for a copy.
  */
-import { subclasses, type CatalogObject, type DecomposedCatalog } from './catalog/decompose'
+import { subclasses } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { labelOf } from './tree'
 
 /** What a field offers: "Create new" only, "Add an existing" only, or both. */
@@ -59,10 +60,10 @@ interface Index {
   /** Links from objects in the catalog (reachable from it) only: what users see as places. */
   uses: ReadonlyMap<string, readonly Use[]>
 }
-const indexCache = new WeakMap<DecomposedCatalog['objects'], Index>()
+const indexCache = new WeakMap<CatalogGraph['objects'], Index>()
 
 /** `links` the other way round, built once per version of the catalog (every change makes a new `objects` map). */
-function indexOf({ objects, rootId }: DecomposedCatalog): Index {
+function indexOf({ objects, rootId }: CatalogGraph): Index {
   let index = indexCache.get(objects)
   if (!index) {
     const all = new Map<string, Use[]>()
@@ -100,7 +101,7 @@ function indexOf({ objects, rootId }: DecomposedCatalog): Index {
  * Carries the index over to a new version of the catalog whose links are unchanged (a field's text was edited), so
  * saving a field doesn't rebuild it.
  */
-export function keepIndex(from: DecomposedCatalog['objects'], to: DecomposedCatalog['objects']) {
+export function keepIndex(from: CatalogGraph['objects'], to: CatalogGraph['objects']) {
   const index = indexCache.get(from)
   if (index) indexCache.set(to, index)
 }
@@ -109,13 +110,13 @@ export function keepIndex(from: DecomposedCatalog['objects'], to: DecomposedCata
  * Where each object is used, in document order: the objects in the catalog that link to it, and the field. Cached
  * per version of the catalog, so counts and lists cost a lookup.
  */
-export const usesOf = (catalog: DecomposedCatalog): ReadonlyMap<string, readonly Use[]> => indexOf(catalog).uses
+export const usesOf = (catalog: CatalogGraph): ReadonlyMap<string, readonly Use[]> => indexOf(catalog).uses
 
 /**
  * The object and every object that links down to it, removed ones included: linking any of them under it would make
  * a loop, now or once Undo or a pick brings the removed one back.
  */
-export function linkersOf(id: string, catalog: DecomposedCatalog): Set<string> {
+export function linkersOf(id: string, catalog: CatalogGraph): Set<string> {
   const { all } = indexOf(catalog)
   const found = new Set([id])
   const queue = [id]
@@ -140,7 +141,7 @@ const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
  * the object itself, those already in the field, and those above it, which would make a loop.
  */
 export function candidatesFor(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   object: CatalogObject,
   property: string,
   allowed: readonly string[],
@@ -175,7 +176,7 @@ export function search(pool: readonly CatalogObject[], query: string) {
 const record = <T,>(...records: Record<string, T>[]): Record<string, T> => Object.assign(Object.create(null), ...records)
 
 /** `${base}/${n}` for the first n from `start` that no object has. */
-function freeId(objects: DecomposedCatalog['objects'], base: string, start: number): string {
+function freeId(objects: CatalogGraph['objects'], base: string, start: number): string {
   let n = start
   while (objects.has(`${base}/${n}`)) n++
   return `${base}/${n}`
@@ -186,7 +187,7 @@ function freeId(objects: DecomposedCatalog['objects'], base: string, start: numb
  * that was read as one object (`"distribution": {…}`) becomes a list once it holds two. An empty list kept as written
  * (`"distribution": []`) gives way to the links.
  */
-function withLinks(catalog: DecomposedCatalog, parent: CatalogObject, property: string, ids: string[], single: boolean) {
+function withLinks(catalog: CatalogGraph, parent: CatalogObject, property: string, ids: string[], single: boolean) {
   const others = parent.singleLinks.filter((p) => p !== property)
   const singleLinks = single ? [...others, property] : ids.length > 1 ? others : parent.singleLinks
   const properties = record(parent.properties)
@@ -197,7 +198,7 @@ function withLinks(catalog: DecomposedCatalog, parent: CatalogObject, property: 
   return { ...catalog, objects }
 }
 
-function get(catalog: DecomposedCatalog, id: string): CatalogObject {
+function get(catalog: CatalogGraph, id: string): CatalogObject {
   const object = catalog.objects.get(id)
   if (!object) throw new Error(`Object ${id} not found`)
   return object
@@ -208,12 +209,12 @@ function get(catalog: DecomposedCatalog, id: string): CatalogObject {
  * is written back as one object on export. Refuses a link that would make a loop.
  */
 export function linkObject(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   parentId: string,
   property: string,
   childId: string,
   single = false,
-): DecomposedCatalog {
+): CatalogGraph {
   const parent = get(catalog, parentId)
   get(catalog, childId)
   const ids = parent.links[property] ?? []
@@ -229,12 +230,12 @@ export function linkObject(
  * subclass (an Organization in an Agent field) stays one after export and import.
  */
 export function createLinked(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   parentId: string,
   property: string,
   dcatClass: string,
   single = false,
-): { catalog: DecomposedCatalog; id: string } {
+): { catalog: CatalogGraph; id: string } {
   const parent = get(catalog, parentId)
   const ids = parent.links[property] ?? []
   if (single && ids.length > 0) throw new Error(`${parentId}.${property} holds one object already`)
@@ -252,11 +253,11 @@ export function createLinked(
  * the original; objects it shares with others stay shared. Copies have no `@id`.
  */
 export function copyFor(
-  catalog: DecomposedCatalog,
+  catalog: CatalogGraph,
   parentId: string,
   property: string,
   targetId: string,
-): { catalog: DecomposedCatalog; id: string } {
+): { catalog: CatalogGraph; id: string } {
   const parent = get(catalog, parentId)
   const ids = parent.links[property] ?? []
   if (!ids.includes(targetId)) throw new Error(`${targetId} is not in ${parentId}.${property}`)

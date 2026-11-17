@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
@@ -36,7 +36,7 @@ function ObjectLink({
   )
 }
 
-function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: DecomposedCatalog }) {
+function ObjectDetail({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
   const [deleteConfirmation, setDeleteConfirmation] = useState<{

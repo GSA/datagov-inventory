@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { Label, TextInput, Textarea, Button, Alert, AlertText } from '@trussworks/react-uswds'
 import { Link, useRouterState } from '@tanstack/react-router'
-import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
 import { count, labelOf, pathOf } from './tree'
 import { getFormModel, type FormModel, type FormField } from './schema'
@@ -394,7 +394,7 @@ const fieldLabel = (dcatClass: string, property: string) =>
  * Where the object is used (#25): "Back to" the place the user came from, and every place that links to it, each
  * with "Edit a copy for this one" when there are several. The notice from Create new or a copy shows here too.
  */
-function UsedIn({ object, catalog }: { object: CatalogObject; catalog: DecomposedCatalog }) {
+function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const editCopy = useEditCopy()
   const { from, notice } = useRouterState({ select: s => s.location.state })
   if (object.id === catalog.rootId) return null
