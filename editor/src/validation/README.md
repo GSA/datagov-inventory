@@ -4,13 +4,12 @@ Browser-based DCAT-US 3.0 schema validation for the Inventory Editor.
 
 ## Features
 
-- **Client-side validation** using Ajv JSON Schema 2020-12
+- **Client-side validation** using a precompiled Ajv JSON Schema 2020-12 validator
 - **Web Worker execution** for non-blocking validation of large catalogs
 - **Real-time error display** with humanized field names
 - **Stale validation tracking** - marks results as stale when objects are edited
 - **Advisory disclaimer** - clear messaging that this is not the official Data.gov validator
 - **Accessibility** - screen reader support, keyboard navigation, color-independent indicators
-- **XSS protection** - HTML escaping for user data in error messages
 
 ## Usage
 
@@ -64,7 +63,7 @@ const handleValidateCatalog = async () => {
 ```
 validation/
 ├── types.ts              # TypeScript type definitions
-├── validator.ts          # Ajv validator setup and validation functions
+├── validator.ts          # Validates the assembled catalog and assigns errors to objects
 ├── messages.ts           # Error message humanization
 ├── worker.ts             # Web Worker for off-thread validation
 ├── useValidationWorker.ts # React hook for worker communication
@@ -76,15 +75,32 @@ validation/
 └── validation.css        # Component styles
 ```
 
+## Precompiled Validator
+
+Ajv compiles schemas with `new Function`, which the CSP (`script-src 'self'`) blocks, so the
+browser uses `src/generated/validateDocument.js`, generated from `createAjv` in
+`src/schema/validator.ts`. Regenerate it after changing the schema, its formats or Ajv options:
+
+```sh
+npm run generate:validator
+```
+
+CI fails (`generate:validator:check`) when it is stale, and a unit test checks it agrees with the
+runtime validator on every fixture.
+
+Validation runs on the catalog as it would export (`assemble`). Each error goes to the deepest
+object holding its path in the current link graph, with `instancePath` relative to that object.
+
 ## Advisory Nature
 
 This validation is **advisory only** and runs against a copied DCAT-US 3.0 schema. It is not the official Data.gov validator. The disclaimer is shown on all validation results to prevent confusion.
 
 ## Security
 
-- All user data in error messages is HTML-escaped to prevent XSS attacks
+- Error messages are plain text, rendered through React, which escapes them
+- No `eval`: the validator is generated ahead of time, so the CSP needs no `'unsafe-eval'`
 - Validation runs client-side - no data is sent to external servers
-- Schema is loaded from local files, not external URLs
+- The schema is bundled; nothing is fetched
 
 ## Performance
 

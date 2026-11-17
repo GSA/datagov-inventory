@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { ValidationResult, CatalogValidationResult } from './types'
+import type { DecomposedCatalog } from '../catalog/decompose'
+import type { CatalogValidationResult } from './types'
 
 interface WorkerMessage {
   id: string
-  type: 'init' | 'validateObject' | 'validateCatalog'
-  payload?: unknown
+  type: 'validateCatalog'
+  payload: DecomposedCatalog
 }
 
 interface WorkerResponse {
@@ -58,21 +59,15 @@ export function useValidationWorker() {
 
     workerRef.current = worker
 
-    worker.postMessage({ type: 'init' } as WorkerMessage)
-
     return () => {
       worker.terminate()
       workerRef.current = null
     }
   }, [])
 
-  const sendMessage = useCallback(
-    <T,>(
-      type: 'validateObject' | 'validateCatalog',
-      payload: unknown,
-      onProgress?: (progress: number) => void
-    ): Promise<T> => {
-      return new Promise<T>((resolve, reject) => {
+  const validateCatalog = useCallback(
+    (catalog: DecomposedCatalog, onProgress?: (progress: number) => void): Promise<CatalogValidationResult> => {
+      return new Promise<CatalogValidationResult>((resolve, reject) => {
         if (!workerRef.current || !isReady) {
           reject(new Error('Worker not ready'))
           return
@@ -85,32 +80,14 @@ export function useValidationWorker() {
           onProgress,
         })
 
-        workerRef.current.postMessage({ id, type, payload } as WorkerMessage)
+        workerRef.current.postMessage({ id, type: 'validateCatalog', payload: catalog } as WorkerMessage)
       })
     },
     [isReady]
   )
 
-  const validateObject = useCallback(
-    (obj: unknown, objectType: 'Dataset' | 'Organization' | 'ContactPoint'): Promise<ValidationResult> => {
-      return sendMessage('validateObject', { obj, objectType })
-    },
-    [sendMessage]
-  )
-
-  const validateCatalog = useCallback(
-    (
-      catalog: { datasets: unknown[]; publishers: unknown[]; contactPoints: unknown[] },
-      onProgress?: (progress: number) => void
-    ): Promise<CatalogValidationResult> => {
-      return sendMessage('validateCatalog', catalog, onProgress)
-    },
-    [sendMessage]
-  )
-
   return {
     isReady,
-    validateObject,
     validateCatalog,
   }
 }

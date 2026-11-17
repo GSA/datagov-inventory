@@ -35,9 +35,9 @@ export function getFieldLabel(property: string): string {
     return 'Unknown Property'
   }
 
-  const afterColon = parts[1]
-  if (afterColon) {
-    return afterColon.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+  const name = parts[parts.length - 1]
+  if (name) {
+    return name.replace(/([A-Z]+)/g, ' $1').trim().replace(/^./, (str) => str.toUpperCase())
   }
 
   return 'Unknown Property'
@@ -68,12 +68,6 @@ export function formatFieldPath(instancePath: string): string {
   return formatted.join(' → ')
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
-}
-
 export function humanizeError(error: ErrorObject): ValidationError {
   let field = formatFieldPath(error.instancePath)
   let message = error.message || 'Validation error'
@@ -92,6 +86,10 @@ export function humanizeError(error: ErrorObject): ValidationError {
     case 'pattern':
       message = `must match the expected format`
       break
+    case 'anyOf':
+    case 'oneOf':
+      message = 'is not in an accepted form'
+      break
     case 'format':
       message = `must be a valid ${error.params.format}`
       break
@@ -102,7 +100,7 @@ export function humanizeError(error: ErrorObject): ValidationError {
       message = `must be no more than ${error.params.limit} characters`
       break
     case 'enum': {
-      const allowed = error.params.allowedValues?.map((v: string) => escapeHtml(String(v))).join(', ')
+      const allowed = error.params.allowedValues?.map(String).join(', ')
       message = `must be one of: ${allowed}`
       break
     }
@@ -112,8 +110,6 @@ export function humanizeError(error: ErrorObject): ValidationError {
       break
     }
   }
-
-  message = escapeHtml(message)
 
   return {
     field,

@@ -35,6 +35,14 @@ describe('Validation Messages', () => {
       expect(getFieldLabel('dct:spatial')).toBe('Spatial Coverage')
     })
 
+    it('should label DCAT-US 3.0 property names, which have no prefix', async () => {
+      const { getFieldLabel } = await import('./messages')
+
+      expect(getFieldLabel('title')).toBe('Title')
+      expect(getFieldLabel('contactPoint')).toBe('Contact Point')
+      expect(getFieldLabel('downloadURL')).toBe('Download URL')
+    })
+
     it('should handle unknown properties gracefully', async () => {
       const { getFieldLabel } = await import('./messages')
 
@@ -96,21 +104,18 @@ describe('Validation Messages', () => {
       expect(humanized.message).toContain('format')
     })
 
-    it('should escape HTML in user data', async () => {
+    it('should leave messages as plain text for React to escape', async () => {
       const { humanizeError } = await import('./messages')
 
       const error = {
         keyword: 'const',
-        instancePath: '/dct:title',
-        schemaPath: '#/properties/dct:title/const',
-        params: { allowedValue: '<script>alert("xss")</script>' },
+        instancePath: '/title',
+        schemaPath: '#/properties/title/const',
+        params: { allowedValue: 'Fish & Chips' },
         message: 'must be equal to constant'
       }
 
-      const humanized = humanizeError(error)
-
-      expect(humanized.message).not.toContain('<script>')
-      expect(humanized.message).toContain('&lt;script&gt;')
+      expect(humanizeError(error).message).toBe('must be equal to constant: Fish & Chips')
     })
   })
 })

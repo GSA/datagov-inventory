@@ -18,7 +18,7 @@ export interface ValidationResult {
 
 export interface ObjectValidationResult extends ValidationResult {
   objectId: string
-  objectType: 'Dataset' | 'Organization' | 'ContactPoint'
+  objectType: string
 }
 
 export interface CatalogValidationResult {

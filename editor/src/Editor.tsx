@@ -236,7 +236,6 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
             onClick={handleValidateCatalog}
             disabled={isValidatingCatalog}
             secondary
-            aria-label="Validate entire catalog against DCAT-US 3.0 schema"
           >
             {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
           </Button>
@@ -257,14 +256,9 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
             objectResults={Array.from(open.catalog.objects.values())
               .map((obj) => {
                 const errors = validationContext.getObjectErrors(obj.id)
-                const typeMap = {
-                  Dataset: 'Dataset',
-                  Organization: 'Organization',
-                  'Contact Point': 'ContactPoint',
-                } as const
                 return {
                   objectId: obj.id,
-                  objectType: typeMap[obj.dcatClass as keyof typeof typeMap] || obj.dcatClass,
+                  objectType: obj.dcatClass,
                   valid: errors.length === 0,
                   errors,
                 }

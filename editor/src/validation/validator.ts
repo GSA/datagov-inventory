@@ -1,102 +1,84 @@
-import Ajv, { type ValidateFunction } from 'ajv'
-import addFormats from 'ajv-formats'
+import type { ErrorObject } from 'ajv'
+import { assemble } from '../catalog/assemble'
+import type { DecomposedCatalog } from '../catalog/decompose'
+import { validateDocument } from '../generated/validateDocument'
 import { humanizeError } from './messages'
-import type { ValidationResult, ObjectValidationResult, CatalogValidationResult } from './types'
+import type { CatalogValidationResult, ObjectValidationResult, ValidationError } from './types'
 
-export function createValidator(schema: object) {
-  const ajv = new Ajv({
-    allErrors: true,
-    verbose: true,
-    strict: false,
-    validateFormats: true,
+export const SCHEMA_VERSION = '3.0.0'
+
+/** Each object's JSON Pointer in the assembled document, nested as `assemble` nests links. A shared object has several. */
+export function pointersOf(catalog: DecomposedCatalog): Map<string, string> {
+  const owners = new Map<string, string>()
+  const visit = (id: string, pointer: string) => {
+    owners.set(pointer, id)
+    const object = catalog.objects.get(id)
+    if (!object) return
+    for (const [property, childIds] of Object.entries(object.links)) {
+      const single = object.singleLinks.includes(property)
+      childIds.forEach((childId, i) => visit(childId, single ? `${pointer}/${property}` : `${pointer}/${property}/${i}`))
+    }
+  }
+  visit(catalog.rootId, '')
+  return owners
+}
+
+/** The pointer of the deepest object holding `instancePath`. */
+function ownerOf(instancePath: string, owners: Map<string, string>): string {
+  let pointer = instancePath
+  while (!owners.has(pointer)) pointer = pointer.slice(0, pointer.lastIndexOf('/'))
+  return pointer
+}
+
+/** Ajv reports a failed anyOf/oneOf once per branch as well; at the same path only the anyOf/oneOf error says what went wrong. */
+function withoutBranchErrors(errors: ErrorObject[]): ErrorObject[] {
+  const composites = errors.filter((e) => e.keyword === 'anyOf' || e.keyword === 'oneOf')
+  return errors.filter(
+    (e) =>
+      !composites.some(
+        (c) => c !== e && e.instancePath === c.instancePath && e.schemaPath.startsWith(`${c.schemaPath}/`),
+      ),
+  )
+}
+
+/** Validates the catalog as it would export, and gives each error to the object it is in, with a path relative to that object. */
+export function validateCatalog(catalog: DecomposedCatalog): CatalogValidationResult {
+  const owners = pointersOf(catalog)
+  const errorsByObject = new Map<string, ValidationError[]>()
+
+  if (!validateDocument(assemble(catalog).output)) {
+    for (const error of withoutBranchErrors(validateDocument.errors ?? [])) {
+      const pointer = ownerOf(error.instancePath, owners)
+      const objectId = owners.get(pointer)!
+      const humanized = humanizeError({ ...error, instancePath: error.instancePath.slice(pointer.length) })
+      errorsByObject.set(objectId, [...(errorsByObject.get(objectId) ?? []), humanized])
+    }
+  }
+
+  const timestamp = Date.now()
+  const objectResults: ObjectValidationResult[] = Array.from(catalog.objects.values(), (object) => {
+    const errors = errorsByObject.get(object.id) ?? []
+    return {
+      objectId: object.id,
+      objectType: object.dcatClass,
+      valid: errors.length === 0,
+      errors,
+      timestamp,
+      schemaVersion: SCHEMA_VERSION,
+    }
   })
 
-  addFormats(ajv)
-
-  const validate = ajv.compile(schema)
+  const errorSummary: Record<string, number> = {}
+  for (const { objectType, errors } of objectResults) {
+    if (errors.length > 0) errorSummary[objectType] = (errorSummary[objectType] ?? 0) + errors.length
+  }
 
   return {
-    validate,
-    errors: ajv.errors,
-  }
-}
-
-export function validateObject(
-  validator: { validate: ValidateFunction },
-  obj: unknown,
-  _objectType: 'Dataset' | 'Organization' | 'ContactPoint'
-): ValidationResult {
-  const valid = validator.validate(obj)
-  const errors = valid ? [] : (validator.validate.errors || []).map(humanizeError)
-
-  return {
-    valid,
-    errors,
-    timestamp: Date.now(),
-    schemaVersion: '3.0.0',
-  }
-}
-
-export function validateCatalog(
-  validator: { validate: ValidateFunction },
-  catalog: {
-    datasets: unknown[]
-    publishers: unknown[]
-    contactPoints: unknown[]
-  }
-): CatalogValidationResult {
-  const objectResults: ObjectValidationResult[] = []
-  const errorSummary: Record<string, number> = {
-    Dataset: 0,
-    Organization: 0,
-    ContactPoint: 0,
-  }
-
-  for (const dataset of catalog.datasets) {
-    const result = validateObject(validator, dataset, 'Dataset')
-    objectResults.push({
-      ...result,
-      objectId: (dataset as { '@id'?: string })['@id'] || 'unknown',
-      objectType: 'Dataset',
-    })
-    if (!result.valid) {
-      errorSummary.Dataset++
-    }
-  }
-
-  for (const publisher of catalog.publishers) {
-    const result = validateObject(validator, publisher, 'Organization')
-    objectResults.push({
-      ...result,
-      objectId: (publisher as { '@id'?: string })['@id'] || 'unknown',
-      objectType: 'Organization',
-    })
-    if (!result.valid) {
-      errorSummary.Organization++
-    }
-  }
-
-  for (const contact of catalog.contactPoints) {
-    const result = validateObject(validator, contact, 'ContactPoint')
-    objectResults.push({
-      ...result,
-      objectId: (contact as { '@id'?: string })['@id'] || 'unknown',
-      objectType: 'ContactPoint',
-    })
-    if (!result.valid) {
-      errorSummary.ContactPoint++
-    }
-  }
-
-  const valid = objectResults.every((r) => r.valid)
-  const totalErrors = objectResults.reduce((sum, r) => sum + r.errors.length, 0)
-
-  return {
-    valid,
+    valid: errorsByObject.size === 0,
     objectResults,
     errorSummary,
-    totalErrors,
-    timestamp: Date.now(),
-    schemaVersion: '3.0.0',
+    totalErrors: objectResults.reduce((sum, result) => sum + result.errors.length, 0),
+    timestamp,
+    schemaVersion: SCHEMA_VERSION,
   }
 }
