@@ -30,12 +30,15 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   }
 
   // A class field can also hold strings (a Concept or Identifier given as text), which decompose keeps as properties.
-  const holdsText = (f: FormField) => f.type === 'string' || (!!f.allowedClasses && isText(object.properties[f.name]))
+  // An empty list ([]) in a class field holds no text: it shows as the field's (empty) objects instead.
+  const emptyList = (value: unknown) => Array.isArray(value) && value.length === 0
+  const holdsText = (f: FormField) =>
+    f.type === 'string' || (!!f.allowedClasses && isText(object.properties[f.name]) && !emptyList(object.properties[f.name]))
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
   const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
   // A class field holding something else as written (text, null, a mixed list) shows that instead, above or below.
-  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && object.properties[f.name] === undefined)
+  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && (object.properties[f.name] === undefined || emptyList(object.properties[f.name])))
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )

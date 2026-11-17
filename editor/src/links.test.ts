@@ -83,6 +83,30 @@ describe('usesOf', () => {
   })
 })
 
+describe('usesOf and removed objects', () => {
+  it('counts only places in the catalog, not objects removed from their field', () => {
+    const catalog = catalogOf(
+      object('#', 'Catalog', {}, { dataset: ['#/d1'] }),
+      object('#/d1', 'Dataset', {}, { publisher: ['#/o'] }),
+      object('#/d5', 'Dataset', {}, { publisher: ['#/o'] }), // removed from the catalog, kept for Undo
+      object('#/o', 'Organization'),
+    )
+    expect(usesOf(catalog).get('#/o')).toEqual([{ parentId: '#/d1', property: 'publisher' }])
+    expect(usesOf(catalog).get('#/d5')).toBeUndefined()
+  })
+
+  it('still finds loops through removed objects', () => {
+    const catalog = catalogOf(
+      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
+      object('#/d', 'Dataset', {}, { publisher: ['#/o'] }),
+      object('#/o', 'Organization'),
+      object('#/parent', 'Organization', {}, { subOrganizationOf: ['#/o'] }), // removed
+    )
+    expect(linkersOf('#/o', catalog).has('#/parent')).toBe(true)
+    expect(() => linkObject(catalog, '#/o', 'subOrganizationOf', '#/parent')).toThrow(/loop/)
+  })
+})
+
 describe('linkersOf', () => {
   it('finds the object and everything above it, and stops at loops', () => {
     const catalog = catalogOf(
@@ -90,7 +114,7 @@ describe('linkersOf', () => {
       object('#/a', 'Catalog', {}, { hasPart: ['#/b'] }),
       object('#/b', 'Catalog', {}, { hasPart: ['#/a'] }),
     )
-    expect(linkersOf('#/b', usesOf(catalog))).toEqual(new Set(['#/b', '#/a', '#']))
+    expect(linkersOf('#/b', catalog)).toEqual(new Set(['#/b', '#/a', '#']))
   })
 })
 
@@ -160,6 +184,21 @@ describe('linkObject', () => {
     expect(() => linkObject(catalog, '#/dataset/0', 'x', '#')).toThrow(/loop/)
     expect(() => linkObject(catalog, '#/dataset/0', 'x', '#/dataset/0')).toThrow(/loop/)
     expect(linkObject(catalog, '#/dataset/0', 'contactPoint', '#/dataset/0/contactPoint/0')).toBe(catalog)
+  })
+})
+
+describe('a list field read as one object', () => {
+  it('becomes a list when it holds two, and an empty list as written gives way to the links', () => {
+    const start = catalogOf(
+      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
+      { ...object('#/d', 'Dataset', { sample: [] }, { distribution: ['#/d/distribution'] }), singleLinks: ['distribution'] },
+      object('#/d/distribution', 'Distribution', { title: 'one' }),
+    )
+    const { catalog } = createLinked(start, '#/d', 'distribution', 'Distribution')
+    expect(catalog.objects.get('#/d')!.singleLinks).toEqual([])
+    const withSample = createLinked(catalog, '#/d', 'sample', 'Distribution').catalog
+    expect(withSample.objects.get('#/d')!.properties).toEqual({})
+    expect(withSample.objects.get('#/d')!.links.sample).toHaveLength(1)
   })
 })
 

@@ -30,6 +30,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
   const headingId = `field-${field.name}-heading`
   const [status, setStatus] = useState('')
   const removeRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const section = useRef<HTMLElement>(null)
   /** The row to focus once it renders: the object just added. */
   const focusRow = useRef<string>(undefined)
 
@@ -38,7 +39,11 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   const handleRemove = (index: number, childId: string) => {
     removeLink(object.id, field.name, childId)
-    setTimeout(() => removeRefs.current[Math.min(index, ids.length - 2)]?.focus(), 50)
+    // The next row's Remove, the previous one's if it was last, or, once the field is empty, its first input or button.
+    setTimeout(() => {
+      const next = ids.length > 1 ? removeRefs.current[Math.min(index, ids.length - 2)] : undefined
+      ;(next ?? section.current?.querySelector<HTMLElement>('input, button'))?.focus()
+    }, 50)
   }
 
   const handlePick = (picked: CatalogObject) => {
@@ -50,13 +55,13 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   const handleCreate = (dcatClass: string) => {
     const id = createObject(object.id, field.name, dcatClass, single)
-    if (id) open(id, `New ${dcatClass}, linked to ${labelOf(object)} › ${field.label}. Everything else is blank. Changes save as you go, and you can leave it and come back.`)
+    if (id) open(id, `New ${dcatClass}, linked to ${labelOf(object)} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`)
   }
 
   const pool = useCallback(() => candidatesFor(catalog, object, field.name, allowed), [catalog, object, field.name, allowed])
 
   return (
-    <section aria-labelledby={headingId} className="margin-top-3">
+    <section ref={section} aria-labelledby={headingId} className="margin-top-3">
       <h3 id={headingId} className="font-sans-md margin-bottom-0">
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
@@ -210,6 +215,8 @@ function ObjectPicker({ id, label, pool, catalog, onPick }: ObjectPickerProps) {
   }, [id, current])
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // Keys that compose text (an IME) are the input method's, not the list's.
+    if (event.nativeEvent.isComposing) return
     const last = items.length - 1
     switch (event.key) {
       case 'ArrowDown':
@@ -265,7 +272,15 @@ function ObjectPicker({ id, label, pool, catalog, onPick }: ObjectPickerProps) {
         />
         {/* The status sits under the options, so "Showing 25 of 3,000" is in view while they are. */}
         <div className="object-picker__popup">
-          <ul id={listId} role="listbox" aria-label={label} className="object-picker__list" hidden={!showList}>
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label={label}
+            className="object-picker__list"
+            hidden={!showList}
+            // Pressing the list's scrollbar keeps focus in the input, so the list stays open.
+            onMouseDown={(event) => event.preventDefault()}
+          >
             {showList &&
               items.map((object, i) => {
                 const objectUses = uses.get(object.id) ?? []

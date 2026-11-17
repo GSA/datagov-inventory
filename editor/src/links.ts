@@ -53,37 +53,65 @@ export interface Use {
   property: string
 }
 
-const usesCache = new WeakMap<DecomposedCatalog['objects'], ReadonlyMap<string, readonly Use[]>>()
+interface Index {
+  /** Every link, from any object, removed ones included: what loop checks need. */
+  all: ReadonlyMap<string, readonly Use[]>
+  /** Links from objects in the catalog (reachable from it) only: what users see as places. */
+  uses: ReadonlyMap<string, readonly Use[]>
+}
+const indexCache = new WeakMap<DecomposedCatalog['objects'], Index>()
 
-/**
- * Where each object is used: `links` the other way round, in document order. Built once per version of the catalog
- * (every change makes a new `objects` map), so counts and lists cost a lookup.
- */
-export function usesOf({ objects }: DecomposedCatalog): ReadonlyMap<string, readonly Use[]> {
-  let uses = usesCache.get(objects)
-  if (!uses) {
-    const index = new Map<string, Use[]>()
+/** `links` the other way round, built once per version of the catalog (every change makes a new `objects` map). */
+function indexOf({ objects, rootId }: DecomposedCatalog): Index {
+  let index = indexCache.get(objects)
+  if (!index) {
+    const all = new Map<string, Use[]>()
     for (const parent of objects.values()) {
       for (const [property, ids] of Object.entries(parent.links)) {
         for (const id of ids) {
           const use = { parentId: parent.id, property }
-          const list = index.get(id)
+          const list = all.get(id)
           if (list) list.push(use)
-          else index.set(id, [use])
+          else all.set(id, [use])
         }
       }
     }
-    usesCache.set(objects, (uses = index))
+    // An object removed from its field stays in `objects` (so Undo can restore it), but its links are no longer uses.
+    const inCatalog = new Set([rootId])
+    for (const stack = [rootId]; stack.length > 0; ) {
+      for (const id of Object.values(objects.get(stack.pop()!)?.links ?? {}).flat()) {
+        if (!inCatalog.has(id)) {
+          inCatalog.add(id)
+          stack.push(id)
+        }
+      }
+    }
+    const uses = new Map<string, Use[]>()
+    for (const [id, list] of all) {
+      const kept = list.filter((use) => inCatalog.has(use.parentId))
+      if (kept.length > 0) uses.set(id, kept)
+    }
+    indexCache.set(objects, (index = { all, uses }))
   }
-  return uses
+  return index
 }
 
-/** The object and every object that links down to it: linking any of them under it would make a loop. */
-export function linkersOf(id: string, uses: ReadonlyMap<string, readonly Use[]>): Set<string> {
+/**
+ * Where each object is used, in document order: the objects in the catalog that link to it, and the field. Cached
+ * per version of the catalog, so counts and lists cost a lookup.
+ */
+export const usesOf = (catalog: DecomposedCatalog): ReadonlyMap<string, readonly Use[]> => indexOf(catalog).uses
+
+/**
+ * The object and every object that links down to it, removed ones included: linking any of them under it would make
+ * a loop, now or once Undo or a pick brings the removed one back.
+ */
+export function linkersOf(id: string, catalog: DecomposedCatalog): Set<string> {
+  const { all } = indexOf(catalog)
   const found = new Set([id])
   const queue = [id]
   for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
-    for (const { parentId } of uses.get(next) ?? []) {
+    for (const { parentId } of all.get(next) ?? []) {
       if (!found.has(parentId)) {
         found.add(parentId)
         queue.push(parentId)
@@ -110,7 +138,7 @@ export function candidatesFor(
 ): CatalogObject[] {
   const classes = new Set(classesFor(allowed))
   const taken = new Set(object.links[property])
-  const above = linkersOf(object.id, usesOf(catalog))
+  const above = linkersOf(object.id, catalog)
   const list: CatalogObject[] = []
   for (const candidate of catalog.objects.values()) {
     if (classes.has(candidate.dcatClass) && !taken.has(candidate.id) && !above.has(candidate.id)) list.push(candidate)
@@ -141,11 +169,22 @@ function freeId(objects: DecomposedCatalog['objects'], base: string, start: numb
   return `${base}/${n}`
 }
 
-/** The catalog with `parent`'s `property` set to `ids`. */
+/**
+ * The catalog with `parent`'s `property` set to `ids`. A `single` field is written back as one object. A list field
+ * that was read as one object (`"distribution": {…}`) becomes a list once it holds two. An empty list kept as written
+ * (`"distribution": []`) gives way to the links.
+ */
 function withLinks(catalog: DecomposedCatalog, parent: CatalogObject, property: string, ids: string[], single: boolean) {
-  const singleLinks = single && !parent.singleLinks.includes(property) ? [...parent.singleLinks, property] : parent.singleLinks
+  const singleLinks = single
+    ? [...parent.singleLinks.filter((p) => p !== property), property]
+    : ids.length > 1
+      ? parent.singleLinks.filter((p) => p !== property)
+      : parent.singleLinks
+  const properties = { ...parent.properties }
+  const value = properties[property]
+  if (Array.isArray(value) && value.length === 0) delete properties[property]
   const objects = new Map(catalog.objects)
-  objects.set(parent.id, { ...parent, links: { ...parent.links, [property]: ids }, singleLinks })
+  objects.set(parent.id, { ...parent, properties, links: { ...parent.links, [property]: ids }, singleLinks })
   return { ...catalog, objects }
 }
 
@@ -171,7 +210,7 @@ export function linkObject(
   const ids = parent.links[property] ?? []
   if (ids.includes(childId)) return catalog
   if (single && ids.length > 0) throw new Error(`${parentId}.${property} holds one object already`)
-  if (linkersOf(parentId, usesOf(catalog)).has(childId)) throw new Error(`Linking ${childId} under ${parentId} makes a loop`)
+  if (linkersOf(parentId, catalog).has(childId)) throw new Error(`Linking ${childId} under ${parentId} makes a loop`)
   return withLinks(catalog, parent, property, [...ids, childId], single)
 }
 
@@ -225,7 +264,7 @@ export function copyFor(
   for (let grew = true; grew; ) {
     grew = false
     for (const id of descendants) {
-      if (!inside.has(id) && uses.get(id)!.every((use) => inside.has(use.parentId))) {
+      if (!inside.has(id) && (uses.get(id) ?? []).every((use) => inside.has(use.parentId))) {
         inside.add(id)
         grew = true
       }

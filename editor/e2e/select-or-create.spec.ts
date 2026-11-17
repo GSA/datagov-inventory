@@ -1,4 +1,5 @@
 /** Select an existing object or create a new one from any class-valued field (#25): no dialogs, one form at a time. */
+import { readFile } from 'node:fs/promises'
 import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures'
 
@@ -260,4 +261,39 @@ test('ends the undo of a removal once something is added, so ids cannot clash', 
   // The new distribution takes the deleted one's id; undoing the delete now would put two objects at it.
   await expect(page).toHaveURL('/editor/dataset/0/distribution/1')
   await expect(undo).toBeDisabled()
+})
+
+test('exports every object added to a list field that was read as one object', async ({ page }) => {
+  await page.goto('/import')
+  await page.getByLabel('Paste JSON').fill(
+    JSON.stringify({ '@type': 'Catalog', title: 'One', dataset: [{ '@type': 'Dataset', title: 'D', distribution: { title: 'one' } }] }),
+  )
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  await page.getByRole('treeitem', { name: /^D dataset/ }).click()
+  await field(page, 'Distribution').getByRole('button', { name: /^Create new Distribution/ }).click()
+  const title = page.getByRole('textbox', { name: /^Title/ })
+  await title.fill('two')
+  await title.blur()
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export catalog' }).click()
+  const exported = JSON.parse(await readFile((await (await download).path())!, 'utf-8'))
+  expect(exported.dataset[0].distribution).toEqual([{ title: 'one' }, { '@type': 'Distribution', title: 'two' }])
+})
+
+test('counts only places still in the catalog, and keeps focus in a field emptied by Remove', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Creator').getByRole('combobox').fill('example')
+  await page.getByRole('option').first().click()
+  await field(page, 'Creator').getByRole('link', { name: 'Example Agency' }).click()
+  await expect(page.getByRole('region', { name: 'Used in 2 places' })).toBeVisible()
+
+  // Removing the dataset from the catalog leaves the agency used by the catalog alone.
+  await page.getByRole('link', { name: 'Example Agency Catalog › Publisher' }).click()
+  await field(page, 'Dataset').getByRole('button', { name: 'Remove Dataset 1' }).click()
+  await expect(field(page, 'Dataset').getByRole('button', { name: /^Create new Dataset/ })).toBeFocused()
+  await expect(field(page, 'Publisher').getByText('Organization · Used in 2 places')).toHaveCount(0)
+  await expect(field(page, 'Publisher').getByText('Organization', { exact: true })).toBeVisible()
+  await expect(field(page, 'Publisher').getByRole('button', { name: /^Edit a copy/ })).toHaveCount(0)
 })
