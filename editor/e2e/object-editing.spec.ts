@@ -80,6 +80,12 @@ test('adds and removes entries in multi-value field', async ({ page }) => {
 
   await keywordSection.getByRole('listitem').nth(0).getByRole('button', { name: /Remove/ }).click()
   await expect(keywordSection.getByRole('listitem')).toHaveCount(2)
+
+  // The removal is saved, not only shown: it is still gone after opening another object and coming back.
+  await page.getByRole('treeitem', { name: 'Example Agency Catalog', exact: true }).click()
+  await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  await expect(keywordSection.getByRole('textbox').nth(0)).toHaveValue('monitoring')
+  await expect(keywordSection.getByRole('textbox').nth(1)).toHaveValue('new-keyword')
 })
 
 test('edits class fields given as text and string-only fields', async ({ page }) => {

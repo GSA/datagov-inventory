@@ -47,8 +47,12 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     setFormState(prev => ({ ...prev, [fieldName]: value }))
   }
 
-  const handleFieldBlur = (fieldName: string) => {
-    updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
+  /**
+   * Saves a field. A change that saves at once (a removed value, a chosen option) passes the new value: formState in
+   * this render still holds the old one, which would put the removed or replaced value back.
+   */
+  const handleFieldBlur = (fieldName: string, value: unknown = formState[fieldName]) => {
+    updateObject(object.id, { properties: { [fieldName]: value } })
     markStale(object.id)
   }
 
@@ -152,7 +156,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
               field={field}
               value={formState[field.name]}
               onChange={value => handleFieldChange(field.name, value)}
-              onBlur={() => handleFieldBlur(field.name)}
+              onBlur={value => handleFieldBlur(field.name, value)}
             />
             {fieldError && (
               <div className="usa-error-message" role="alert">
@@ -173,7 +177,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
             error={fieldError?.message}
             onChange={value => {
               handleFieldChange(field.name, value)
-              handleFieldBlur(field.name)
+              handleFieldBlur(field.name, value)
             }}
           />
         )
@@ -278,7 +282,8 @@ interface MultiValueFieldProps {
   field: FormField
   value: unknown
   onChange: (value: unknown) => void
-  onBlur: () => void
+  /** Saves the field: the values typed so far, or `value` when a change saves at once. */
+  onBlur: (value?: unknown) => void
 }
 
 function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProps) {
@@ -291,8 +296,9 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
   }
 
   const handleRemove = (index: number) => {
-    onChange(items.filter((_, i) => i !== index))
-    onBlur()
+    const remaining = items.filter((_, i) => i !== index)
+    onChange(remaining)
+    onBlur(remaining)
 
     setTimeout(() => {
       const nextInput = inputRefs.current[Math.min(index, items.length - 2)]
@@ -330,7 +336,7 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
               type="text"
               value={typeof item === 'string' ? item : ''}
               onChange={e => handleChange(index, e.target.value)}
-              onBlur={onBlur}
+              onBlur={() => onBlur()}
               className="flex-fill margin-top-0 margin-right-1"
               aria-label={`${field.label} ${index + 1}`}
             />
