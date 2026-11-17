@@ -10,7 +10,8 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
-import type { CatalogObject } from './catalog/decompose'
+import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
+import { copyFor, createLinked, linkObject } from './links'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
@@ -29,7 +30,10 @@ function Layout() {
         if (!fromLocation || !pathChanged || document.activeElement?.closest('[role="tree"]')) return
         const inEditor = (path: string) => path.startsWith('/editor')
         const object = inEditor(fromLocation.pathname) && inEditor(toLocation.pathname)
-        ;((object && document.getElementById('detail-heading')) || document.querySelector('h1'))?.focus()
+        const { focus } = toLocation.state
+        ;((focus && document.getElementById(focus)) ||
+          (object && document.getElementById('detail-heading')) ||
+          document.querySelector('h1'))?.focus()
       }),
     [router],
   )
@@ -116,6 +120,18 @@ const routeTree = root.addChildren([
 
 const router = createRouter({ routeTree })
 
+/** What a link can pass to the page it opens, without putting it in the address (#25). */
+declare module '@tanstack/history' {
+  interface HistoryState {
+    /** The object the user came from, so "Back to …" returns there when the object is used in several places. */
+    from?: string
+    /** The id of the element to focus instead of the heading: the row "Back to …" returns to. */
+    focus?: string
+    /** A note to show on the page that opens: that the object was just created or copied. */
+    notice?: string
+  }
+}
+
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
@@ -194,6 +210,32 @@ export default function App() {
     setRemovalHistory(undefined)
   }, [open, removalHistory])
 
+  /** Applies a change that returns the new catalog and an id, and returns the id. */
+  const change = useCallback(
+    (apply: (catalog: DecomposedCatalog) => { catalog: DecomposedCatalog; id: string }) => {
+      if (!open) return undefined
+      const { catalog, id } = apply(open.catalog)
+      setOpen({ ...open, catalog })
+      return id
+    },
+    [open],
+  )
+  const handleLinkObject = useCallback(
+    (parentId: string, property: string, childId: string, single: boolean) =>
+      void change((catalog) => ({ catalog: linkObject(catalog, parentId, property, childId, single), id: childId })),
+    [change],
+  )
+  const handleCreateObject = useCallback(
+    (parentId: string, property: string, dcatClass: string, single: boolean) =>
+      change((catalog) => createLinked(catalog, parentId, property, dcatClass, single)),
+    [change],
+  )
+  const handleCopyObject = useCallback(
+    (parentId: string, property: string, targetId: string) =>
+      change((catalog) => copyFor(catalog, parentId, property, targetId)),
+    [change],
+  )
+
   return (
     <CatalogContext.Provider
       value={{
@@ -204,6 +246,9 @@ export default function App() {
         deleteObject: handleDeleteObject,
         undoRemoval: handleUndoRemoval,
         canUndo: removalHistory !== undefined,
+        linkObject: handleLinkObject,
+        createObject: handleCreateObject,
+        copyObject: handleCopyObject,
       }}
     >
       <RouterProvider router={router} />

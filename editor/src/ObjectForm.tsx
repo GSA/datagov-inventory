@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
-import { Label, TextInput, Textarea, Button, Alert } from '@trussworks/react-uswds'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { Label, TextInput, Textarea, Button, Alert, AlertText } from '@trussworks/react-uswds'
+import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, DecomposedCatalog } from './catalog/decompose'
-import { useCatalog } from './session'
-import { labelOf } from './tree'
-import type { FormModel, FormField } from './schema'
+import { useCatalog, useEditCopy } from './session'
+import { count, labelOf, pathOf } from './tree'
+import { getFormModel, type FormModel, type FormField } from './schema'
+import { rowId, usesOf, type Use } from './links'
+import { LinkField } from './LinkField'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -11,7 +14,7 @@ interface ObjectFormProps {
 }
 
 export function ObjectForm({ object, model }: ObjectFormProps) {
-  const { updateObject, removeLink, open } = useCatalog()
+  const { updateObject, open } = useCatalog()
   const [formState, setFormState] = useState(object.properties)
 
   useEffect(() => {
@@ -31,7 +34,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
   const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
   const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
-  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0)
+  // A class field holding something else as written (text, null, a mixed list) shows that instead, above or below.
+  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && object.properties[f.name] === undefined)
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
@@ -44,6 +48,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       <p className="text-base-dark">
         {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
       </p>
+      {open && <UsedIn object={object} catalog={open.catalog} />}
 
       {textFields.map(field => (
         <TextField
@@ -77,14 +82,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         />
       ))}
 
-      {linkFields.map(field => (
-        <LinkField
-          key={field.name}
-          field={field}
-          object={object}
-          catalog={open?.catalog}
-          onRemove={(childId) => removeLink(object.id, field.name, childId)}
-        />
+      {open && linkFields.map(field => (
+        <LinkField key={field.name} field={field} object={object} catalog={open.catalog} />
       ))}
 
       {unknownProperties.length > 0 && (
@@ -279,68 +278,77 @@ function ControlledValueField({ field, value, onChange }: ControlledValueFieldPr
   )
 }
 
-interface LinkFieldProps {
-  field: FormField
-  object: CatalogObject
-  catalog: DecomposedCatalog | undefined
-  onRemove: (childId: string) => void
-}
+/** Places listed at most: a contact can be used by thousands of datasets. */
+const USES_SHOWN = 50
 
-function LinkField({ field, object, catalog, onRemove }: LinkFieldProps) {
-  const linkedIds = object.links[field.name] || []
-  const inputRefs = useRef<(HTMLButtonElement | null)[]>([])
+const fieldLabel = (dcatClass: string, property: string) =>
+  getFormModel(dcatClass)?.fields.find(f => f.name === property)?.label ?? property
 
-  const handleRemove = (index: number, childId: string) => {
-    onRemove(childId)
+/**
+ * Where the object is used (#25): "Back to" the place the user came from, and every place that links to it, each
+ * with "Edit a copy for this one" when there are several. The notice from Create new or a copy shows here too.
+ */
+function UsedIn({ object, catalog }: { object: CatalogObject; catalog: DecomposedCatalog }) {
+  const editCopy = useEditCopy()
+  const { from, notice } = useRouterState({ select: s => s.location.state })
+  if (object.id === catalog.rootId) return null
 
-    setTimeout(() => {
-      const nextButton = inputRefs.current[Math.min(index, linkedIds.length - 2)]
-      nextButton?.focus()
-    }, 50)
-  }
-
-  if (linkedIds.length === 0) {
-    return null
-  }
-
+  const uses = usesOf(catalog).get(object.id) ?? []
+  const back = uses.find(use => use.parentId === from) ?? uses[0]
+  const parentOf = (use: Use) => catalog.objects.get(use.parentId)!
+  const place = (use: Use) => (
+    <>
+      <bdi>{labelOf(parentOf(use))}</bdi> › {fieldLabel(parentOf(use).dcatClass, use.property)}
+    </>
+  )
+  const linkTo = (use: Use, children: ReactNode, className = 'usa-link') => (
+    <Link
+      to="/editor/$"
+      params={{ _splat: pathOf(use.parentId) }}
+      state={{ focus: rowId(use.property, object.id) }}
+      className={className}
+    >
+      {children}
+    </Link>
+  )
   return (
-    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-3">
-      <h3 id={`field-${field.name}-heading`} className="font-sans-md">
-        {field.label}
-        {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
-      </h3>
-      {field.helpText && (
-        <p className="usa-hint">{field.helpText}</p>
+    <div className="margin-bottom-2">
+      {back && (
+        <p className="margin-y-1">
+          {linkTo(back, <span>Back to <bdi>{labelOf(parentOf(back))}</bdi></span>, 'usa-button usa-button--outline usa-button--small')}
+        </p>
       )}
-      {field.required && linkedIds.length === 0 && (
-        <Alert type="warning" slim className="margin-top-1">
-          This required field has no values
+      {notice && (
+        <Alert type="info" slim className="margin-y-1">
+          <AlertText>{notice}</AlertText>
         </Alert>
       )}
-      <ul className="usa-list usa-list--unstyled">
-        {linkedIds.map((childId, index) => {
-          const childObject = catalog?.objects.get(childId)
-          const displayLabel = childObject ? labelOf(childObject) : childId
-
-          return (
-            <li key={childId} className="display-flex flex-align-center margin-top-1">
-              <div className="flex-fill margin-right-1 padding-1 bg-base-lightest">
-                <bdi>{displayLabel}</bdi>
-              </div>
-              <Button
-                ref={el => { inputRefs.current[index] = el }}
-                type="button"
-                onClick={() => handleRemove(index, childId)}
-                unstyled
-                className="usa-button--secondary"
-                aria-label={`Remove ${field.label} ${index + 1}`}
-              >
-                Remove
-              </Button>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+      {uses.length === 0 && <p className="text-base-dark">Not linked anywhere.</p>}
+      {uses.length === 1 && <p className="text-base-dark margin-y-1">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
+      {uses.length > 1 && (
+        <section aria-labelledby="used-in-heading">
+          <h3 id="used-in-heading" className="font-sans-sm margin-bottom-0">
+            Used in {count(uses.length)} places
+          </h3>
+          <p className="text-base-dark margin-top-05">Changes apply to all of them. To change it for one place only, edit a copy there.</p>
+          <ul className="usa-list">
+            {uses.slice(0, USES_SHOWN).map(use => (
+              <li key={`${use.parentId} ${use.property}`}>
+                {linkTo(use, place(use))}{' '}
+                <Button
+                  type="button"
+                  unstyled
+                  onClick={() => editCopy(parentOf(use), use.property, object)}
+                  aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))}`}
+                >
+                  Edit a copy for this one
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {uses.length > USES_SHOWN && <p className="text-base-dark">… and {count(uses.length - USES_SHOWN)} more.</p>}
+        </section>
+      )}
+    </div>
   )
 }

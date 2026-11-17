@@ -318,8 +318,8 @@ test('shows unknown properties as text only', async ({ page }) => {
   await expect(otherProps).toContainText('x-values')
   await expect(otherProps).toContainText('[3,true,null,{"a":1}]')
   await expect(otherProps).toContainText('x-long')
-  // Ensure no XSS: no img, script, or clickable links rendered
-  await expect(form.locator('img, script, a')).toHaveCount(0)
+  // Ensure no XSS: no img, script, or clickable links rendered, other than the editor's own links to other objects (#25)
+  await expect(form.locator('img, script, a:not([href^="/editor"])')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { pwned?: number }).pwned)).toBeUndefined()
 })
 
