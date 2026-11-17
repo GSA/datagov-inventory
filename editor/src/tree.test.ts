@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { decompose } from './catalog/decompose'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
-import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, classLabel, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
 // Built once and shared: 3,000 datasets, each with a contact, a publisher and three distributions.
@@ -131,5 +131,14 @@ describe('an object linked from more than one place', () => {
       '4 #/dataset/0',
     ])
     expect(rows[2].expanded).toBeUndefined()
+  })
+})
+
+describe('classLabel', () => {
+  it('splits a class name into words, keeping runs of capitals together', () => {
+    expect(classLabel('Dataset')).toBe('Dataset')
+    expect(classLabel('PeriodOfTime')).toBe('Period of Time')
+    expect(classLabel('DatasetSeries')).toBe('Dataset Series')
+    expect(classLabel('CUIRestriction')).toBe('CUI Restriction')
   })
 })

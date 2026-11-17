@@ -6,11 +6,11 @@ import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
 import { useValidationContext } from './validation/ValidationContext'
-import { count, isolate, labelOf, pathOf } from './tree'
+import { classLabel, count, isolate, labelOf, pathOf } from './tree'
 
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
 /** "Kind", "Agent or Organization": class names as the schema writes them. */
-const classList = (classes: readonly string[]) => classes.join(' or ')
+const classList = (classes: readonly string[]) => classes.map(classLabel).join(' or ')
 
 /**
  * A class-valued field (#25): the objects it links to, then "Add an existing …" and "Create new …", as the field's
@@ -59,7 +59,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
     const id = createObject(object.id, field.name, dcatClass, single)
     markStale(object.id)
     if (id) {
-      const notice = `New ${dcatClass}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
+      const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
       navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
     }
   }
@@ -110,7 +110,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
                   <bdi>{label}</bdi>
                 )}
                 <span className="text-base-dark">
-                  {child && ` ${child.dcatClass}`}
+                  {child && ` ${classLabel(child.dcatClass)}`}
                   {n > 1 && ` · Used in ${places(n)}`}
                 </span>
                 <span className="link-row__actions">
@@ -162,7 +162,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
             <ButtonGroup className="margin-top-105">
               {classes.map((dcatClass) => (
                 <Button key={dcatClass} type="button" outline onClick={() => handleCreate(dcatClass)}>
-                  Create new {dcatClass}
+                  Create new {classLabel(dcatClass)}
                   <span className="usa-sr-only"> in {field.label}</span>
                 </Button>
               ))}
@@ -321,7 +321,7 @@ function ObjectPicker({ id, label, fieldLabel, pool, catalog, onPick }: ObjectPi
                   <bdi className="text-bold">{labelOf(object)}</bdi>
                   <span className="display-block font-sans-3xs text-base-dark">
                     {/* Where it is used tells apart objects with the same name, such as a contact written out per dataset. */}
-                    {object.dcatClass} ·{' '}
+                    {classLabel(object.dcatClass)} ·{' '}
                     {parent ? (
                       <>
                         used in <bdi>{labelOf(parent)}</bdi>

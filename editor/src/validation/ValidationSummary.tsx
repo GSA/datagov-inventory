@@ -1,3 +1,5 @@
+import { classLabel } from '../tree'
+
 interface ValidationSummaryProps {
   catalogSummary: {
     valid: boolean
@@ -61,8 +63,8 @@ export function ValidationSummary({ catalogSummary, objectResults, onNavigateToO
               return (
                 <li key={type} className="validation-summary__item">
                   <div>
-                    <span className="validation-summary__count" aria-label={`${count} errors in ${type} objects`}>
-                      {count} {type} {count === 1 ? 'error' : 'errors'}
+                    <span className="validation-summary__count" aria-label={`${count} errors in ${classLabel(type)} objects`}>
+                      {count} {classLabel(type)} {count === 1 ? 'error' : 'errors'}
                     </span>
                     {objectsWithErrors && objectsWithErrors.length > 0 && onNavigateToObject && (
                       <ul className="validation-summary__objects margin-top-1">

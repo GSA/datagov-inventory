@@ -3,7 +3,7 @@ import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } fr
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
-import { count, labelOf, pathOf } from './tree'
+import { classLabel, count, labelOf, pathOf } from './tree'
 import { getFormModel, type FormModel, type FormField } from './schema'
 import { rowId, usesOf, type Use } from './links'
 import { LinkField } from './LinkField'
@@ -97,7 +97,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         {labelOf(object)}
       </h2>
       <p className="text-base-dark margin-top-05">
-        {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
+        {classLabel(object.dcatClass)} <code className="font-mono-3xs">{object.id}</code>
       </p>
       {open && <UsedIn object={object} catalog={open.catalog} />}
 
@@ -191,7 +191,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         <section aria-labelledby="other-props-heading" className="margin-top-4">
           <h3 id="other-props-heading">Other properties</h3>
           <p className="text-base-dark">
-            The DCAT-US 3.0 schema does not define these for {object.dcatClass}. They are preserved as-is.
+            The DCAT-US 3.0 schema does not define these for {classLabel(object.dcatClass)}. They are preserved as-is.
           </p>
           {unknownProperties.map(([key, value]) => (
             <div key={key} className="margin-top-2">

@@ -36,11 +36,11 @@ export const OrganizationModel: FormModel = {
     },
 {
       name: 'altLabel',
-      label: 'Alt Label',
+      label: 'Alternative Label',
       type: 'string',
       required: false,
       cardinality: 'single',
-      helpText: 'alternative name (trading name, colloquial name) for an organization',
+      helpText: 'Alternative name (trading name, colloquial name) for an organization',
     },
 {
       name: 'notation',
@@ -52,7 +52,7 @@ export const OrganizationModel: FormModel = {
     },
 {
       name: 'prefLabel',
-      label: 'Pref Label',
+      label: 'Preferred Label',
       type: 'string',
       required: false,
       cardinality: 'single',

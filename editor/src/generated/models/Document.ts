@@ -19,7 +19,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'accessURL',
-      label: 'Access U R L',
+      label: 'Access URL',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -27,7 +27,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'downloadURL',
-      label: 'Download U R L',
+      label: 'Download URL',
       type: 'string',
       required: false,
       cardinality: 'single',

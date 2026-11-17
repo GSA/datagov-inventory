@@ -115,7 +115,7 @@ test('filters the tree by title or name', async ({ page }) => {
     'Air quality readings dataset · Dataset',
     'Air Quality Team contactPoint · Kind',
     'Example Agency publisher · Organization',
-    'Untitled PeriodOfTime temporal · PeriodOfTime',
+    'Untitled Period of Time temporal · Period of Time',
     'Readings as CSV distribution · Distribution',
     'Readings API distribution · Distribution',
   ])

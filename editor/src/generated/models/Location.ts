@@ -19,7 +19,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'bbox',
-      label: 'Bbox',
+      label: 'Bounding Box',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -70,7 +70,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'altLabel',
-      label: 'Alt Label',
+      label: 'Alternative Label',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -78,7 +78,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'prefLabel',
-      label: 'Pref Label',
+      label: 'Preferred Label',
       type: 'string',
       required: false,
       cardinality: 'single',

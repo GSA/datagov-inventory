@@ -6,7 +6,7 @@ import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle, findParentLinks } from './session'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
-import { ancestorIds, count, labelOf, parentsOf, pathOf } from './tree'
+import { ancestorIds, classLabel, count, labelOf, parentsOf, pathOf } from './tree'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
@@ -162,7 +162,7 @@ function ObjectDetail({
         <h2 id="detail-heading" tabIndex={-1}>
           {labelOf(object)}
         </h2>
-        <p>No form model available for {object.dcatClass}</p>
+        <p>No form model available for {classLabel(object.dcatClass)}</p>
         <DeleteObject object={object} catalog={catalog} />
       </section>
     )
@@ -192,7 +192,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
   const navigate = useNavigate()
 
-  usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
+  usePageTitle(object ? `${labelOf(object)} (${classLabel(object.dcatClass)})` : 'Not found')
 
   const handleValidateCatalog = async () => {
     setIsValidatingCatalog(true)

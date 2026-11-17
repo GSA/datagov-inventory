@@ -2,7 +2,7 @@ import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Keyb
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
 import type { CatalogGraph } from './catalog/types'
-import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, pathOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, classLabel, count, filterTree, labelOf, pathOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
 function revealSelected(pane: HTMLElement | null) {
@@ -185,7 +185,7 @@ const TreeItem = memo(function TreeItem({
     >
       {expanded !== undefined && <span className="catalog-tree__toggle" aria-hidden="true" />}
       <bdi>{labelOf(object)}</bdi>
-      {property && <span className="catalog-tree__class">{` ${property} · ${object.dcatClass}`}</span>}
+      {property && <span className="catalog-tree__class">{` ${property} · ${classLabel(object.dcatClass)}`}</span>}
     </li>
   )
 })

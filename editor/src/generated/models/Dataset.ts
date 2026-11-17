@@ -50,7 +50,7 @@ export const DatasetModel: FormModel = {
       type: 'object',
       required: false,
       cardinality: 'single',
-      helpText: 'supported schema for this dataset',
+      helpText: 'Supported schema for this dataset',
       allowedClasses: ['Dataset'],
     },
 {
@@ -85,7 +85,7 @@ export const DatasetModel: FormModel = {
       type: 'object',
       required: false,
       cardinality: 'single',
-      helpText: 'the first item of the sequence the dataset belongs to',
+      helpText: 'The first item of the sequence the dataset belongs to',
       allowedClasses: ['Dataset'],
     },
 {
@@ -94,7 +94,7 @@ export const DatasetModel: FormModel = {
       type: 'object',
       required: false,
       cardinality: 'single',
-      helpText: 'reference to the current (latest) version of a dataset',
+      helpText: 'Reference to the current (latest) version of a dataset',
       allowedClasses: ['Dataset'],
     },
 {
@@ -129,7 +129,7 @@ export const DatasetModel: FormModel = {
       type: 'object',
       required: false,
       cardinality: 'single',
-      helpText: 'reference to the previous dataset version',
+      helpText: 'Reference to the previous dataset version',
       allowedClasses: ['Dataset'],
     },
 {
@@ -378,7 +378,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'cuiRestriction',
-      label: 'Cui Restriction',
+      label: 'CUI Restriction',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -532,7 +532,7 @@ export const DatasetModel: FormModel = {
       type: 'string',
       required: false,
       cardinality: 'single',
-      helpText: 'usage note for the dataset',
+      helpText: 'Usage note for the dataset',
     }
   ],
 }

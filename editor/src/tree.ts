@@ -14,6 +14,18 @@ const labels = new WeakMap<CatalogObject, string>()
  * characters, cut to 200 characters. Render it in <bdi> so right-to-left overrides in it
  * cannot reorder the text around it.
  */
+/** Short words that stay lower case inside a class name: PeriodOfTime is "Period of Time". */
+const MINOR_WORDS = new Set(['of', 'and', 'or', 'in', 'to'])
+
+/**
+ * A DCAT class as people read it: `PeriodOfTime` is "Period of Time", `CUIRestriction` is "CUI Restriction" (a run
+ * of capitals stays one word). The schema's own name stays the object's class; this is for display only.
+ */
+export function classLabel(dcatClass: string): string {
+  const words = dcatClass.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [dcatClass]
+  return words.map((word, i) => (i > 0 && MINOR_WORDS.has(word.toLowerCase()) ? word.toLowerCase() : word)).join(' ')
+}
+
 export function labelOf(object: CatalogObject): string {
   let label = labels.get(object)
   if (label === undefined) {
@@ -25,7 +37,7 @@ export function labelOf(object: CatalogObject): string {
     // A cut that ends on the first half of a surrogate pair (\uD800-\uDBFF) drops it, so no half character shows.
     label =
       value === undefined
-        ? `Untitled ${object.dcatClass}`
+        ? `Untitled ${classLabel(object.dcatClass)}`
         : value.length > LABEL_LENGTH
           ? `${value.slice(0, LABEL_LENGTH).replace(/[\uD800-\uDBFF]$/, '')}…`
           : value

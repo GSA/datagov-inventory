@@ -54,7 +54,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'accessURL',
-      label: 'Access U R L',
+      label: 'Access URL',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -78,7 +78,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'downloadURL',
-      label: 'Download U R L',
+      label: 'Download URL',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -136,7 +136,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'cuiRestriction',
-      label: 'Cui Restriction',
+      label: 'CUI Restriction',
       type: 'object',
       required: false,
       cardinality: 'single',

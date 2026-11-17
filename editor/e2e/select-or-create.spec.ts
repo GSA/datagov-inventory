@@ -51,7 +51,7 @@ test('searches by keyword and selects an existing object, which is then shared, 
   await expect(usedIn.getByRole('link')).toHaveText(['Example Agency Catalog › Contact Point', 'Air quality readings › Contact Point'])
 
   // One edit shows in both places: it is one object.
-  const name = page.getByRole('textbox', { name: /^Fn/ })
+  const name = page.getByRole('textbox', { name: /^Full Name/ })
   await name.fill('Air team')
   await name.blur()
   await usedIn.getByRole('link', { name: 'Air quality readings › Contact Point' }).click()
@@ -80,7 +80,7 @@ test('offers only objects of the field\'s classes, and none already in it', asyn
 
   // A distribution's data service belongs to the catalog's list of services: Add an existing only.
   await field(page, 'Distribution').getByRole('link', { name: 'Readings as CSV' }).click()
-  await expect(field(page, 'Access Service').getByRole('combobox', { name: 'Add an existing DataService' })).toBeVisible()
+  await expect(field(page, 'Access Service').getByRole('combobox', { name: 'Add an existing Data Service' })).toBeVisible()
   await expect(field(page, 'Access Service').getByRole('button', { name: /^Create new/ })).toHaveCount(0)
 })
 
@@ -202,7 +202,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page.getByText(`This is a copy of ${iso('Air Quality Team')} for ${iso('Example Agency Catalog')} only. The other place still uses the original.`)).toBeVisible()
   await expect(page.getByText('Used in 1 place: Example Agency Catalog › Contact Point')).toBeVisible()
-  const name = page.getByRole('textbox', { name: /^Fn/ })
+  const name = page.getByRole('textbox', { name: /^Full Name/ })
   await name.fill('Catalog contact')
   await name.blur()
   await expect(page.getByRole('treeitem', { name: /^Catalog contact/ })).toHaveCount(1)
@@ -210,7 +210,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
   await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
-  await expect(page.getByRole('textbox', { name: /^Fn/ })).toHaveValue('Air Quality Team')
+  await expect(page.getByRole('textbox', { name: /^Full Name/ })).toHaveValue('Air Quality Team')
 
   // From the shared object's own list of places.
   await page.getByRole('treeitem', { name: 'Example Agency Catalog' }).click()
