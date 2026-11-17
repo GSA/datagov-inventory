@@ -17,7 +17,18 @@ const classList = (classes: readonly string[]) => classes.map(classLabel).join('
  * link mode allows. Create new opens the new object's form in place of this one (no dialog); its "Back to …"
  * returns here.
  */
-export function LinkField({ field, object, catalog }: { field: FormField; object: CatalogObject; catalog: CatalogGraph }) {
+export function LinkField({
+  field,
+  object,
+  catalog,
+  error,
+}: {
+  field: FormField
+  object: CatalogObject
+  catalog: CatalogGraph
+  /** The schema check's message for this field, such as that a required one is empty. */
+  error?: string
+}) {
   const { removeLink, linkObject, createObject } = useCatalog()
   const editCopy = useEditCopy()
   // A changed field makes the object's schema check (#27) out of date.
@@ -77,7 +88,12 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
       <p className="usa-hint margin-top-05 margin-bottom-0">
         Holds {single ? 'one' : 'one or more'}: {classList(classes)}.
       </p>
-      {field.required && ids.length === 0 && (
+      {error && (
+        <span id={`field-${field.name}-error`} className="usa-error-message" role="alert">
+          {error}
+        </span>
+      )}
+      {field.required && ids.length === 0 && !error && (
         <Alert type="warning" slim className="margin-top-1">
           This required field has no values
         </Alert>

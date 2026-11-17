@@ -99,3 +99,13 @@ test.describe('Validation', () => {
     await expect(page.getByRole('form', { name: `Edit ${DATASET}` })).toBeVisible()
   })
 })
+
+test('marks an empty required link field in the field itself', async ({ page }) => {
+  const form = await openDataset(page)
+  // An empty required link field.
+  const contacts = form.getByRole('group', { name: /^Contact Point/ })
+  await contacts.getByRole('button', { name: /^Remove Air Quality Team/ }).click()
+  await form.getByRole('button', { name: `Validate ${DATASET}` }).click()
+  await expect(contacts.locator('.usa-error-message')).toHaveText('Contact Point is required')
+  await expect(contacts.getByText('This required field has no values')).toHaveCount(0)
+})

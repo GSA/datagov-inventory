@@ -146,7 +146,9 @@ export function CatalogTree({
         {found &&
           (found.matches > FILTER_LIMIT
             ? `${count(found.matches)} objects match. Showing the first ${FILTER_LIMIT}: type more to narrow them down.`
-            : `${count(found.matches)} ${found.matches === 1 ? 'object matches' : 'objects match'}.`)}
+            : found.matches === 0
+              ? 'No objects match. Try part of a title or name.'
+              : `${count(found.matches)} ${found.matches === 1 ? 'object matches' : 'objects match'}.`)}
       </p>
       {found?.matches !== 0 && (
         <div className="catalog-tree" ref={pane}>

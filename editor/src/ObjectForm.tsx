@@ -11,6 +11,7 @@ import { useValidation } from './validation/useValidation'
 import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationDisclaimer } from './validation/ValidationDisclaimer'
+import { getFieldLabel } from './validation/messages'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -108,19 +109,14 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         )
       case 'multi':
         return (
-          <div key={field.name}>
-            <MultiValueField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => handleFieldChange(field.name, value)}
-              onBlur={value => handleFieldBlur(field.name, value)}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
-          </div>
+          <MultiValueField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => handleFieldChange(field.name, value)}
+            onBlur={value => handleFieldBlur(field.name, value)}
+          />
         )
       case 'controlled':
         return (
@@ -136,13 +132,16 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
           />
         )
       case 'link':
-        return open && <LinkField key={field.name} field={field} object={object} catalog={open.catalog} />
+        return open && <LinkField key={field.name} field={field} object={object} catalog={open.catalog} error={fieldError?.message} />
     }
   }
 
+  /** The schema check's first message about a field: its value, a value in its list, or the field missing. */
   const getFieldError = (fieldName: string) => {
     return validationErrors.find(e =>
       e.instancePath === `/${fieldName}` ||
+      e.instancePath.startsWith(`/${fieldName}/`) ||
+      (e.type === 'required' && e.instancePath === '' && e.field === getFieldLabel(fieldName)) ||
       e.field.toLowerCase() === fieldName.split(':')[1]?.toLowerCase()
     )
   }
@@ -328,12 +327,13 @@ function TextField({ field, value, error, onChange, onBlur }: TextFieldProps) {
 interface MultiValueFieldProps {
   field: FormField
   value: unknown
+  error?: string
   onChange: (value: unknown) => void
   /** Saves the field: the values typed so far, or `value` when a change saves at once. */
   onBlur: (value?: unknown) => void
 }
 
-function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProps) {
+function MultiValueField({ field, value, error, onChange, onBlur }: MultiValueFieldProps) {
   // A string-or-list field (e.g. language) may hold one string.
   const items = Array.isArray(value) ? value : typeof value === 'string' ? [value] : []
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -368,7 +368,8 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
       {field.helpText && (
         <p className="usa-hint margin-top-05 margin-bottom-0">{field.helpText}</p>
       )}
-      {field.required && items.length === 0 && (
+      <FieldError id={`field-${field.name}-error`} error={error} />
+      {field.required && items.length === 0 && !error && (
         <Alert type="warning" slim className="margin-top-1">
           This required field has no values
         </Alert>
@@ -384,8 +385,10 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
               value={typeof item === 'string' ? item : ''}
               onChange={e => handleChange(index, e.target.value)}
               onBlur={() => onBlur()}
+              validationStatus={error ? 'error' : undefined}
               className="flex-fill margin-top-0 margin-right-1"
               aria-label={`${field.label} ${index + 1}`}
+              aria-describedby={error ? `field-${field.name}-error` : undefined}
             />
             <Button
               type="button"
