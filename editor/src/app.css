@@ -30,20 +30,19 @@
   min-height: 24px;
 }
 
-/* Remove focus outline on programmatically-focused headings. */
+/* Headings that take focus when a page or object opens are not controls, so they show no focus ring. */
+h1[tabindex="-1"]:focus,
 h2[tabindex="-1"]:focus {
   outline: none;
 }
 
-/* Remove focus outline on all interactive elements. */
-button:focus,
-button:focus-visible,
-.usa-button:focus,
-.usa-button:focus-visible,
-a:focus,
-a:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+/*
+ * No ring after a mouse click on a button or link (#22), but the USWDS ring for keyboard focus everywhere
+ * (WCAG 2.4.7): the browser's :focus-visible tells the two apart.
+ */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* The catalog tree (#23): it scrolls on its own, and the open object stands out, so users always see where they are. */
@@ -189,12 +188,8 @@ a:focus-visible {
 .object-form {
   overflow-wrap: anywhere;
 }
-/*
- * Focus shows on the form's links and buttons (WCAG 2.4.7), where #25 moves it: to a new row, or back to a row. This
- * overrides the rule above for the form only; #30 can remove that rule.
- */
+/* Focus on the form's links and buttons, where #25 moves it (a new row, or back to a row), clears the text around them. */
 .object-form a:focus-visible,
 .object-form button:focus-visible {
-  outline: 0.25rem solid #2491ff !important;
   outline-offset: 0.25rem;
 }
