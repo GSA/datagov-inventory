@@ -293,7 +293,9 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: Decompose
   const { from, notice } = useRouterState({ select: s => s.location.state })
   if (object.id === catalog.rootId) return null
 
-  const uses = usesOf(catalog).get(object.id) ?? []
+  // The place the user came from first, so its "Edit a copy" is at hand among many.
+  const all = usesOf(catalog).get(object.id) ?? []
+  const uses = [...all.filter(use => use.parentId === from), ...all.filter(use => use.parentId !== from)]
   const back = uses.find(use => use.parentId === from) ?? uses[0]
   const parentOf = (use: Use) => catalog.objects.get(use.parentId)!
   const place = (use: Use) => (

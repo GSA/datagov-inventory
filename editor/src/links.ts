@@ -197,7 +197,7 @@ export function createLinked(
 /**
  * "Edit a copy for this one": copies `targetId` for `parentId`'s `property` alone, and links the copy there in its
  * place. Objects used only inside the target (its address, say) are copied too, so editing the copy never changes
- * the original; objects it shares with others stay shared.
+ * the original; objects it shares with others stay shared. Copies have no `@id`.
  */
 export function copyFor(
   catalog: DecomposedCatalog,
@@ -245,7 +245,10 @@ export function copyFor(
           (inside.has(child) ? copy(child, freeId(objects, `${newId}/${link}`, 0)) : child),
       )
     }
-    objects.set(newId, { ...original, id: newId, properties: { ...original.properties }, links })
+    // Not the `@id`: two objects with one IRI are one node to JSON-LD, which would undo "for this one only".
+    const properties = { ...original.properties }
+    delete properties['@id']
+    objects.set(newId, { ...original, id: newId, properties, links })
     return newId
   }
   const id = copy(targetId, freeId(objects, `${parentId}/${property}`, ids.length))

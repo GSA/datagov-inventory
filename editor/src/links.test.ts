@@ -198,6 +198,15 @@ describe('copyFor', () => {
     expect(before.objects.size).toBe(5)
   })
 
+  it('leaves the @id out of the copies, so they are not the same node as the originals', () => {
+    const start = shared()
+    const contact = start.objects.get('#/dataset/0/contactPoint/0')!
+    start.objects.set(contact.id, { ...contact, properties: { '@id': 'https://example.gov/help', fn: 'Help desk' } })
+    const { catalog, id } = copyFor(start, '#/dataset/1', 'contactPoint', contact.id)
+    expect(catalog.objects.get(id)!.properties).toEqual({ fn: 'Help desk' })
+    expect(catalog.objects.get(contact.id)!.properties['@id']).toBe('https://example.gov/help')
+  })
+
   it('keeps links to objects shared with others', () => {
     const start = linkObject(shared(), '#', 'contactPoint', '#/dataset/0/contactPoint/0/address/0')
     const { catalog, id } = copyFor(start, '#/dataset/1', 'contactPoint', '#/dataset/0/contactPoint/0')

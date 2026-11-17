@@ -174,13 +174,24 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await name.fill('Catalog contact')
   await name.blur()
   await expect(page.getByRole('treeitem', { name: /^Catalog contact/ })).toHaveCount(1)
+  // The original is unchanged, and now used in the dataset alone.
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
+  await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: /^Fn/ })).toHaveValue('Air Quality Team')
 
   // From the shared object's own list of places.
-  await page.getByRole('link', { name: 'Back to Example Agency Catalog' }).click()
+  await page.getByRole('treeitem', { name: 'Example Agency Catalog' }).click()
   await field(page, 'Contact Point').getByRole('combobox').fill('air')
   await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
-  await page.getByRole('region', { name: 'Used in 2 places' }).getByRole('button', { name: 'Edit a copy for this one: Air quality readings' }).click()
+  // The place the user came from (the dataset) is listed first. By keyboard: Enter on the button.
+  const places = page.getByRole('region', { name: 'Used in 2 places' })
+  await expect(places.getByRole('link')).toHaveText(['Air quality readings › Contact Point', 'Example Agency Catalog › Contact Point'])
+  await places.getByRole('button', { name: 'Edit a copy for this one: Air quality readings' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page).toHaveURL('/editor/dataset/0/contactPoint/1')
   await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
   await page.getByRole('link', { name: 'Back to Air quality readings' }).click()
