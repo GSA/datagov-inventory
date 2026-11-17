@@ -10,8 +10,8 @@ async function loadSample(page: Page) {
   await expect(page).toHaveURL('/editor')
 }
 
-/** A class-valued field by its label; a required one's name ends in " *". */
-const field = (page: Page, name: string) => page.getByRole('region', { name: new RegExp(`^${name}( \\*)?$`) })
+/** A class-valued field (a group) by its label; a required one's name ends in " *". */
+const field = (page: Page, name: string) => page.getByRole('group', { name: new RegExp(`^${name}( \\*)?$`) })
 
 test('searches by keyword and selects an existing object, which is then shared, not copied', async ({ page }) => {
   await loadSample(page)
@@ -38,7 +38,7 @@ test('searches by keyword and selects an existing object, which is then shared, 
   // The object shows how many places use it, and lists them.
   await row.click()
   await expect(page).toHaveURL('/editor/dataset/0/contactPoint/0')
-  const usedIn = page.getByRole('region', { name: 'Used in 2 places' })
+  const usedIn = page.getByRole('group', { name: 'Used in 2 places' })
   await expect(usedIn.getByRole('link')).toHaveText(['Example Agency Catalog › Contact Point', 'Air quality readings › Contact Point'])
 
   // One edit shows in both places: it is one object.
@@ -127,6 +127,7 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toBeFocused()
   await expect(page.getByText('New Distribution, linked to Air quality, hourly › Distribution.')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toHaveAccessibleDescription(/^New Distribution, linked to/)
   await expect(page.getByText('Used in 1 place: Air quality, hourly › Distribution')).toBeVisible()
   await expect(page.getByRole('treeitem', { name: /^Untitled Distribution/ })).toHaveAttribute('aria-selected', 'true')
   const distributionTitle = page.getByRole('textbox', { name: /^Title/ })
@@ -149,6 +150,28 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   // The browser's Back works too, and the new object has its own address.
   await page.goBack()
   await expect(page).toHaveURL('/editor/dataset/0/distribution/2')
+})
+
+test('leaves a long list with Tab, and the caret keys leave the options', async ({ page }) => {
+  const datasets = Array.from({ length: 30 }, (_, i) => ({ '@type': 'Dataset', title: `D${i}`, contactPoint: { fn: `Team ${i}` } }))
+  await page.goto('/import')
+  await page.getByLabel('Paste JSON').fill(JSON.stringify({ '@type': 'Catalog', title: 'Many', dataset: datasets }))
+  await page.getByRole('button', { name: 'Load pasted JSON' }).click()
+  const picker = field(page, 'Contact Point').getByRole('combobox')
+  await expect(picker).toHaveAccessibleName('Add an existing Kind to Contact Point')
+
+  // The list scrolls, which makes it a tab stop in Chrome unless it opts out.
+  await picker.focus()
+  await page.keyboard.press('ArrowDown')
+  await expect(page.getByText('Showing 25 of 30. Keep typing to narrow down.')).toBeVisible()
+  await page.keyboard.press('ArrowRight')
+  await expect(picker).not.toHaveAttribute('aria-activedescendant')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Alt+ArrowUp')
+  await expect(picker).toHaveAttribute('aria-expanded', 'false')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Tab')
+  await expect(field(page, 'Contact Point').getByRole('button', { name: /^Create new Kind/ })).toBeFocused()
 })
 
 test('creates an Organization in a field that allows Agents', async ({ page }) => {
@@ -188,7 +211,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
   // The place the user came from (the dataset) is listed first. By keyboard: Enter on the button.
-  const places = page.getByRole('region', { name: 'Used in 2 places' })
+  const places = page.getByRole('group', { name: 'Used in 2 places' })
   await expect(places.getByRole('link')).toHaveText(['Air quality readings › Contact Point', 'Example Agency Catalog › Contact Point'])
   await places.getByRole('button', { name: 'Edit a copy for this one: Air quality readings' }).focus()
   await page.keyboard.press('Enter')
@@ -214,7 +237,7 @@ test('has no accessibility violations axe can find: the open list, a new object,
 
   await page.keyboard.press('Enter')
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
-  await expect(page.getByRole('region', { name: 'Used in 2 places' })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Used in 2 places' })).toBeVisible()
   await expectNoViolations()
 
   await field(page, 'Address').getByRole('button', { name: /^Create new Address/ }).click()
@@ -287,12 +310,13 @@ test('counts only places still in the catalog, and keeps focus in a field emptie
   await field(page, 'Creator').getByRole('combobox').fill('example')
   await page.getByRole('option').first().click()
   await field(page, 'Creator').getByRole('link', { name: 'Example Agency' }).click()
-  await expect(page.getByRole('region', { name: 'Used in 2 places' })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Used in 2 places' })).toBeVisible()
 
   // Removing the dataset from the catalog leaves the agency used by the catalog alone.
   await page.getByRole('link', { name: 'Example Agency Catalog › Publisher' }).click()
-  await field(page, 'Dataset').getByRole('button', { name: 'Remove Dataset 1' }).click()
+  await field(page, 'Dataset').getByRole('button', { name: 'Remove Air quality readings from Dataset' }).click()
   await expect(field(page, 'Dataset').getByRole('button', { name: /^Create new Dataset/ })).toBeFocused()
+  await expect(field(page, 'Dataset').getByRole('status')).toHaveText('Removed Air quality readings from Dataset.')
   await expect(field(page, 'Publisher').getByText('Organization · Used in 2 places')).toHaveCount(0)
   await expect(field(page, 'Publisher').getByText('Organization', { exact: true })).toBeVisible()
   await expect(field(page, 'Publisher').getByRole('button', { name: /^Edit a copy/ })).toHaveCount(0)

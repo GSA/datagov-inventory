@@ -30,15 +30,16 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
   const headingId = `field-${field.name}-heading`
   const [status, setStatus] = useState('')
   const removeRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const section = useRef<HTMLElement>(null)
+  const section = useRef<HTMLDivElement>(null)
   /** The row to focus once it renders: the object just added. */
   const focusRow = useRef<string>(undefined)
 
   const open = (id: string, notice?: string) =>
     navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
 
-  const handleRemove = (index: number, childId: string) => {
+  const handleRemove = (index: number, childId: string, label: string) => {
     removeLink(object.id, field.name, childId)
+    setStatus(`Removed ${label} from ${field.label}.`)
     // The next row's Remove, the previous one's if it was last, or, once the field is empty, its first input or button.
     setTimeout(() => {
       const next = ids.length > 1 ? removeRefs.current[Math.min(index, ids.length - 2)] : undefined
@@ -61,7 +62,8 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
   const pool = useCallback(() => candidatesFor(catalog, object, field.name, allowed), [catalog, object, field.name, allowed])
 
   return (
-    <section ref={section} aria-labelledby={headingId} className="margin-top-3">
+    // A group, not a region: a form with 40 class-valued fields would fill the landmarks list.
+    <div ref={section} role="group" aria-labelledby={headingId} className="margin-top-3">
       <h3 id={headingId} className="font-sans-md margin-bottom-0">
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
@@ -123,8 +125,8 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
                     }}
                     type="button"
                     unstyled
-                    onClick={() => handleRemove(index, childId)}
-                    aria-label={`Remove ${field.label} ${index + 1}`}
+                    onClick={() => handleRemove(index, childId, label)}
+                    aria-label={`Remove ${label} from ${field.label}`}
                   >
                     Remove
                   </Button>
@@ -142,6 +144,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
             <ObjectPicker
               id={`pick-${field.name}`}
               label={`Add an existing ${classList(classes)}`}
+              fieldLabel={field.label}
               pool={pool}
               catalog={catalog}
               onPick={handlePick}
@@ -165,13 +168,15 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
       <div role="status" className="usa-sr-only">
         {status}
       </div>
-    </section>
+    </div>
   )
 }
 
 interface ObjectPickerProps {
   id: string
   label: string
+  /** The field's label, which tells apart the pickers for the same classes in one form. */
+  fieldLabel: string
   /** The objects it can offer, A to Z; called when the list first opens, not on every render of the form. */
   pool: () => CatalogObject[]
   catalog: DecomposedCatalog
@@ -184,7 +189,7 @@ interface ObjectPickerProps {
  * matches only, so the list stays short on a 3,000-dataset catalog. The USWDS combo box would render a `<select>` of
  * every option. Focus stays in the input; Down and Up move through the options, Enter picks, Escape closes or clears.
  */
-function ObjectPicker({ id, label, pool, catalog, onPick }: ObjectPickerProps) {
+function ObjectPicker({ id, label, fieldLabel, pool, catalog, onPick }: ObjectPickerProps) {
   const uses = usesOf(catalog)
   const [query, setQuery] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -223,7 +228,8 @@ function ObjectPicker({ id, label, pool, catalog, onPick }: ObjectPickerProps) {
       case 'ArrowUp': {
         event.preventDefault()
         const down = event.key === 'ArrowDown'
-        if (!expanded) {
+        if (expanded && !down && event.altKey) close()
+        else if (!expanded) {
           setExpanded(true)
           if (!event.altKey) setActive(down ? 0 : Number.MAX_SAFE_INTEGER)
         } else if (items.length > 0) {
@@ -241,12 +247,20 @@ function ObjectPicker({ id, label, pool, catalog, onPick }: ObjectPickerProps) {
         if (expanded) close()
         else setQuery('')
         break
+      // Moving the caret returns focus from the options to the text, as the APG example does.
+      case 'Home':
+      case 'End':
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        setActive(-1)
+        break
     }
   }
   return (
     <div className="object-picker">
       <Label htmlFor={id} className="margin-top-1">
         {label}
+        <span className="usa-sr-only"> to {fieldLabel}</span>
       </Label>
       <div className="object-picker__box">
         <input
@@ -275,9 +289,11 @@ function ObjectPicker({ id, label, pool, catalog, onPick }: ObjectPickerProps) {
           <ul
             id={listId}
             role="listbox"
-            aria-label={label}
+            aria-label={`${label} to ${fieldLabel}`}
             className="object-picker__list"
             hidden={!showList}
+            // Chrome makes a scrolling list a tab stop; Tab should leave the picker, not land in a list that closes.
+            tabIndex={-1}
             // Pressing the list's scrollbar keeps focus in the input, so the list stays open.
             onMouseDown={(event) => event.preventDefault()}
           >

@@ -15,6 +15,7 @@ interface ObjectFormProps {
 
 export function ObjectForm({ object, model }: ObjectFormProps) {
   const { updateObject, open } = useCatalog()
+  const notice = useRouterState({ select: s => s.location.state.notice })
   const [formState, setFormState] = useState(object.properties)
 
   useEffect(() => {
@@ -45,7 +46,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
 
   return (
     <form aria-label={`Edit ${labelOf(object)}`} className="object-form">
-      <h2 id="detail-heading" tabIndex={-1}>
+      {/* The note on a new object or a copy is read with the heading that focus moves to. */}
+      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice && object.id !== open?.catalog.rootId ? 'object-notice' : undefined}>
         {labelOf(object)}
       </h2>
       <p className="text-base-dark">
@@ -324,14 +326,14 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: Decompose
         </p>
       )}
       {notice && (
-        <Alert type="info" slim className="margin-y-1">
+        <Alert id="object-notice" type="info" slim className="margin-y-1">
           <AlertText>{notice}</AlertText>
         </Alert>
       )}
       {uses.length === 0 && <p className="text-base-dark">Not linked anywhere.</p>}
       {uses.length === 1 && <p className="text-base-dark margin-y-1">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
       {uses.length > 1 && (
-        <section aria-labelledby="used-in-heading">
+        <div role="group" aria-labelledby="used-in-heading">
           <h3 id="used-in-heading" className="font-sans-sm margin-bottom-0">
             Used in {count(uses.length)} places
           </h3>
@@ -344,7 +346,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: Decompose
                   type="button"
                   unstyled
                   onClick={() => editCopy(parentOf(use), use.property, object)}
-                  aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))}`}
+                  aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(parentOf(use).dcatClass, use.property)}`}
                 >
                   Edit a copy for this one
                 </Button>
@@ -352,7 +354,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: Decompose
             ))}
           </ul>
           {uses.length > USES_SHOWN && <p className="text-base-dark">… and {count(uses.length - USES_SHOWN)} more.</p>}
-        </section>
+        </div>
       )}
     </div>
   )
