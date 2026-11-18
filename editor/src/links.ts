@@ -60,16 +60,16 @@ const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
  * the object itself, those already in the field, and those above it, which would make a loop.
  */
 export function candidatesFor(
-  graph: CatalogGraph,
+  catalog: CatalogGraph,
   object: CatalogObject,
   property: string,
   allowed: readonly string[],
 ): CatalogObject[] {
   const classes = new Set(classesFor(allowed))
   const taken = new Set(object.links[property])
-  const above = linkersOf(object.id, graph)
+  const above = linkersOf(object.id, catalog)
   const list: CatalogObject[] = []
-  for (const candidate of graph.objects.values()) {
+  for (const candidate of catalog.objects.values()) {
     if (classes.has(candidate.dcatClass) && !taken.has(candidate.id) && !above.has(candidate.id)) list.push(candidate)
   }
   return list.sort((a, b) => collator.compare(labelOf(a), labelOf(b)))

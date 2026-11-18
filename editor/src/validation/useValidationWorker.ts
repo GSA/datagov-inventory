@@ -66,7 +66,7 @@ export function useValidationWorker() {
   }, [])
 
   const validateCatalog = useCallback(
-    (graph: CatalogGraph, onProgress?: (progress: number) => void): Promise<CatalogValidationResult> => {
+    (catalog: CatalogGraph, onProgress?: (progress: number) => void): Promise<CatalogValidationResult> => {
       return new Promise<CatalogValidationResult>((resolve, reject) => {
         if (!workerRef.current || !isReady) {
           reject(new Error('Worker not ready'))
@@ -80,7 +80,7 @@ export function useValidationWorker() {
           onProgress,
         })
 
-        workerRef.current.postMessage({ id, type: 'validateCatalog', payload: graph } as WorkerMessage)
+        workerRef.current.postMessage({ id, type: 'validateCatalog', payload: catalog } as WorkerMessage)
       })
     },
     [isReady]

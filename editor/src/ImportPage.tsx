@@ -31,7 +31,7 @@ const samples = Object.entries(
 let attempts = 0
 
 interface LoadedCatalog {
-  name: string
+  sourceName: string
   catalog: CatalogGraph
 }
 
@@ -58,7 +58,7 @@ export default function ImportPage() {
   function show(loaded: LoadedCatalog) {
     const catalog = identifyGraph(loaded.catalog)
     const catalogId = createUuid()
-    const opened = { id: catalogId, sourceName: loaded.name, catalog }
+    const opened = { id: catalogId, sourceName: loaded.sourceName, catalog }
     setOpen(opened)
     // Open the accepted catalog at its canonical root.
     void navigate({ href: `/editor/${catalogPath(catalogId)}` })
@@ -176,7 +176,7 @@ export default function ImportPage() {
             Replace the open catalog?
           </AlertHeading>
           <AlertText id="replace-text" className="text-break">
-            <bdi>{pending.name}</bdi> is ready. Replace <bdi>{open.sourceName}</bdi> with it, or cancel to keep{' '}
+            <bdi>{pending.sourceName}</bdi> is ready. Replace <bdi>{open.sourceName}</bdi> with it, or cancel to keep{' '}
             <bdi>{open.sourceName}</bdi> open.
           </AlertText>
           <ButtonGroup>

@@ -1,5 +1,6 @@
 export interface CatalogObject {
-    /** Identity within this graph. A raw graph may use any unique keys; a CatalogWorkspace always uses UUIDs. */
+    /** Identity within this graph. A raw graph may use any unique keys; a CatalogWorkspace always uses UUIDs.
+     * The `@id` field, if any, stays in `properties`, because input `@id`s can repeat. */
     id: string
     /**
      * The DCAT-US 3.0 class the schema allows where the object sits. Its `@type` only

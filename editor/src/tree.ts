@@ -75,10 +75,10 @@ export interface TreeRow {
  * Each object's parents: `links` the other way round. Build it once per catalog; {@link ancestorIds} and
  * {@link filterTree} use it to find the objects above an object.
  *
- * @param graph The catalog graph.
+ * @param catalog The catalog graph.
  * @returns A map from each linked object's id to the ids of the objects that link to it, in document order. The
  *   catalog, which nothing links to, has no entry.
- * @example parentsOf(graph).get(distributionId) // [datasetId]
+ * @example parentsOf(catalog).get(distributionId) // [datasetId]
  */
 export function parentsOf({ objects }: CatalogGraph): Map<string, string[]> {
   const parents = new Map<string, string[]>()
@@ -111,7 +111,7 @@ export function ancestorIds(id: string, parents: Map<string, string[]>): string[
 export const FILTER_LIMIT = 200
 
 /** The objects whose label contains `needle` (lower case), the first FILTER_LIMIT in document order, and every object above them. */
-export function filterTree(graph: CatalogGraph, parents: Map<string, string[]>, needle: string) {
+export function filterTree(catalog: CatalogGraph, parents: Map<string, string[]>, needle: string) {
   let matches = 0
   const shown = new Set<string>()
   const show = (id: string) => {
@@ -119,7 +119,7 @@ export function filterTree(graph: CatalogGraph, parents: Map<string, string[]>, 
     shown.add(id)
     for (const parent of parents.get(id) ?? []) show(parent)
   }
-  for (const object of graph.objects.values()) {
+  for (const object of catalog.objects.values()) {
     if (labelOf(object).toLowerCase().includes(needle)) {
       if (++matches <= FILTER_LIMIT) show(object.id)
     }
