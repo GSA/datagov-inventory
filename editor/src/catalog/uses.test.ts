@@ -18,59 +18,59 @@ const catalogOf = (...objects: CatalogObject[]): CatalogGraph => ({
 /** A catalog with two datasets that share one contact, which has its own address. */
 const shared = () =>
   catalogOf(
-    object('#', 'Catalog', { title: 'Catalog' }, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-    object('#/dataset/0', 'Dataset', { title: 'Water' }, { contactPoint: ['#/dataset/0/contactPoint/0'] }),
-    object('#/dataset/1', 'Dataset', { title: 'Air' }, { contactPoint: ['#/dataset/0/contactPoint/0'] }),
-    object('#/dataset/0/contactPoint/0', 'Kind', { fn: 'Help desk' }, { address: ['#/dataset/0/contactPoint/0/address/0'] }),
-    object('#/dataset/0/contactPoint/0/address/0', 'Address', { locality: 'Springfield' }),
+    object('catalog-root', 'Catalog', { title: 'Catalog' }, { dataset: ['water-dataset', 'air-dataset'] }),
+    object('water-dataset', 'Dataset', { title: 'Water' }, { contactPoint: ['shared-contact'] }),
+    object('air-dataset', 'Dataset', { title: 'Air' }, { contactPoint: ['shared-contact'] }),
+    object('shared-contact', 'Kind', { fn: 'Help desk' }, { address: ['contact-address'] }),
+    object('contact-address', 'Address', { locality: 'Springfield' }),
   )
 
 describe('usesOf', () => {
   it('lists every place an object is used, with the field', () => {
     const uses = usesOf(shared())
-    expect(uses.get('#/dataset/0/contactPoint/0')).toEqual([
-      { parentId: '#/dataset/0', property: 'contactPoint' },
-      { parentId: '#/dataset/1', property: 'contactPoint' },
+    expect(uses.get('shared-contact')).toEqual([
+      { parentId: 'water-dataset', property: 'contactPoint' },
+      { parentId: 'air-dataset', property: 'contactPoint' },
     ])
-    expect(uses.get('#')).toBeUndefined()
+    expect(uses.get('catalog-root')).toBeUndefined()
   })
 
   it('is built once per version of the catalog', () => {
     const catalog = shared()
     expect(usesOf(catalog)).toBe(usesOf({ ...catalog }))
-    expect(usesOf(linkObject(catalog, '#', 'contactPoint', '#/dataset/0/contactPoint/0'))).not.toBe(usesOf(catalog))
+    expect(usesOf(linkObject(catalog, 'catalog-root', 'contactPoint', 'shared-contact'))).not.toBe(usesOf(catalog))
   })
 
   it('counts only places in the catalog, not objects removed from their field', () => {
     const catalog = catalogOf(
-      object('#', 'Catalog', {}, { dataset: ['#/d1'] }),
-      object('#/d1', 'Dataset', {}, { publisher: ['#/o'] }),
-      object('#/d5', 'Dataset', {}, { publisher: ['#/o'] }), // removed from the catalog, kept for Undo
-      object('#/o', 'Organization'),
+      object('catalog-root', 'Catalog', {}, { dataset: ['active-dataset'] }),
+      object('active-dataset', 'Dataset', {}, { publisher: ['organization'] }),
+      object('removed-dataset', 'Dataset', {}, { publisher: ['organization'] }), // removed from the catalog, kept for Undo
+      object('organization', 'Organization'),
     )
-    expect(usesOf(catalog).get('#/o')).toEqual([{ parentId: '#/d1', property: 'publisher' }])
-    expect(usesOf(catalog).get('#/d5')).toBeUndefined()
+    expect(usesOf(catalog).get('organization')).toEqual([{ parentId: 'active-dataset', property: 'publisher' }])
+    expect(usesOf(catalog).get('removed-dataset')).toBeUndefined()
   })
 
   it('still finds loops through removed objects', () => {
     const catalog = catalogOf(
-      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
-      object('#/d', 'Dataset', {}, { publisher: ['#/o'] }),
-      object('#/o', 'Organization'),
-      object('#/parent', 'Organization', {}, { subOrganizationOf: ['#/o'] }), // removed
+      object('catalog-root', 'Catalog', {}, { dataset: ['catalog-d'] }),
+      object('catalog-d', 'Dataset', {}, { publisher: ['organization'] }),
+      object('organization', 'Organization'),
+      object('removed-parent', 'Organization', {}, { subOrganizationOf: ['organization'] }), // removed
     )
-    expect(linkersOf('#/o', catalog).has('#/parent')).toBe(true)
-    expect(() => linkObject(catalog, '#/o', 'subOrganizationOf', '#/parent')).toThrow(/loop/)
+    expect(linkersOf('organization', catalog).has('removed-parent')).toBe(true)
+    expect(() => linkObject(catalog, 'organization', 'subOrganizationOf', 'removed-parent')).toThrow(/loop/)
   })
 })
 
 describe('linkersOf', () => {
   it('finds the object and everything above it, and stops at loops', () => {
     const catalog = catalogOf(
-      object('#', 'Catalog', {}, { hasPart: ['#/a'] }),
-      object('#/a', 'Catalog', {}, { hasPart: ['#/b'] }),
-      object('#/b', 'Catalog', {}, { hasPart: ['#/a'] }),
+      object('catalog-root', 'Catalog', {}, { hasPart: ['catalog-a'] }),
+      object('catalog-a', 'Catalog', {}, { hasPart: ['catalog-b'] }),
+      object('catalog-b', 'Catalog', {}, { hasPart: ['catalog-a'] }),
     )
-    expect(linkersOf('#/b', catalog)).toEqual(new Set(['#/b', '#/a', '#']))
+    expect(linkersOf('catalog-b', catalog)).toEqual(new Set(['catalog-b', 'catalog-a', 'catalog-root']))
   })
 })

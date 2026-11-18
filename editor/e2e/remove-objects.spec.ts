@@ -5,7 +5,7 @@ async function loadSample(page: Page) {
   await page.goto('/import')
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
 }
 
 test('shows remove buttons on multi-value fields', async ({ page }) => {
@@ -31,7 +31,7 @@ test('deletes object', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Delete object' }).click()
 
-  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).not.toBeVisible()
 })
 

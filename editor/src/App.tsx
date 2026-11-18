@@ -115,13 +115,9 @@ const routeTree = root.addChildren([
   createRoute({
     getParentRoute: () => root,
     path: 'import',
-    // Where to go once a catalog opens: an editor page the user bookmarked before the catalog was open.
-    validateSearch: (search): { next?: string } => ({
-      next: typeof search.next === 'string' && search.next.startsWith('/editor') ? search.next : undefined,
-    }),
     component: ImportPage,
   }),
-  // An object's path is its id without the "#": `#/dataset/0` is /editor/dataset/0, and the catalog is /editor.
+  // Canonical roots and objects begin with an identity-bearing catalog UUID token; /editor is a convenience route.
   createRoute({
     getParentRoute: () => root,
     path: 'editor/$',

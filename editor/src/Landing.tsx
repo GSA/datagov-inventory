@@ -1,6 +1,7 @@
 import { ButtonGroup } from '@trussworks/react-uswds'
 import { Link } from '@tanstack/react-router'
 import { useCatalog, usePageTitle } from './session'
+import { catalogPath } from './objectRoute'
 
 /** What the editor is for, and the way in: import the organization's whole catalog. */
 export default function Landing() {

@@ -55,9 +55,6 @@ export const isolate = (label: string) => `\u2068${label}\u2069`
 /** A count for people: `3,000`. */
 export const count = (n: number) => n.toLocaleString('en-US')
 
-/** An object's path under /editor is its id without the "#" (`#/dataset/0` → `dataset/0`). */
-export const pathOf = (id: string) => id.slice(2)
-
 /** One visible row of the tree, in the order the tree shows them (see {@link treeRows}). */
 export interface TreeRow {
   /** Unique per row: the ids from the catalog down, so an object linked twice has a row in each place. */
@@ -78,10 +75,10 @@ export interface TreeRow {
  * Each object's parents: `links` the other way round. Build it once per catalog; {@link ancestorIds} and
  * {@link filterTree} use it to find the objects above an object.
  *
- * @param catalog The decomposed catalog.
+ * @param catalog The catalog graph.
  * @returns A map from each linked object's id to the ids of the objects that link to it, in document order. The
  *   catalog, which nothing links to, has no entry.
- * @example parentsOf(catalog).get('#/dataset/0/distribution/1') // ['#/dataset/0']
+ * @example parentsOf(catalog).get(distributionId) // [datasetId]
  */
 export function parentsOf({ objects }: CatalogGraph): Map<string, string[]> {
   const parents = new Map<string, string[]>()

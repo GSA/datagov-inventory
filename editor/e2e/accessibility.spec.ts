@@ -46,7 +46,7 @@ test('every page and state has no WCAG 2.1 AA violations axe can find', async ({
 
   await test.step('editor on a loaded catalog, with the tree and detail pane', async () => {
     await loadSample(page, 'dataset-with-distributions.json')
-    await expect(page).toHaveURL('/editor')
+    await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
     await expect(page.locator('#detail-heading')).toHaveText('Example Agency Catalog')
     await expectNoAxeViolations(page)
   })

@@ -1,10 +1,5 @@
 export interface CatalogObject {
-    /**
-     * Synthetic and deterministic: the object's JSON Pointer in the source document, as a
-     * URI fragment (`#` is the root, `#/dataset/0/distribution/1` a distribution). Its
-     * `@id`, if any, stays in `properties`, because input `@id`s can repeat. Treat it as
-     * opaque: it names where the object was loaded from, not where it is after edits.
-     */
+    /** Identity within this graph. A raw graph may use any unique keys; an OpenCatalog always uses UUIDs. */
     id: string
     /**
      * The DCAT-US 3.0 class the schema allows where the object sits. Its `@type` only

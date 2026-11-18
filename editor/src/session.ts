@@ -3,15 +3,16 @@ import { useNavigate } from '@tanstack/react-router'
 import type { CatalogGraph, CatalogObject } from './catalog/types'
 import { usesOf } from './catalog/uses'
 import { useValidationContext } from './validation/ValidationContext'
-import { count, isolate, labelOf, pathOf } from './tree'
+import { count, isolate, labelOf } from './tree'
+import { objectPath } from './objectRoute'
 
 /** The catalog open in the editor: the one working copy (#15). */
 export interface OpenCatalog {
+  /** Stable identity of this loaded catalog, separate from its root object's identity. */
+  id: string
   /** The file name, sample name, "Pasted JSON" or "Blank catalog". */
   name: string
   catalog: CatalogGraph
-  /** Unique per load, so the editor starts fresh for each catalog. */
-  loadId: number
 }
 
 export interface CatalogContextValue {
@@ -67,7 +68,7 @@ export function useEditCopy() {
     const rest = others === 1 ? 'The other place still uses' : `The other ${count(others)} places still use`
     navigate({
       to: '/editor/$',
-      params: { _splat: pathOf(id) },
+      params: { _splat: objectPath(open.id, open.catalog.objects.get(id)!) },
       state: {
         from: parent.id,
         notice: `This is a copy of ${isolate(labelOf(original))} for ${isolate(labelOf(parent))} only. ${rest} the original.`,

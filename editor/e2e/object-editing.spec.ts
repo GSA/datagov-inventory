@@ -5,14 +5,14 @@ async function loadSample(page: Page) {
   await page.goto('/import')
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
 }
 
 test('opens object in editable form when clicked in tree', async ({ page }) => {
   await loadSample(page)
 
   await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/air-quality-readings--[A-Za-z0-9_-]{22}$/)
 
   const form = page.getByRole('form', { name: 'Edit Air quality readings' })
   await expect(form).toBeVisible()

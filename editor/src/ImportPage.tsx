@@ -11,9 +11,13 @@ import {
   Select,
   Textarea,
 } from '@trussworks/react-uswds'
-import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { loadCatalog } from './loadCatalog'
-import { type OpenCatalog, useCatalog, usePageTitle } from './session'
+import { useCatalog, usePageTitle } from './session'
+import type { CatalogGraph } from './catalog/types'
+import { identifyGraph } from './catalog/identify'
+import { createUuid } from './catalog/id'
+import { catalogPath } from './objectRoute'
 
 /** The smallest document that decomposes: one Catalog for the user to fill in. */
 const BLANK_CATALOG = '{"@type": "Catalog"}'
@@ -23,16 +27,20 @@ const samples = Object.entries(
   import.meta.glob<string>('../fixtures/catalogs/valid/*.json', { eager: true, query: '?raw', import: 'default' }),
 ).map(([path, text]) => ({ name: path.slice(path.lastIndexOf('/') + 1), text }))
 
-/** Counts loads across visits to this page, so each catalog gets its own `loadId`. */
-let loads = 0
+/** Counts attempts so repeated load failures are announced as new alerts. */
+let attempts = 0
+
+interface LoadedCatalog {
+  name: string
+  catalog: CatalogGraph
+}
 
 export default function ImportPage() {
   const { open, setOpen } = useCatalog()
-  const { next } = useSearch({ from: '/import' })
   const navigate = useNavigate()
   usePageTitle('Import a catalog')
   /** A catalog that loaded while another was open, waiting for the user to confirm it replaces that one. */
-  const [pending, setPending] = useState<OpenCatalog>()
+  const [pending, setPending] = useState<LoadedCatalog>()
   const [loading, setLoading] = useState<string>()
   const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
   const [pasted, setPasted] = useState('')
@@ -47,9 +55,13 @@ export default function ImportPage() {
     if (pending) document.getElementById('replace-heading')?.focus()
   }, [pending])
 
-  function show(catalog: OpenCatalog) {
-    setOpen(catalog)
-    void navigate({ href: next ?? '/editor' })
+  function show(loaded: LoadedCatalog) {
+    const catalog = identifyGraph(loaded.catalog)
+    const id = createUuid()
+    const opened = { ...loaded, id, catalog }
+    setOpen(opened)
+    // Open the accepted catalog at its canonical root.
+    void navigate({ href: `/editor/${catalogPath(id)}` })
   }
 
   /**
@@ -61,19 +73,19 @@ export default function ImportPage() {
   async function load(name: string, source: File | string) {
     active.current?.abort()
     const controller = (active.current = new AbortController())
-    const current = ++loads
+    const attempt = ++attempts
     setError(undefined)
     setPending(undefined)
     setLoading(name)
     try {
       const catalog = await loadCatalog(source, controller.signal)
       if (controller.signal.aborted) return
-      const loaded = { name, catalog, loadId: current }
+      const loaded = { name, catalog }
       if (openNow.current) setPending(loaded)
       else show(loaded)
     } catch (e) {
       if (controller.signal.aborted) return
-      setError({ name, message: e instanceof Error ? e.message : String(e), attempt: current })
+      setError({ name, message: e instanceof Error ? e.message : String(e), attempt })
     } finally {
       if (!controller.signal.aborted) stopLoading()
     }
@@ -96,7 +108,7 @@ export default function ImportPage() {
         <Alert type="info" slim>
           <AlertText>
             <bdi>{open.name}</bdi> is open. Importing another catalog replaces it, and you&apos;ll be asked first.{' '}
-            <Link to="/editor/$" params={{ _splat: '' }} className="usa-link">
+            <Link to="/editor/$" params={{ _splat: catalogPath(open.id) }} className="usa-link">
               Back to the editor
             </Link>
           </AlertText>

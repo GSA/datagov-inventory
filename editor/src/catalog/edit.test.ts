@@ -359,11 +359,11 @@ const catalogOf = (...objects: CatalogObject[]): CatalogGraph => ({
 /** A catalog with two datasets that share one contact, which has its own address. */
 const shared = () =>
   catalogOf(
-    object('#', 'Catalog', { title: 'Catalog' }, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-    object('#/dataset/0', 'Dataset', { title: 'Water' }, { contactPoint: ['#/dataset/0/contactPoint/0'] }),
-    object('#/dataset/1', 'Dataset', { title: 'Air' }, { contactPoint: ['#/dataset/0/contactPoint/0'] }),
-    object('#/dataset/0/contactPoint/0', 'Kind', { fn: 'Help desk' }, { address: ['#/dataset/0/contactPoint/0/address/0'] }),
-    object('#/dataset/0/contactPoint/0/address/0', 'Address', { locality: 'Springfield' }),
+    object('catalog-root', 'Catalog', { title: 'Catalog' }, { dataset: ['water-dataset', 'air-dataset'] }),
+    object('water-dataset', 'Dataset', { title: 'Water' }, { contactPoint: ['shared-contact'] }),
+    object('air-dataset', 'Dataset', { title: 'Air' }, { contactPoint: ['shared-contact'] }),
+    object('shared-contact', 'Kind', { fn: 'Help desk' }, { address: ['contact-address'] }),
+    object('contact-address', 'Address', { locality: 'Springfield' }),
   )
 
 describe('linkObject', () => {

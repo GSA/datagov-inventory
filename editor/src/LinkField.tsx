@@ -7,7 +7,8 @@ import { candidatesFor, classesFor, linkModeOf, rowId, search } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
 import { useValidationContext } from './validation/ValidationContext'
-import { classLabel, count, isolate, labelOf, pathOf } from './tree'
+import { classLabel, count, isolate, labelOf } from './tree'
+import { objectPath } from './objectRoute'
 
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
 /** "Kind", "Agent or Organization": class names as the schema writes them. */
@@ -30,7 +31,7 @@ export function LinkField({
   /** The schema check's message for this field, such as that a required one is empty. */
   error?: string
 }) {
-  const { removeLink, linkObject, createObject } = useCatalog()
+  const { open, removeLink, linkObject, createObject } = useCatalog()
   const editCopy = useEditCopy()
   // A changed field makes the object's schema check (#27) out of date.
   const { markStale } = useValidationContext()
@@ -72,7 +73,7 @@ export function LinkField({
     markStale(object.id)
     if (id) {
       const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
-      navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
+      navigate({ to: '/editor/$', params: { _splat: objectPath(open!.id, catalog.objects.get(id)!) }, state: { from: object.id, notice } })
     }
   }
 
@@ -117,7 +118,7 @@ export function LinkField({
                       }
                     }}
                     to="/editor/$"
-                    params={{ _splat: pathOf(childId) }}
+                    params={{ _splat: objectPath(open!.id, child) }}
                     state={{ from: object.id }}
                     className="usa-link text-bold"
                   >

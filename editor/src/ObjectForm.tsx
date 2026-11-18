@@ -3,7 +3,8 @@ import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } fr
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
-import { classLabel, count, labelOf, pathOf } from './tree'
+import { classLabel, count, labelOf } from './tree'
+import { editorPath } from './objectRoute'
 import { getFormModel, type FormModel, type FormField } from './schema'
 import { usesOf, type Use } from './catalog/uses'
 import { rowId } from './links'
@@ -466,6 +467,7 @@ const fieldLabel = (dcatClass: string, property: string) =>
  */
 function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const editCopy = useEditCopy()
+  const { open } = useCatalog()
   const { from, notice } = useRouterState({ select: s => s.location.state })
   if (object.id === catalog.rootId) return null
 
@@ -482,7 +484,9 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
   const linkTo = (use: Use, children: ReactNode, className = 'usa-link') => (
     <Link
       to="/editor/$"
-      params={{ _splat: pathOf(use.parentId) }}
+      params={{
+        _splat: editorPath(open!.id, catalog, parentOf(use)),
+      }}
       state={{ focus: rowId(use.property, object.id) }}
       className={className}
     >

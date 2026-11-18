@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
-import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { getFormModel } from './schema'
 import { type OpenCatalog, useCatalog, usePageTitle } from './session'
 import { findParentLinks } from './catalog/edit'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
-import { ancestorIds, classLabel, count, labelOf, parentsOf, pathOf } from './tree'
+import { ancestorIds, classLabel, count, labelOf, parentsOf } from './tree'
+import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
@@ -17,17 +18,21 @@ import { ExportWarningDialog } from './validation/ExportWarningDialog'
 /** A link to an object. */
 function ObjectLink({
   object,
+  catalogId,
+  catalog,
   children,
   ...props
 }: {
   object: CatalogObject
+  catalogId: string
+  catalog: CatalogGraph
   children: ReactNode
   className?: string
 }) {
   return (
     <Link
       to="/editor/$"
-      params={{ _splat: pathOf(object.id) }}
+      params={{ _splat: editorPath(catalogId, catalog, object) }}
       activeOptions={{ exact: true }}
       data-paged-item
       {...props}
@@ -38,15 +43,16 @@ function ObjectLink({
 }
 
 /**
- * The objects above the open one, from the catalog down. Followed through links, not guessed from the id: a single
- * link's id has no index (`#/dataset/0/publisher`).
+ * The objects above the open one, from the catalog down. Followed through links, never guessed from the opaque id.
  */
 function Breadcrumb({
   object,
+  catalogId,
   catalog,
   parents,
 }: {
   object: CatalogObject
+  catalogId: string
   catalog: CatalogGraph
   parents: Map<string, string[]>
 }) {
@@ -58,7 +64,7 @@ function Breadcrumb({
       <ol className="usa-breadcrumb__list">
         {ancestors.map((ancestor) => (
           <li key={ancestor.id} className="usa-breadcrumb__list-item">
-            <ObjectLink object={ancestor} className="usa-breadcrumb__link">
+            <ObjectLink object={ancestor} catalogId={catalogId} catalog={catalog} className="usa-breadcrumb__link">
               <bdi>{labelOf(ancestor)}</bdi>
             </ObjectLink>
           </li>
@@ -72,7 +78,7 @@ function Breadcrumb({
 }
 
 /** Deletes the open object. One used in several places asks first, in place (no dialog), listing the places. */
-function DeleteObject({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
+function DeleteObject({ object, catalogId, catalog }: { object: CatalogObject;   catalogId: string; catalog: CatalogGraph }) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
   const [places, setPlaces] = useState<{ key: string; parent: string; field: string }[]>()
@@ -92,7 +98,13 @@ function DeleteObject({ object, catalog }: { object: CatalogObject; catalog: Cat
     if (parentLinks.length <= 1) {
       const firstParentId = parentLinks[0]?.parentId || catalog.rootId
       deleteObject(object.id)
-      navigate({ to: '/editor/$', params: { _splat: firstParentId === catalog.rootId ? '' : pathOf(firstParentId) } })
+      const firstParent = catalog.objects.get(firstParentId)
+      navigate({
+        to: '/editor/$',
+        params: {
+          _splat: firstParent ? editorPath(catalogId, catalog, firstParent) : catalogPath(catalogId),
+        },
+      })
     } else {
       setPlaces(
         parentLinks.map((link) => {
@@ -107,7 +119,7 @@ function DeleteObject({ object, catalog }: { object: CatalogObject; catalog: Cat
   const handleConfirmDelete = () => {
     deleteObject(object.id)
     setPlaces(undefined)
-    navigate({ to: '/editor' })
+    navigate({ to: '/editor/$', params: { _splat: catalogPath(catalogId) } })
   }
 
   return (
@@ -160,7 +172,7 @@ function ObjectDetail({
   if (!model) {
     return (
       <section aria-labelledby="detail-heading">
-        <Breadcrumb object={object} catalog={catalog} parents={parents} />
+        <Breadcrumb object={object} catalogId={catalogId} catalog={catalog} parents={parents} />
         <h2 id="detail-heading" tabIndex={-1}>
           {labelOf(object)}
         </h2>
@@ -172,7 +184,7 @@ function ObjectDetail({
 
   return (
     <>
-      <Breadcrumb object={object} catalog={catalog} parents={parents} />
+      <Breadcrumb object={object} catalogId={catalogId} catalog={catalog} parents={parents} />
       <ObjectForm object={object} model={model} />
       <DeleteObject object={object} catalog={catalog} />
     </>
@@ -317,8 +329,13 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
               })
               .filter((r) => !r.valid)}
             onNavigateToObject={(objectId) => {
-              const path = objectId.replace(/^#\//, '')
-              navigate({ to: '/editor/$', params: { _splat: path } })
+              const object = open.catalog.objects.get(objectId)
+              navigate({
+                to: '/editor/$',
+                params: {
+                  _splat: object ? editorPath(open.id, open.catalog, object) : catalogPath(open.id),
+                },
+              })
             }}
           />
         </div>
@@ -347,18 +364,18 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <h2 id="tree-heading" className="font-sans-md margin-top-0">
             Catalog contents
           </h2>
-          <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />
+          <CatalogTree catalog={open.catalog} catalogId={open.id} parents={parents} selectedId={id} />
         </nav>
         <div className="tablet:grid-col-7 desktop:grid-col-8 margin-top-4 tablet:margin-top-0 tablet:padding-top-2">
           {object ? (
-            <ObjectDetail key={object.id} object={object} catalog={open.catalog} parents={parents} />
+            <ObjectDetail key={object.id} object={object} catalogId={open.id} catalog={open.catalog} parents={parents} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">
                 Nothing at this address
               </h2>
               <p>This catalog has no object here. The link may be from another catalog.</p>
-              <ObjectLink object={root} className="usa-link">
+              <ObjectLink object={root} catalogId={open.id} catalog={open.catalog} className="usa-link">
                 Open the catalog
               </ObjectLink>
             </>
@@ -369,27 +386,76 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   )
 }
 
-/** Opened at an address with no catalog open: after a reload, or from a bookmark. */
+/** The generic `/editor` entry point when this tab has no working catalog. */
 function NoCatalog() {
   usePageTitle('No catalog open')
-  const href = useRouterState({ select: (state) => state.location.href })
   return (
     <>
       <h1 tabIndex={-1}>No catalog open</h1>
       <p>
         The editor keeps your catalog in this browser tab only, so it closes when you reload or leave. Import it again
-        and this page opens.
+        to create a new working copy.
       </p>
-      <Link to="/import" search={{ next: href }} className="usa-button">
+      <Link to="/import" className="usa-button">
         Import a catalog
       </Link>
     </>
   )
 }
 
+/** A well-formed catalog address that this browser cannot currently restore. */
+function CatalogNotFound() {
+  usePageTitle('Catalog not found')
+  return (
+    <>
+      <h1 tabIndex={-1}>Catalog not found in this browser</h1>
+      <p>
+        This address identifies a specific catalog, but it is not available in this browser. It may belong to another
+        browser or device, or its site data may have been cleared.
+      </p>
+      <Link to="/import" className="usa-button">
+        Import a catalog
+      </Link>
+    </>
+  )
+}
+
+/** An `/editor/...` path that does not contain a valid catalog/object identity. */
+function InvalidEditorAddress() {
+  usePageTitle('Invalid editor address')
+  return (
+    <>
+      <h1 tabIndex={-1}>Invalid editor address</h1>
+      <p>This editor address is incomplete or malformed.</p>
+      <Link to="/editor/$" params={{ _splat: '' }} className="usa-button">
+        Open the editor
+      </Link>
+    </>
+  )
+}
+
+/** Replaces the generic `/editor` entry point with the open catalog's canonical address. */
+function CatalogRedirect({ catalogId }: { catalogId: string }) {
+  const navigate = useNavigate()
+  useEffect(() => {
+    void navigate({ to: '/editor/$', params: { _splat: catalogPath(catalogId) }, replace: true })
+  }, [catalogId, navigate])
+  return null
+}
+
 export default function Editor() {
   const { open } = useCatalog()
   const { _splat } = useParams({ from: '/editor/$' })
-  if (!open) return <NoCatalog />
-  return <CatalogView key={open.loadId} open={open} id={_splat ? `#/${_splat}` : open.catalog.rootId} />
+
+  if (!_splat) return open ? <CatalogRedirect catalogId={open.id} /> : <NoCatalog />
+
+  const address = editorAddress(_splat)
+  if (!address) return <InvalidEditorAddress />
+
+  // Until browser persistence exists, this tab can open only its in-memory catalog. Once #28 adds persistence, a
+  // valid `/editor/<catalog-token>...` route should first restore that exact catalog by id (or report not found /
+  // storage unavailable), then resolve the optional object id within it; it must not display a different open catalog.
+  if (!open || address.catalogId !== open.id) return <CatalogNotFound />
+
+  return <CatalogView key={open.id} open={open} id={address.objectId ?? open.catalog.rootId} />
 }

@@ -2,7 +2,8 @@ import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Keyb
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
 import type { CatalogGraph } from './catalog/types'
-import { FILTER_LIMIT, ancestorIds, classLabel, count, filterTree, labelOf, pathOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, classLabel, count, filterTree, labelOf, treeRows, type TreeRow } from './tree'
+import { editorPath } from './objectRoute'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
 function revealSelected(pane: HTMLElement | null) {
@@ -20,10 +21,12 @@ function revealSelected(pane: HTMLElement | null) {
  */
 export function CatalogTree({
   catalog,
+  catalogId,
   parents,
   selectedId,
 }: {
   catalog: CatalogGraph
+  catalogId: string
   /** `parentsOf(catalog)`, built once by the editor and shared with the breadcrumb. */
   parents: Map<string, string[]>
   selectedId: string
@@ -63,7 +66,12 @@ export function CatalogTree({
     revealSelected(pane.current)
   }, [selectedId])
 
-  const open = (row: TreeRow) => navigate({ to: '/editor/$', params: { _splat: pathOf(row.object.id) } })
+  const open = (row: TreeRow) => navigate({
+    to: '/editor/$',
+    params: {
+      _splat: editorPath(catalogId, catalog, row.object),
+    },
+  })
   // Callers don't toggle while filtering: the objects above the matches stay expanded.
   const toggle = (row: TreeRow) => {
     if (row.expanded === undefined) return
