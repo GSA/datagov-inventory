@@ -1,4 +1,4 @@
-import type { CatalogGraph, CatalogObject } from './catalog/types'
+import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const OBJECT_TOKEN = /--([A-Za-z0-9_-]{22})$/
@@ -41,9 +41,12 @@ export const catalogPath = (catalogId: string) => uuidToToken(catalogId)
 export const objectPath = (catalogId: string, object: CatalogObject) =>
   `${catalogPath(catalogId)}/${slug(object.dcatClass)}/${slug(titleOf(object))}--${uuidToToken(object.id)}`
 
-/** Canonical path for an object: the catalog root is addressed by catalog identity alone. */
-export const editorPath = (catalogId: string, graph: CatalogGraph, object: CatalogObject) =>
-  object.id === graph.rootId ? catalogPath(catalogId) : objectPath(catalogId, object)
+/** Canonical path for an object in a catalog; the root is addressed by catalog identity alone. */
+export function editorPath(workspace: CatalogWorkspace, objectId: string): string {
+  const object = workspace.catalog.objects.get(objectId)
+  if (!object) throw new Error(`Object ${objectId} is not in the catalog.`)
+  return objectId === workspace.catalog.rootId ? catalogPath(workspace.id) : objectPath(workspace.id, object)
+}
 
 export interface EditorAddress {
   catalogId: string

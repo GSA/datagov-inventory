@@ -30,7 +30,7 @@ App runs at http://localhost:5173
 objects (id, DCAT class, own scalar properties) whose class-valued properties are ordered
 lists of child ids. Which properties hold classes, and so each object's class, comes from
 the schema (`getClassProperties` in `src/schema`). Decomposition may use source-location
-keys, but accepting a graph into `OpenCatalog` replaces every object id and reference with
+keys, but accepting a graph into a `Catalog` working copy replaces every object id and reference with
 a browser-generated UUID. Newly created and copied objects receive UUIDs immediately.
 Input is bounded by `DEFAULT_LIMITS` (25 MB, 64
 levels deep, 250,000 JSON objects and arrays), checked before parsing. `fixtures/decomposed/` holds

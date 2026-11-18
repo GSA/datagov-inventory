@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import type { CatalogObject, CatalogGraph } from './catalog/types'
+import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { getFormModel } from './schema'
-import { type OpenCatalog, useCatalog, usePageTitle } from './session'
+import { useCatalog, usePageTitle } from './session'
 import { findParentLinks } from './catalog/edit'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
@@ -18,21 +18,19 @@ import { ExportWarningDialog } from './validation/ExportWarningDialog'
 /** A link to an object. */
 function ObjectLink({
   object,
-  catalogId,
-  catalog,
+  open,
   children,
   ...props
 }: {
   object: CatalogObject
-  catalogId: string
-  catalog: CatalogGraph
+  open: CatalogWorkspace
   children: ReactNode
   className?: string
 }) {
   return (
     <Link
       to="/editor/$"
-      params={{ _splat: editorPath(catalogId, catalog, object) }}
+      params={{ _splat: editorPath(open, object.id) }}
       activeOptions={{ exact: true }}
       data-paged-item
       {...props}
@@ -47,16 +45,14 @@ function ObjectLink({
  */
 function Breadcrumb({
   object,
-  catalogId,
-  catalog,
+  open,
   parents,
 }: {
   object: CatalogObject
-  catalogId: string
-  catalog: CatalogGraph
+  open: CatalogWorkspace
   parents: Map<string, string[]>
 }) {
-  const ancestors = ancestorIds(object.id, parents).map((id) => catalog.objects.get(id)!)
+  const ancestors = ancestorIds(object.id, parents).map((id) => open.catalog.objects.get(id)!)
   if (ancestors.length === 0) return null
   return (
     // Hidden on phones, where USWDS shows only its last link, "← parent", beside the form's own "← Back to …".
@@ -64,7 +60,7 @@ function Breadcrumb({
       <ol className="usa-breadcrumb__list">
         {ancestors.map((ancestor) => (
           <li key={ancestor.id} className="usa-breadcrumb__list-item">
-            <ObjectLink object={ancestor} catalogId={catalogId} catalog={catalog} className="usa-breadcrumb__link">
+            <ObjectLink object={ancestor} open={open} className="usa-breadcrumb__link">
               <bdi>{labelOf(ancestor)}</bdi>
             </ObjectLink>
           </li>
@@ -78,8 +74,9 @@ function Breadcrumb({
 }
 
 /** Deletes the open object. One used in several places asks first, in place (no dialog), listing the places. */
-function DeleteObject({ object, catalogId, catalog }: { object: CatalogObject;   catalogId: string; catalog: CatalogGraph }) {
+function DeleteObject({ object, open }: { object: CatalogObject; open: CatalogWorkspace }) {
   const { deleteObject } = useCatalog()
+  const catalog = open.catalog
   const navigate = useNavigate()
   const [places, setPlaces] = useState<{ key: string; parent: string; field: string }[]>()
   const deleteButton = useRef<HTMLButtonElement>(null)
@@ -102,7 +99,7 @@ function DeleteObject({ object, catalogId, catalog }: { object: CatalogObject;  
       navigate({
         to: '/editor/$',
         params: {
-          _splat: firstParent ? editorPath(catalogId, catalog, firstParent) : catalogPath(catalogId),
+          _splat: editorPath(open, firstParent?.id ?? open.catalog.rootId),
         },
       })
     } else {
@@ -119,7 +116,7 @@ function DeleteObject({ object, catalogId, catalog }: { object: CatalogObject;  
   const handleConfirmDelete = () => {
     deleteObject(object.id)
     setPlaces(undefined)
-    navigate({ to: '/editor/$', params: { _splat: catalogPath(catalogId) } })
+    navigate({ to: '/editor/$', params: { _splat: catalogPath(open.id) } })
   }
 
   return (
@@ -160,11 +157,11 @@ function DeleteObject({ object, catalogId, catalog }: { object: CatalogObject;  
 
 function ObjectDetail({
   object,
-  catalog,
+  open,
   parents,
 }: {
   object: CatalogObject
-  catalog: CatalogGraph
+  open: CatalogWorkspace
   parents: Map<string, string[]>
 }) {
   const model = getFormModel(object.dcatClass)
@@ -172,27 +169,27 @@ function ObjectDetail({
   if (!model) {
     return (
       <section aria-labelledby="detail-heading">
-        <Breadcrumb object={object} catalogId={catalogId} catalog={catalog} parents={parents} />
+        <Breadcrumb object={object} open={open} parents={parents} />
         <h2 id="detail-heading" tabIndex={-1}>
           {labelOf(object)}
         </h2>
         <p>No form model available for {classLabel(object.dcatClass)}</p>
-        <DeleteObject object={object} catalog={catalog} />
+        <DeleteObject object={object} open={open} />
       </section>
     )
   }
 
   return (
     <>
-      <Breadcrumb object={object} catalogId={catalogId} catalog={catalog} parents={parents} />
+      <Breadcrumb object={object} open={open} parents={parents} />
       <ObjectForm object={object} model={model} />
-      <DeleteObject object={object} catalog={catalog} />
+      <DeleteObject object={object} open={open} />
     </>
   )
 }
 
 /** The editor for the open catalog: what it holds on the left, the object at this address on the right. */
-function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
+function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const { objects, rootId } = open.catalog
   const root = objects.get(rootId)!
   const object = objects.get(id)
@@ -239,7 +236,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
       const blob = new Blob([text], { type: 'application/json' })
 
       const output = result.output as Record<string, unknown>
-      const title = typeof output.title === 'string' && output.title ? output.title : open.name.replace(/\.json$/i, '')
+      const title = typeof output.title === 'string' && output.title ? output.title : open.sourceName.replace(/\.json$/i, '')
       const catalogTitle = title
         .replace(/[/\\:*?"<>|]/g, '-')
         .replace(/\s+/g, '-')
@@ -279,7 +276,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         <bdi>{labelOf(root)}</bdi>
       </h1>
       <p className="margin-top-1 text-base-dark">
-        From <bdi>{open.name}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
+        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
       {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
@@ -329,12 +326,9 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
               })
               .filter((r) => !r.valid)}
             onNavigateToObject={(objectId) => {
-              const object = open.catalog.objects.get(objectId)
               navigate({
                 to: '/editor/$',
-                params: {
-                  _splat: object ? editorPath(open.id, open.catalog, object) : catalogPath(open.id),
-                },
+                params: { _splat: editorPath(open, objectId) },
               })
             }}
           />
@@ -364,18 +358,18 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <h2 id="tree-heading" className="font-sans-md margin-top-0">
             Catalog contents
           </h2>
-          <CatalogTree catalog={open.catalog} catalogId={open.id} parents={parents} selectedId={id} />
+          <CatalogTree catalog={open.catalog} pathFor={(objectId) => editorPath(open, objectId)} parents={parents} selectedId={id} />
         </nav>
         <div className="tablet:grid-col-7 desktop:grid-col-8 margin-top-4 tablet:margin-top-0 tablet:padding-top-2">
           {object ? (
-            <ObjectDetail key={object.id} object={object} catalogId={open.id} catalog={open.catalog} parents={parents} />
+            <ObjectDetail key={object.id} object={object} open={open} parents={parents} />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">
                 Nothing at this address
               </h2>
               <p>This catalog has no object here. The link may be from another catalog.</p>
-              <ObjectLink object={root} catalogId={open.id} catalog={open.catalog} className="usa-link">
+              <ObjectLink object={root} open={open} className="usa-link">
                 Open the catalog
               </ObjectLink>
             </>

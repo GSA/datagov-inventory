@@ -1,5 +1,5 @@
 export interface CatalogObject {
-    /** Identity within this graph. A raw graph may use any unique keys; an OpenCatalog always uses UUIDs. */
+    /** Identity within this graph. A raw graph may use any unique keys; a CatalogWorkspace always uses UUIDs. */
     id: string
     /**
      * The DCAT-US 3.0 class the schema allows where the object sits. Its `@type` only
@@ -19,4 +19,14 @@ export interface CatalogGraph {
     rootId: string
     /** Every object by id, in document order (each parent before its children). */
     objects: Map<string, CatalogObject>
+}
+
+/** An accepted catalog working copy: its catalog and object identities are application-generated UUIDs. */
+export interface CatalogWorkspace {
+    /** Stable identity of this loaded catalog, separate from its root object's identity. */
+    id: string
+    /** The file name, sample name, "Pasted JSON" or "Blank catalog". */
+    sourceName: string
+    /** Every object and link uses an application-generated UUID, never a source-location id. */
+    catalog: CatalogGraph
 }

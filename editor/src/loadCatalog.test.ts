@@ -37,8 +37,8 @@ const file = (content: BlobPart, name = 'catalog.json') => new File([content], n
 
 describe('loadCatalog', () => {
   it('decomposes text in a worker, then stops the worker', async () => {
-    const catalog = await load('{"@type": "Catalog", "dataset": [{"title": "A"}]}')
-    expect([...catalog.objects.values()].map((o) => [o.id, o.dcatClass])).toEqual([
+    const graph = await load('{"@type": "Catalog", "dataset": [{"title": "A"}]}')
+    expect([...graph.objects.values()].map((o) => [o.id, o.dcatClass])).toEqual([
       ['#', 'Catalog'],
       ['#/dataset/0', 'Dataset'],
     ])
@@ -55,22 +55,22 @@ describe('loadCatalog', () => {
       1,
       { rootId: '#' },
     ])
-    const catalog = await load(text)
-    expect(catalog.rootId).toBe('#')
-    expect([...catalog.objects.keys()]).toEqual(['#', ...datasets.map((_, i) => `#/dataset/${i}`)])
-    expect(Object.getPrototypeOf(catalog.objects.get(`#/dataset/${2 * BATCH_SIZE - 1}`)!.properties)).toBeNull()
+    const graph = await load(text)
+    expect(graph.rootId).toBe('#')
+    expect([...graph.objects.keys()]).toEqual(['#', ...datasets.map((_, i) => `#/dataset/${i}`)])
+    expect(Object.getPrototypeOf(graph.objects.get(`#/dataset/${2 * BATCH_SIZE - 1}`)!.properties)).toBeNull()
   })
 
   it('loads a blank catalog as one empty Catalog', async () => {
-    const catalog = await load('{"@type": "Catalog"}')
-    expect([...catalog.objects.values()]).toEqual([
+    const graph = await load('{"@type": "Catalog"}')
+    expect([...graph.objects.values()]).toEqual([
       { id: '#', dcatClass: 'Catalog', properties: { '@type': 'Catalog' }, links: {}, singleLinks: [] },
     ])
   })
 
   it('restores the null prototypes that posting a message drops', async () => {
-    const catalog = await load('{"@type": "Catalog", "__proto__": {"polluted": 1}, "dataset": [{"title": "A"}]}')
-    const root = catalog.objects.get('#')!
+    const graph = await load('{"@type": "Catalog", "__proto__": {"polluted": 1}, "dataset": [{"title": "A"}]}')
+    const root = graph.objects.get('#')!
     expect(Object.getPrototypeOf(root.properties)).toBeNull()
     expect(Object.getPrototypeOf(root.links)).toBeNull()
     expect(Object.keys(root.properties)).toEqual(['@type', '__proto__'])
@@ -78,8 +78,8 @@ describe('loadCatalog', () => {
   })
 
   it('reads a file as strict UTF-8', async () => {
-    const catalog = await load(file('﻿{"@type": "Catalog", "title": "Café"}'))
-    expect(catalog.objects.get('#')!.properties.title).toBe('Café')
+    const graph = await load(file('﻿{"@type": "Catalog", "title": "Café"}'))
+    expect(graph.objects.get('#')!.properties.title).toBe('Café')
     await expect(load(file(new Uint8Array([0x7b, 0xe9, 0x7d])))).rejects.toThrow(
       'This file is not UTF-8 text. Save it as UTF-8 JSON and try again.',
     )
@@ -107,8 +107,8 @@ describe('loadCatalog', () => {
   })
 
   it('loads a catalog with schema errors', async () => {
-    const catalog = await load('{"@type": "Catalog", "dataset": [{"@type": "Dataset", "issued": "yesterday"}]}')
-    expect(catalog.objects.get('#/dataset/0')!.properties.issued).toBe('yesterday')
+    const graph = await load('{"@type": "Catalog", "dataset": [{"@type": "Dataset", "issued": "yesterday"}]}')
+    expect(graph.objects.get('#/dataset/0')!.properties.issued).toBe('yesterday')
   })
 
   it('stops the worker when aborted, rejecting with the abort reason', async () => {

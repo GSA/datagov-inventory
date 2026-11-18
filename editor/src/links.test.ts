@@ -18,17 +18,10 @@ const object = (id: string, dcatClass: string, properties: Record<string, unknow
   links,
   singleLinks: [],
 })
-const catalogOf = (...objects: CatalogObject[]): CatalogGraph => ({
+const graphOf = (...objects: CatalogObject[]): CatalogGraph => ({
   rootId: objects[0].id,
   objects: new Map(objects.map((o) => [o.id, o])),
 })
-const ids = (...values: string[]) => {
-  let index = 0
-  return () => values[index++]
-}
-const UUID_1 = '00000000-0000-4000-8000-000000000001'
-const UUID_2 = '00000000-0000-4000-8000-000000000002'
-
 describe('linkModeOf', () => {
   it('offers only Create new for objects that belong to their parent', () => {
     expect(linkModeOf('Catalog', 'dataset', ['Dataset'])).toBe('create')
@@ -57,7 +50,7 @@ describe('linkModeOf', () => {
 
 describe('candidatesFor', () => {
   it('offers objects of the allowed classes A to Z, with Organizations where Agents are allowed', () => {
-    const catalog = catalogOf(
+    const graph = graphOf(
       object('catalog-root', 'Catalog', {}, { dataset: ['catalog-d'] }),
       object('catalog-d', 'Dataset'),
       object('organization-ten', 'Organization', { name: 'Office 10' }),
@@ -66,21 +59,21 @@ describe('candidatesFor', () => {
       object('contact', 'Kind', { fn: 'A contact' }),
     )
     const labels = (list: CatalogObject[]) => list.map((o) => o.id)
-    expect(labels(candidatesFor(catalog, catalog.objects.get('catalog-d')!, 'publisher', ['Agent']))).toEqual(['catalog-a', 'organization-nine', 'organization-ten'])
-    expect(labels(candidatesFor(catalog, catalog.objects.get('catalog-d')!, 'rightsHolder', ['Organization']))).toEqual(['organization-nine', 'organization-ten'])
+    expect(labels(candidatesFor(graph, graph.objects.get('catalog-d')!, 'publisher', ['Agent']))).toEqual(['catalog-a', 'organization-nine', 'organization-ten'])
+    expect(labels(candidatesFor(graph, graph.objects.get('catalog-d')!, 'rightsHolder', ['Organization']))).toEqual(['organization-nine', 'organization-ten'])
   })
 
   it('leaves out the object itself, what the field holds, and what is above it', () => {
-    const catalog = catalogOf(
+    const graph = graphOf(
       object('catalog-root', 'Catalog', {}, { hasPart: ['catalog-a', 'catalog-c'] }),
       object('catalog-a', 'Catalog', {}, { hasPart: ['catalog-b'] }),
       object('catalog-b', 'Catalog'),
       object('catalog-c', 'Catalog'),
       object('catalog-d', 'Catalog'),
     )
-    const offered = candidatesFor(catalog, catalog.objects.get('catalog-b')!, 'hasPart', ['Catalog']).map((o) => o.id)
+    const offered = candidatesFor(graph, graph.objects.get('catalog-b')!, 'hasPart', ['Catalog']).map((o) => o.id)
     expect(offered).toEqual(['catalog-c', 'catalog-d'])
-    expect(candidatesFor(catalog, catalog.objects.get('catalog-root')!, 'hasPart', ['Catalog']).map((o) => o.id)).toEqual(['catalog-b', 'catalog-d'])
+    expect(candidatesFor(graph, graph.objects.get('catalog-root')!, 'hasPart', ['Catalog']).map((o) => o.id)).toEqual(['catalog-b', 'catalog-d'])
   })
 })
 

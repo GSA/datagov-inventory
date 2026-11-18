@@ -63,14 +63,14 @@ export function keepIndex(from: CatalogGraph['objects'], to: CatalogGraph['objec
  * Where each object is used, in document order: the objects in the catalog that link to it, and the field. Cached
  * per version of the catalog, so counts and lists cost a lookup.
  */
-export const usesOf = (catalog: CatalogGraph): ReadonlyMap<string, readonly Use[]> => indexOf(catalog).uses
+export const usesOf = (graph: CatalogGraph): ReadonlyMap<string, readonly Use[]> => indexOf(graph).uses
 
 /**
  * The object and every object that links down to it, removed ones included: linking any of them under it would make
  * a loop, now or once Undo or a pick brings the removed one back.
  */
-export function linkersOf(id: string, catalog: CatalogGraph): Set<string> {
-  const { all } = indexOf(catalog)
+export function linkersOf(id: string, graph: CatalogGraph): Set<string> {
+  const { all } = indexOf(graph)
   const found = new Set([id])
   const queue = [id]
   for (let next = queue.pop(); next !== undefined; next = queue.pop()) {

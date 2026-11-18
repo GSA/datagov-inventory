@@ -1,6 +1,6 @@
 import type { CatalogGraph, CatalogObject } from './types'
 import { linkersOf, usesOf } from './uses'
-import { createUuid, type CreateUuid } from './catalog/id'
+import { createUuid, type CreateUuid } from './id'
 
 export interface ParentLink {
   parentId: string

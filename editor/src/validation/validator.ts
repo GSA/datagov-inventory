@@ -8,18 +8,18 @@ import type { CatalogValidationResult, ObjectValidationResult, ValidationError }
 export const SCHEMA_VERSION = '3.0.0'
 
 /** Each object's JSON Pointer in the assembled document, nested as `assemble` nests links. A shared object has several. */
-export function pointersOf(catalog: CatalogGraph): Map<string, string> {
+export function pointersOf(graph: CatalogGraph): Map<string, string> {
   const owners = new Map<string, string>()
   const visit = (id: string, pointer: string) => {
     owners.set(pointer, id)
-    const object = catalog.objects.get(id)
+    const object = graph.objects.get(id)
     if (!object) return
     for (const [property, childIds] of Object.entries(object.links)) {
       const single = object.singleLinks.includes(property)
       childIds.forEach((childId, i) => visit(childId, single ? `${pointer}/${property}` : `${pointer}/${property}/${i}`))
     }
   }
-  visit(catalog.rootId, '')
+  visit(graph.rootId, '')
   return owners
 }
 
@@ -42,11 +42,11 @@ function withoutBranchErrors(errors: ErrorObject[]): ErrorObject[] {
 }
 
 /** Validates the catalog as it would export, and gives each error to the object it is in, with a path relative to that object. */
-export function validateCatalog(catalog: CatalogGraph): CatalogValidationResult {
-  const owners = pointersOf(catalog)
+export function validateCatalog(graph: CatalogGraph): CatalogValidationResult {
+  const owners = pointersOf(graph)
   const errorsByObject = new Map<string, ValidationError[]>()
 
-  if (!validateDocument(assemble(catalog).output)) {
+  if (!validateDocument(assemble(graph).output)) {
     for (const error of withoutBranchErrors(validateDocument.errors ?? [])) {
       const pointer = ownerOf(error.instancePath, owners)
       const objectId = owners.get(pointer)!
@@ -56,7 +56,7 @@ export function validateCatalog(catalog: CatalogGraph): CatalogValidationResult 
   }
 
   const timestamp = Date.now()
-  const objectResults: ObjectValidationResult[] = Array.from(catalog.objects.values(), (object) => {
+  const objectResults: ObjectValidationResult[] = Array.from(graph.objects.values(), (object) => {
     const errors = errorsByObject.get(object.id) ?? []
     return {
       objectId: object.id,

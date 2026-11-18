@@ -13,8 +13,8 @@ const valid = load(import.meta.glob<string>('../../fixtures/catalogs/valid/*.jso
 const invalid = load(import.meta.glob<string>('../../fixtures/catalogs/invalid/*.json', { eager: true, query: '?raw', import: 'default' }))
 const fixture = (name: string) => [...valid, ...invalid].find(([file]) => file === name)![1]
 
-const resultFor = (catalog: CatalogGraph, objectId: string) =>
-  validateCatalog(catalog).objectResults.find((r) => r.objectId === objectId)!
+const resultFor = (graph: CatalogGraph, objectId: string) =>
+  validateCatalog(graph).objectResults.find((r) => r.objectId === objectId)!
 
 describe('precompiled validator', () => {
   it.each([...valid, ...invalid])('agrees with the runtime validator on %s (run npm run generate:validator if not)', (_name, text) => {
@@ -47,13 +47,13 @@ describe('validateCatalog', () => {
   })
 
   it('gives errors to the deepest object, with paths relative to it', () => {
-    const catalog = decompose(fixture('contact-email-not-mailto.json'))
-    const result = validateCatalog(catalog)
+    const graph = decompose(fixture('contact-email-not-mailto.json'))
+    const result = validateCatalog(graph)
 
-    expect(resultFor(catalog, '#/dataset/0/contactPoint').errors).toContainEqual(
+    expect(resultFor(graph, '#/dataset/0/contactPoint').errors).toContainEqual(
       expect.objectContaining({ type: 'pattern', instancePath: '/hasEmail' }),
     )
-    expect(resultFor(catalog, '#/dataset/0').errors.every((e) => e.instancePath.startsWith('/contactPoint'))).toBe(true)
+    expect(resultFor(graph, '#/dataset/0').errors.every((e) => e.instancePath.startsWith('/contactPoint'))).toBe(true)
     expect(result.errorSummary.Kind).toBeGreaterThan(0)
   })
 
@@ -64,13 +64,13 @@ describe('validateCatalog', () => {
   })
 
   it('locates objects where they are after edits, not where they were loaded from', () => {
-    const catalog = decompose(fixture('dataset-with-distributions.json'))
-    const dataset = catalog.objects.get('#/dataset/0')!
-    const second = catalog.objects.get('#/dataset/0/distribution/1')!
-    const objects = new Map(catalog.objects)
+    const graph = decompose(fixture('dataset-with-distributions.json'))
+    const dataset = graph.objects.get('#/dataset/0')!
+    const second = graph.objects.get('#/dataset/0/distribution/1')!
+    const objects = new Map(graph.objects)
     objects.set(dataset.id, { ...dataset, links: { ...dataset.links, distribution: [second.id] } })
     objects.set(second.id, { ...second, properties: { ...second.properties, accessURL: 'not a url' } })
-    const edited = { ...catalog, objects }
+    const edited = { ...graph, objects }
 
     expect(pointersOf(edited).get('/dataset/0/distribution/0')).toBe(second.id)
     expect(resultFor(edited, second.id).errors).toContainEqual(
@@ -79,9 +79,9 @@ describe('validateCatalog', () => {
   })
 
   it('reports a value that fits no anyOf branch once, not once per branch', () => {
-    const catalog = decompose(fixture('issued-not-a-date.json'))
+    const graph = decompose(fixture('issued-not-a-date.json'))
 
-    expect(resultFor(catalog, '#/dataset/0').errors).toEqual([
+    expect(resultFor(graph, '#/dataset/0').errors).toEqual([
       expect.objectContaining({ type: 'anyOf', field: 'Issued', message: 'is not in an accepted form', instancePath: '/issued' }),
     ])
   })

@@ -1,7 +1,6 @@
 import { ButtonGroup } from '@trussworks/react-uswds'
 import { Link } from '@tanstack/react-router'
 import { useCatalog, usePageTitle } from './session'
-import { catalogPath } from './objectRoute'
 
 /** What the editor is for, and the way in: import the organization's whole catalog. */
 export default function Landing() {
@@ -21,7 +20,7 @@ export default function Landing() {
           ...(open
             ? [
                 <Link key="continue" to="/editor/$" params={{ _splat: '' }} className="usa-button usa-button--outline">
-                  Continue with <bdi>{open.name}</bdi>
+                  Continue with <bdi>{open.sourceName}</bdi>
                 </Link>,
               ]
             : []),

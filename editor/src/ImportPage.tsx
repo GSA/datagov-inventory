@@ -57,11 +57,11 @@ export default function ImportPage() {
 
   function show(loaded: LoadedCatalog) {
     const catalog = identifyGraph(loaded.catalog)
-    const id = createUuid()
-    const opened = { ...loaded, id, catalog }
+    const catalogId = createUuid()
+    const opened = { id: catalogId, sourceName: loaded.name, catalog }
     setOpen(opened)
     // Open the accepted catalog at its canonical root.
-    void navigate({ href: `/editor/${catalogPath(id)}` })
+    void navigate({ href: `/editor/${catalogPath(catalogId)}` })
   }
 
   /**
@@ -107,8 +107,8 @@ export default function ImportPage() {
       {open && (
         <Alert type="info" slim>
           <AlertText>
-            <bdi>{open.name}</bdi> is open. Importing another catalog replaces it, and you&apos;ll be asked first.{' '}
-            <Link to="/editor/$" params={{ _splat: catalogPath(open.id) }} className="usa-link">
+            <bdi>{open.sourceName}</bdi> is open. Importing another catalog replaces it, and you&apos;ll be asked first.{' '}
+            <Link to="/editor/$" params={{ _splat: '' }} className="usa-link">
               Back to the editor
             </Link>
           </AlertText>
@@ -176,8 +176,8 @@ export default function ImportPage() {
             Replace the open catalog?
           </AlertHeading>
           <AlertText id="replace-text" className="text-break">
-            <bdi>{pending.name}</bdi> is ready. Replace <bdi>{open.name}</bdi> with it, or cancel to keep{' '}
-            <bdi>{open.name}</bdi> open.
+            <bdi>{pending.name}</bdi> is ready. Replace <bdi>{open.sourceName}</bdi> with it, or cancel to keep{' '}
+            <bdi>{open.sourceName}</bdi> open.
           </AlertText>
           <ButtonGroup>
             <Button type="button" onClick={() => show(pending)}>
@@ -199,7 +199,7 @@ export default function ImportPage() {
           <AlertText className="text-break">{error.message}</AlertText>
           {open && (
             <AlertText className="text-break">
-              The catalog already open (<bdi>{open.name}</bdi>) has not changed.
+              The catalog already open (<bdi>{open.sourceName}</bdi>) has not changed.
             </AlertText>
           )}
         </Alert>

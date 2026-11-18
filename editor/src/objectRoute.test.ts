@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CatalogGraph, CatalogObject } from './catalog/types'
+import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { catalogPath, editorAddress, editorPath, objectPath } from './objectRoute'
 
 const CATALOG_ID = '19fa249a-84de-4fdb-89eb-c841aa9574af'
@@ -13,6 +13,14 @@ const object = (title: string, id = OBJECT_ID): CatalogObject => ({
   links: {},
   singleLinks: [],
 })
+
+const root = object('Catalog')
+const child = object('Embedded catalog', OTHER_OBJECT_ID)
+const workspace: CatalogWorkspace = {
+  id: CATALOG_ID,
+  sourceName: 'catalog.json',
+  catalog: { rootId: root.id, objects: new Map([[root.id, root], [child.id, child]]) },
+}
 
 describe('editor routes', () => {
   it('round trips distinct catalog and object UUIDs through a readable path', () => {
@@ -49,12 +57,16 @@ describe('editor routes', () => {
     expect(objectPath(CATALOG_ID, object('Air'))).not.toBe(objectPath(CATALOG_ID, object('Air', OTHER_OBJECT_ID)))
   })
 
-  it('uses the catalog root path only for the graph root object', () => {
-    const root = object('Catalog')
-    const child = object('Embedded catalog', OTHER_OBJECT_ID)
-    const graph: CatalogGraph = { rootId: root.id, objects: new Map([[root.id, root], [child.id, child]]) }
-
-    expect(editorPath(CATALOG_ID, graph, root)).toBe(catalogPath(CATALOG_ID))
-    expect(editorPath(CATALOG_ID, graph, child)).toBe(objectPath(CATALOG_ID, child))
+  it('uses the catalog path for the root, regardless of its DCAT class', () => {
+    expect(editorPath(workspace, root.id)).toBe(catalogPath(workspace.id))
   })
+
+  it('uses an object path for a nested Catalog object', () => {
+    expect(editorPath(workspace, child.id)).toBe(objectPath(workspace.id, child))
+  })
+
+  it('refuses an object outside the catalog', () => {
+    expect(() => editorPath(workspace, 'missing')).toThrow('Object missing is not in the catalog.')
+  })
+
 })
