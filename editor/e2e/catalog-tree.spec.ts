@@ -104,7 +104,7 @@ test('filters the tree by title or name', async ({ page }) => {
   await expect(page).toHaveURL('/editor/dataset/0/distribution/1')
 
   await filter(page).fill('nothing like this')
-  await expect(page.getByRole('status').filter({ hasText: 'match' })).toHaveText('0 objects match.')
+  await expect(page.getByRole('status').filter({ hasText: 'match' })).toHaveText('No objects match. Try part of a title or name.')
   await expect(tree(page)).toHaveCount(0)
 
   await filter(page).fill('')
@@ -115,7 +115,7 @@ test('filters the tree by title or name', async ({ page }) => {
     'Air quality readings dataset · Dataset',
     'Air Quality Team contactPoint · Kind',
     'Example Agency publisher · Organization',
-    'Untitled PeriodOfTime temporal · PeriodOfTime',
+    'Untitled Period of Time temporal · Period of Time',
     'Readings as CSV distribution · Distribution',
     'Readings API distribution · Distribution',
   ])

@@ -31,7 +31,7 @@ export const IdentifierModel: FormModel = {
       type: 'object',
       required: false,
       cardinality: 'single',
-      helpText: 'the agency that manages the identifier scheme',
+      helpText: 'The agency that manages the identifier scheme',
       allowedClasses: ['Organization'],
     },
 {
@@ -48,7 +48,7 @@ export const IdentifierModel: FormModel = {
       type: 'string',
       required: false,
       cardinality: 'single',
-      helpText: 'version of the identifier scheme',
+      helpText: 'Version of the identifier scheme',
     },
 {
       name: 'notation',
@@ -56,7 +56,7 @@ export const IdentifierModel: FormModel = {
       type: 'string',
       required: false,
       cardinality: 'single',
-      helpText: 'abbreviation or code from code lists for an identifier',
+      helpText: 'Abbreviation or code from code lists for an identifier',
     }
   ],
 }

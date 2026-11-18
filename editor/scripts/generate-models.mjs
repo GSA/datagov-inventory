@@ -28,11 +28,30 @@ try {
 }
 const { classSchemas, getClassSchema, getClassProperties } = schemaModule
 
-function toTitleCase(str) {
-  return str
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (s) => s.toUpperCase())
-    .trim()
+/** Labels the property name can't give: vCard's terse names and abbreviations. */
+const LABELS = {
+  fn: 'Full Name',
+  tel: 'Telephone',
+  hasEmail: 'Email',
+  bbox: 'Bounding Box',
+  altLabel: 'Alternative Label',
+  prefLabel: 'Preferred Label',
+}
+/** Words written in capitals, whatever the property name's case. */
+const ACRONYMS = new Set(['cui', 'url', 'iri', 'id'])
+
+/**
+ * A property name as a label in title case: `accessURL` is "Access URL" (a run of capitals stays one word),
+ * `family-name` is "Family Name", `cuiBannerMarking` is "CUI Banner Marking". JSON-LD keys (`@id`) stay as written.
+ */
+function toLabel(name) {
+  if (name.startsWith('@')) return name
+  if (LABELS[name]) return LABELS[name]
+  return name
+    .split(/[-_\s]+/)
+    .flatMap((part) => part.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [])
+    .map((word) => (ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1)))
+    .join(' ')
 }
 
 /**
@@ -94,14 +113,15 @@ function extractFormModel(className) {
 
     const field = {
       name,
-      label: toTitleCase(name),
+      label: toLabel(name),
       type: classes.length > 0 ? 'object' : (scalarType ?? (list ? 'array' : 'string')),
       required,
       cardinality: list ? 'multiple' : 'single',
     }
 
     if (propSchema.description) {
-      field.helpText = propSchema.description
+      // Hints read as sentences; a few schema descriptions start in lower case.
+      field.helpText = propSchema.description.replace(/^[a-z]/, (c) => c.toUpperCase())
     }
 
     if (Array.isArray(propSchema.enum)) {

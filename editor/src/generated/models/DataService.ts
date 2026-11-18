@@ -36,7 +36,7 @@ export const DataServiceModel: FormModel = {
     },
 {
       name: 'endpointURL',
-      label: 'Endpoint U R L',
+      label: 'Endpoint URL',
       type: 'string',
       required: true,
       cardinality: 'multiple',
@@ -196,7 +196,7 @@ export const DataServiceModel: FormModel = {
     },
 {
       name: 'cuiRestriction',
-      label: 'Cui Restriction',
+      label: 'CUI Restriction',
       type: 'object',
       required: false,
       cardinality: 'single',

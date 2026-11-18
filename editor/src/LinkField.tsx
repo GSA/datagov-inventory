@@ -1,23 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Alert, Button, Label } from '@trussworks/react-uswds'
+import { Alert, AlertText, Button, ButtonGroup, Label } from '@trussworks/react-uswds'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { candidatesFor, classesFor, linkModeOf, rowId, search, usesOf } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
 import { useValidationContext } from './validation/ValidationContext'
-import { count, isolate, labelOf, pathOf } from './tree'
+import { classLabel, count, isolate, labelOf, pathOf } from './tree'
 
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
 /** "Kind", "Agent or Organization": class names as the schema writes them. */
-const classList = (classes: readonly string[]) => classes.join(' or ')
+const classList = (classes: readonly string[]) => classes.map(classLabel).join(' or ')
 
 /**
  * A class-valued field (#25): the objects it links to, then "Add an existing …" and "Create new …", as the field's
  * link mode allows. Create new opens the new object's form in place of this one (no dialog); its "Back to …"
  * returns here.
  */
-export function LinkField({ field, object, catalog }: { field: FormField; object: CatalogObject; catalog: CatalogGraph }) {
+export function LinkField({
+  field,
+  object,
+  catalog,
+  error,
+}: {
+  field: FormField
+  object: CatalogObject
+  catalog: CatalogGraph
+  /** The schema check's message for this field, such as that a required one is empty. */
+  error?: string
+}) {
   const { removeLink, linkObject, createObject } = useCatalog()
   const editCopy = useEditCopy()
   // A changed field makes the object's schema check (#27) out of date.
@@ -59,7 +70,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
     const id = createObject(object.id, field.name, dcatClass, single)
     markStale(object.id)
     if (id) {
-      const notice = `New ${dcatClass}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
+      const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
       navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
     }
   }
@@ -68,18 +79,23 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
 
   return (
     // A group, not a region: a form with 40 class-valued fields would fill the landmarks list.
-    <div ref={section} role="group" aria-labelledby={headingId} className="margin-top-3">
-      <h3 id={headingId} className="font-sans-md margin-bottom-0">
+    <div ref={section} role="group" aria-labelledby={headingId} className="margin-top-4 padding-top-3 border-top-1px border-base-lighter">
+      <h3 id={headingId} className="font-sans-md margin-y-0">
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </h3>
-      {field.helpText && <p className="usa-hint margin-top-05">{field.helpText}</p>}
-      <p className="usa-hint margin-top-05">
+      {field.helpText && <p className="usa-hint margin-y-05">{field.helpText}</p>}
+      <p className="usa-hint margin-top-05 margin-bottom-0">
         Holds {single ? 'one' : 'one or more'}: {classList(classes)}.
       </p>
-      {field.required && ids.length === 0 && (
+      {error && (
+        <span id={`field-${field.name}-error`} className="usa-error-message" role="alert">
+          {error}
+        </span>
+      )}
+      {field.required && ids.length === 0 && !error && (
         <Alert type="warning" slim className="margin-top-1">
-          This required field has no values
+          <AlertText>This required field has no values</AlertText>
         </Alert>
       )}
       {ids.length > 0 && (
@@ -110,7 +126,7 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
                   <bdi>{label}</bdi>
                 )}
                 <span className="text-base-dark">
-                  {child && ` ${child.dcatClass}`}
+                  {child && ` ${classLabel(child.dcatClass)}`}
                   {n > 1 && ` · Used in ${places(n)}`}
                 </span>
                 <span className="link-row__actions">
@@ -145,6 +161,9 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
         <p className="usa-hint">Holds one {classList(classes)}. To use a different one, remove this one first.</p>
       ) : (
         <div>
+          {mode === 'select' && (
+            <p className="usa-hint margin-top-05 margin-bottom-0">These belong to the catalog, so pick one that is already in it.</p>
+          )}
           {mode !== 'create' && (
             <ObjectPicker
               id={`pick-${field.name}`}
@@ -156,17 +175,14 @@ export function LinkField({ field, object, catalog }: { field: FormField; object
             />
           )}
           {mode !== 'select' && (
-            <div className="display-flex flex-wrap flex-gap-1 margin-top-1">
+            <ButtonGroup className="margin-top-105">
               {classes.map((dcatClass) => (
                 <Button key={dcatClass} type="button" outline onClick={() => handleCreate(dcatClass)}>
-                  Create new {dcatClass}
+                  Create new {classLabel(dcatClass)}
                   <span className="usa-sr-only"> in {field.label}</span>
                 </Button>
               ))}
-            </div>
-          )}
-          {mode === 'select' && (
-            <p className="usa-hint">These belong to the catalog, so pick one that is already in it.</p>
+            </ButtonGroup>
           )}
         </div>
       )}
@@ -321,7 +337,7 @@ function ObjectPicker({ id, label, fieldLabel, pool, catalog, onPick }: ObjectPi
                   <bdi className="text-bold">{labelOf(object)}</bdi>
                   <span className="display-block font-sans-3xs text-base-dark">
                     {/* Where it is used tells apart objects with the same name, such as a contact written out per dataset. */}
-                    {object.dcatClass} ·{' '}
+                    {classLabel(object.dcatClass)} ·{' '}
                     {parent ? (
                       <>
                         used in <bdi>{labelOf(parent)}</bdi>

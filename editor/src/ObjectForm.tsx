@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { Label, TextInput, Textarea, Button, Alert, AlertText } from '@trussworks/react-uswds'
+import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } from '@trussworks/react-uswds'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
-import { count, labelOf, pathOf } from './tree'
+import { classLabel, count, labelOf, pathOf } from './tree'
 import { getFormModel, type FormModel, type FormField } from './schema'
 import { rowId, usesOf, type Use } from './links'
 import { LinkField } from './LinkField'
@@ -11,6 +11,7 @@ import { useValidation } from './validation/useValidation'
 import { ValidationStatusBadge } from './validation/ValidationStatusBadge'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationDisclaimer } from './validation/ValidationDisclaimer'
+import { getFieldLabel } from './validation/messages'
 
 interface ObjectFormProps {
   object: CatalogObject
@@ -47,8 +48,12 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
     setFormState(prev => ({ ...prev, [fieldName]: value }))
   }
 
-  const handleFieldBlur = (fieldName: string) => {
-    updateObject(object.id, { properties: { [fieldName]: formState[fieldName] } })
+  /**
+   * Saves a field. A change that saves at once (a removed value, a chosen option) passes the new value: formState in
+   * this render still holds the old one, which would put the removed or replaced value back.
+   */
+  const handleFieldBlur = (fieldName: string, value: unknown = formState[fieldName]) => {
+    updateObject(object.id, { properties: { [fieldName]: value } })
     markStale(object.id)
   }
 
@@ -69,43 +74,100 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   const emptyList = (value: unknown) => Array.isArray(value) && value.length === 0
   const holdsText = (f: FormField) =>
     f.type === 'string' || (!!f.allowedClasses && isText(object.properties[f.name]) && !emptyList(object.properties[f.name]))
-  const textFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
-  const multiFields = model.fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
-  const controlledFields = model.fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
+  const fields = byImportance(model.fields)
+  const textFields = fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'single' && !f.allowedValues)
+  const multiFields = fields.filter(f => !f.name.startsWith('@') && holdsText(f) && f.cardinality === 'multiple')
+  const controlledFields = fields.filter(f => !f.name.startsWith('@') && f.type === 'string' && f.allowedValues)
   // A class field holding text shows as a text field above; anything else as written (null, a mixed list) is left
   // alone, with no pick or create.
-  const linkFields = model.fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && (object.properties[f.name] === undefined || emptyList(object.properties[f.name])))
+  const linkFields = fields.filter(f => !f.name.startsWith('@') && f.allowedClasses && f.allowedClasses.length > 0 && (object.properties[f.name] === undefined || emptyList(object.properties[f.name])))
+  // Required fields first, whatever their kind, so a form opens on what it must have; then the rest by kind.
+  const kinds = [
+    ...textFields.map(field => ({ kind: 'text' as const, field })),
+    ...multiFields.map(field => ({ kind: 'multi' as const, field })),
+    ...controlledFields.map(field => ({ kind: 'controlled' as const, field })),
+    ...linkFields.map(field => ({ kind: 'link' as const, field })),
+  ]
+  const ordered = [...kinds.filter(({ field }) => field.required), ...kinds.filter(({ field }) => !field.required)]
   const unknownProperties = Object.entries(object.properties).filter(
     ([key]) => !model.fields.some(f => f.name === key)
   )
 
+  /** One field, as its kind shows it. */
+  const renderField = (kind: (typeof ordered)[number]['kind'], field: FormField, fieldError?: { message: string }) => {
+    switch (kind) {
+      case 'text':
+        return (
+          <TextField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => handleFieldChange(field.name, value)}
+            onBlur={() => handleFieldBlur(field.name)}
+          />
+        )
+      case 'multi':
+        return (
+          <MultiValueField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => handleFieldChange(field.name, value)}
+            onBlur={value => handleFieldBlur(field.name, value)}
+          />
+        )
+      case 'controlled':
+        return (
+          <ControlledValueField
+            key={field.name}
+            field={field}
+            value={formState[field.name]}
+            error={fieldError?.message}
+            onChange={value => {
+              handleFieldChange(field.name, value)
+              handleFieldBlur(field.name, value)
+            }}
+          />
+        )
+      case 'link':
+        return open && <LinkField key={field.name} field={field} object={object} catalog={open.catalog} error={fieldError?.message} />
+    }
+  }
+
+  /** The schema check's first message about a field: its value, a value in its list, or the field missing. */
   const getFieldError = (fieldName: string) => {
     return validationErrors.find(e =>
       e.instancePath === `/${fieldName}` ||
+      e.instancePath.startsWith(`/${fieldName}/`) ||
+      (e.type === 'required' && e.instancePath === '' && e.field === getFieldLabel(fieldName)) ||
       e.field.toLowerCase() === fieldName.split(':')[1]?.toLowerCase()
     )
   }
 
+  // One width (a USWDS tablet, 40rem) for fields, hints, rows and rules, so lines stay readable on a wide screen.
   return (
-    <form aria-label={`Edit ${labelOf(object)}`} className="object-form">
+    <form aria-label={`Edit ${labelOf(object)}`} className="object-form maxw-tablet">
       {/* The note on a new object or a copy is read with the heading that focus moves to. */}
-      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined}>
+      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined} className="margin-top-1 margin-bottom-0">
         {labelOf(object)}
       </h2>
-      <p className="text-base-dark">
-        {object.dcatClass} <code className="font-mono-3xs">{object.id}</code>
+      <p className="text-base-dark margin-top-05">
+        {classLabel(object.dcatClass)} <code className="font-mono-3xs">{object.id}</code>
       </p>
       {open && <UsedIn object={object} catalog={open.catalog} />}
 
-      <div className="margin-top-2 margin-bottom-2">
+      {/* The badge and its button on one line, even on a phone, where USWDS buttons are otherwise full width. */}
+      <div className="display-flex flex-wrap flex-align-center margin-y-2">
         <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
         {isReady && (
           <Button
             type="button"
             onClick={handleValidate}
-            secondary
+            outline
             disabled={isValidating}
-            className="margin-left-1"
+            className="width-auto margin-y-0 margin-left-1"
             aria-label={`Validate ${labelOf(object)}`}
           >
             {isValidating ? 'Validating...' : 'Validate'}
@@ -116,8 +178,8 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
       {validationErrors.length > 0 && (
         <>
           <Alert type="error" role="alert" aria-live="polite">
-            <strong>Validation errors:</strong>
-            <ul className="margin-top-1">
+            <AlertHeading level="h3">Validation errors</AlertHeading>
+            <ul className="usa-list margin-y-1">
               {validationErrors.map((error, idx) => (
                 <li key={idx}>
                   <strong>{error.field}:</strong> {error.message}
@@ -129,79 +191,34 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         </>
       )}
 
-      {textFields.map(field => {
+      {fields.some(f => f.required) && (
+        <p className="usa-hint margin-top-3 margin-bottom-0">
+          Required fields are marked with an asterisk (<abbr title="required" className="usa-hint--required">*</abbr>).
+        </p>
+      )}
+      {ordered.map(({ kind, field }, index) => {
         const fieldError = getFieldError(field.name)
-        return (
-          <div key={field.name}>
-            <TextField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => handleFieldChange(field.name, value)}
-              onBlur={() => handleFieldBlur(field.name)}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
+        const rendered = renderField(kind, field, fieldError)
+        // A rule between the required fields and the rest.
+        return index > 0 && !field.required && ordered[index - 1].field.required ? (
+          <div key={field.name} className="margin-top-4 padding-top-1 border-top-1px border-base-lighter">
+            {rendered}
           </div>
+        ) : (
+          rendered
         )
       })}
-
-      {multiFields.map(field => {
-        const fieldError = getFieldError(field.name)
-        return (
-          <div key={field.name}>
-            <MultiValueField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => handleFieldChange(field.name, value)}
-              onBlur={() => handleFieldBlur(field.name)}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
-          </div>
-        )
-      })}
-
-      {controlledFields.map(field => {
-        const fieldError = getFieldError(field.name)
-        return (
-          <div key={field.name}>
-            <ControlledValueField
-              field={field}
-              value={formState[field.name]}
-              onChange={value => {
-                handleFieldChange(field.name, value)
-                handleFieldBlur(field.name)
-              }}
-            />
-            {fieldError && (
-              <div className="usa-error-message" role="alert">
-                {fieldError.message}
-              </div>
-            )}
-          </div>
-        )
-      })}
-
-      {open && linkFields.map(field => (
-        <LinkField key={field.name} field={field} object={object} catalog={open.catalog} />
-      ))}
 
       {unknownProperties.length > 0 && (
         <section aria-labelledby="other-props-heading" className="margin-top-4">
           <h3 id="other-props-heading">Other properties</h3>
           <p className="text-base-dark">
-            The DCAT-US 3.0 schema does not define these for {object.dcatClass}. They are preserved as-is.
+            The DCAT-US 3.0 schema does not define these for {classLabel(object.dcatClass)}. They are preserved as-is.
           </p>
           {unknownProperties.map(([key, value]) => (
             <div key={key} className="margin-top-2">
               <Label htmlFor={`unknown-${key}`}>{key}</Label>
-              <div id={`unknown-${key}`} className="usa-input text-base-darker bg-base-lightest" style={{ padding: '0.5rem' }}>
+              <div id={`unknown-${key}`} className="usa-input height-auto padding-1 text-base-darker bg-base-lightest">
                 {typeof value === 'string' ? value : JSON.stringify(value)}
               </div>
             </div>
@@ -212,9 +229,33 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   )
 }
 
+/** Fields people look for first: an object's name and description, ahead of the rest in schema order. */
+const LEAD_FIELDS = ['title', 'name', 'fn', 'prefLabel', 'label', 'description']
+
+/** Required fields first, then within each the lead fields, then the schema's order (the sort is stable). */
+function byImportance(fields: readonly FormField[]): FormField[] {
+  const lead = (f: FormField) => (LEAD_FIELDS.includes(f.name) ? LEAD_FIELDS.indexOf(f.name) : LEAD_FIELDS.length)
+  return [...fields].sort((a, b) => Number(b.required) - Number(a.required) || lead(a) - lead(b))
+}
+
+/** Free-text properties that hold sentences or paragraphs, so they get a multi-line box even when empty. */
+const LONG_TEXT = new Set([
+  'description',
+  'abstract',
+  'scopeNote',
+  'versionNotes',
+  'liabilityStatement',
+  'purpose',
+  'definition',
+  'restrictionNote',
+  'bibliographicCitation',
+])
+
 interface TextFieldProps {
   field: FormField
   value: unknown
+  /** The schema check's message for this field, shown the USWDS way: between the hint and the input. */
+  error?: string
   onChange: (value: unknown) => void
   onBlur: () => void
 }
@@ -223,14 +264,29 @@ function isText(value: unknown): boolean {
   return typeof value === 'string' || (Array.isArray(value) && value.every(item => typeof item === 'string'))
 }
 
-function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
+/** The USWDS error pattern: a form group with a red bar, the message under the hint, and the input outlined in red. */
+function FieldError({ id, error }: { id: string; error?: string }) {
+  if (!error) return null
+  return (
+    <span id={id} className="usa-error-message" role="alert">
+      {error}
+    </span>
+  )
+}
+
+const groupClass = (error?: string) => (error ? 'usa-form-group usa-form-group--error margin-top-3' : 'margin-top-3')
+const describedBy = (...ids: (string | undefined)[]) => ids.filter(Boolean).join(' ') || undefined
+
+function TextField({ field, value, error, onChange, onBlur }: TextFieldProps) {
   const inputId = `field-${field.name}`
   const helpId = field.helpText ? `${inputId}-help` : undefined
-  const isTextarea = typeof value === 'string' && value.length > 100
+  const errorId = error ? `${inputId}-error` : undefined
+  // Decided once: switching from an input to a textarea while typing past 100 characters would lose focus.
+  const [isTextarea] = useState(() => LONG_TEXT.has(field.name) || (typeof value === 'string' && value.length > 100))
 
   return (
-    <div className="margin-top-3">
-      <Label htmlFor={inputId}>
+    <div className={groupClass(error)}>
+      <Label htmlFor={inputId} error={!!error}>
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </Label>
@@ -240,14 +296,17 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
         </div>
       )}
 
+      <FieldError id={`${inputId}-error`} error={error} />
       {isTextarea ? (
         <Textarea
           id={inputId}
+          className="height-15"
           name={field.name}
           value={typeof value === 'string' ? value : ''}
           onChange={e => onChange(e.target.value)}
           onBlur={onBlur}
-          aria-describedby={helpId}
+          error={!!error}
+          aria-describedby={describedBy(helpId, errorId)}
         />
       ) : (
         <TextInput
@@ -257,7 +316,8 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
           value={typeof value === 'string' ? value : ''}
           onChange={e => onChange(e.target.value)}
           onBlur={onBlur}
-          aria-describedby={helpId}
+          validationStatus={error ? 'error' : undefined}
+          aria-describedby={describedBy(helpId, errorId)}
         />
       )}
     </div>
@@ -267,11 +327,13 @@ function TextField({ field, value, onChange, onBlur }: TextFieldProps) {
 interface MultiValueFieldProps {
   field: FormField
   value: unknown
+  error?: string
   onChange: (value: unknown) => void
-  onBlur: () => void
+  /** Saves the field: the values typed so far, or `value` when a change saves at once. */
+  onBlur: (value?: unknown) => void
 }
 
-function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProps) {
+function MultiValueField({ field, value, error, onChange, onBlur }: MultiValueFieldProps) {
   // A string-or-list field (e.g. language) may hold one string.
   const items = Array.isArray(value) ? value : typeof value === 'string' ? [value] : []
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -281,8 +343,9 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
   }
 
   const handleRemove = (index: number) => {
-    onChange(items.filter((_, i) => i !== index))
-    onBlur()
+    const remaining = items.filter((_, i) => i !== index)
+    onChange(remaining)
+    onBlur(remaining)
 
     setTimeout(() => {
       const nextInput = inputRefs.current[Math.min(index, items.length - 2)]
@@ -297,20 +360,21 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
   }
 
   return (
-    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-3">
-      <h3 id={`field-${field.name}-heading`} className="font-sans-md">
+    <section aria-labelledby={`field-${field.name}-heading`} className="margin-top-4 padding-top-3 border-top-1px border-base-lighter">
+      <h3 id={`field-${field.name}-heading`} className="font-sans-md margin-y-0">
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </h3>
       {field.helpText && (
-        <p className="usa-hint">{field.helpText}</p>
+        <p className="usa-hint margin-top-05 margin-bottom-0">{field.helpText}</p>
       )}
-      {field.required && items.length === 0 && (
+      <FieldError id={`field-${field.name}-error`} error={error} />
+      {field.required && items.length === 0 && !error && (
         <Alert type="warning" slim className="margin-top-1">
-          This required field has no values
+          <AlertText>This required field has no values</AlertText>
         </Alert>
       )}
-      <ul className="usa-list usa-list--unstyled">
+      <ul className="usa-list usa-list--unstyled margin-top-1">
         {items.map((item, index) => (
           <li key={index} className="display-flex flex-align-center margin-top-1">
             <TextInput
@@ -320,9 +384,11 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
               type="text"
               value={typeof item === 'string' ? item : ''}
               onChange={e => handleChange(index, e.target.value)}
-              onBlur={onBlur}
-              className="flex-fill margin-right-1"
+              onBlur={() => onBlur()}
+              validationStatus={error ? 'error' : undefined}
+              className="flex-fill margin-top-0 margin-right-1"
               aria-label={`${field.label} ${index + 1}`}
+              aria-describedby={error ? `field-${field.name}-error` : undefined}
             />
             <Button
               type="button"
@@ -336,7 +402,7 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
           </li>
         ))}
       </ul>
-      <Button type="button" onClick={handleAdd} outline>
+      <Button type="button" onClick={handleAdd} outline className="margin-top-2">
         Add {field.label.toLowerCase()}
       </Button>
     </section>
@@ -346,16 +412,18 @@ function MultiValueField({ field, value, onChange, onBlur }: MultiValueFieldProp
 interface ControlledValueFieldProps {
   field: FormField
   value: unknown
+  error?: string
   onChange: (value: unknown) => void
 }
 
-function ControlledValueField({ field, value, onChange }: ControlledValueFieldProps) {
+function ControlledValueField({ field, value, error, onChange }: ControlledValueFieldProps) {
   const inputId = `field-${field.name}`
   const helpId = field.helpText ? `${inputId}-help` : undefined
+  const errorId = error ? `${inputId}-error` : undefined
 
   return (
-    <div className="margin-top-3">
-      <Label htmlFor={inputId}>
+    <div className={groupClass(error)}>
+      <Label htmlFor={inputId} error={!!error}>
         {field.label}
         {field.required && <abbr title="required" className="usa-hint usa-hint--required"> *</abbr>}
       </Label>
@@ -365,13 +433,14 @@ function ControlledValueField({ field, value, onChange }: ControlledValueFieldPr
         </div>
       )}
 
+      <FieldError id={`${inputId}-error`} error={error} />
       <select
         id={inputId}
         name={field.name}
         value={typeof value === 'string' ? value : ''}
         onChange={e => onChange(e.target.value)}
-        aria-describedby={helpId}
-        className="usa-select"
+        aria-describedby={describedBy(helpId, errorId)}
+        className={error ? 'usa-select usa-input--error' : 'usa-select'}
       >
         <option value="">- Select -</option>
         {field.allowedValues?.map(option => (
@@ -420,10 +489,17 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
     </Link>
   )
   return (
-    <div className="margin-bottom-2">
+    <div className="margin-bottom-1">
+      {/* The one way back on a phone, where the breadcrumb is hidden; a link, not a button, beside it on wider screens. */}
       {back && (
-        <p className="margin-y-1">
-          {linkTo(back, <span>Back to <bdi>{labelOf(parentOf(back))}</bdi></span>, 'usa-button usa-button--outline usa-button--small')}
+        <p className="margin-top-1 margin-bottom-05">
+          {linkTo(
+            back,
+            <>
+              <span aria-hidden="true">← </span>Back to <bdi>{labelOf(parentOf(back))}</bdi>
+            </>,
+            'usa-link text-bold',
+          )}
         </p>
       )}
       {notice && (
@@ -432,7 +508,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
         </Alert>
       )}
       {uses.length === 0 && <p className="text-base-dark">Not linked anywhere.</p>}
-      {uses.length === 1 && <p className="text-base-dark margin-y-1">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
+      {uses.length === 1 && <p className="text-base-dark margin-top-05 margin-bottom-0">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
       {uses.length > 1 && (
         <div role="group" aria-labelledby="used-in-heading">
           <h3 id="used-in-heading" className="font-sans-sm margin-bottom-0">
@@ -446,6 +522,7 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
                 <Button
                   type="button"
                   unstyled
+                  className="margin-left-1"
                   onClick={() => editCopy(parentOf(use), use.property, object)}
                   aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(parentOf(use).dcatClass, use.property)}`}
                 >

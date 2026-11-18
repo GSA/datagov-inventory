@@ -2,7 +2,7 @@ import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type Keyb
 import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate } from '@tanstack/react-router'
 import type { CatalogGraph } from './catalog/types'
-import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, pathOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, classLabel, count, filterTree, labelOf, pathOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
 function revealSelected(pane: HTMLElement | null) {
@@ -146,7 +146,9 @@ export function CatalogTree({
         {found &&
           (found.matches > FILTER_LIMIT
             ? `${count(found.matches)} objects match. Showing the first ${FILTER_LIMIT}: type more to narrow them down.`
-            : `${count(found.matches)} ${found.matches === 1 ? 'object matches' : 'objects match'}.`)}
+            : found.matches === 0
+              ? 'No objects match. Try part of a title or name.'
+              : `${count(found.matches)} ${found.matches === 1 ? 'object matches' : 'objects match'}.`)}
       </p>
       {found?.matches !== 0 && (
         <div className="catalog-tree" ref={pane}>
@@ -185,7 +187,7 @@ const TreeItem = memo(function TreeItem({
     >
       {expanded !== undefined && <span className="catalog-tree__toggle" aria-hidden="true" />}
       <bdi>{labelOf(object)}</bdi>
-      {property && <span className="catalog-tree__class">{` ${property} · ${object.dcatClass}`}</span>}
+      {property && <span className="catalog-tree__class">{` ${property} · ${classLabel(object.dcatClass)}`}</span>}
     </li>
   )
 })

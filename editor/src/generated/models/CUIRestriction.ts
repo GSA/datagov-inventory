@@ -19,7 +19,7 @@ export const CUIRestrictionModel: FormModel = {
     },
 {
       name: 'cuiBannerMarking',
-      label: 'Cui Banner Marking',
+      label: 'CUI Banner Marking',
       type: 'string',
       required: true,
       cardinality: 'single',

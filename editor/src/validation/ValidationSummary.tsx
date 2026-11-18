@@ -1,3 +1,5 @@
+import { classLabel } from '../tree'
+
 interface ValidationSummaryProps {
   catalogSummary: {
     valid: boolean
@@ -8,6 +10,8 @@ interface ValidationSummaryProps {
   } | null
   objectResults?: Array<{
     objectId: string
+    /** The object's title or name, shown before its id so the list says which object it is. */
+    label?: string
     objectType: string
     valid: boolean
     errors: Array<{ field: string; message: string }>
@@ -29,7 +33,7 @@ export function ValidationSummary({ catalogSummary, objectResults, onNavigateToO
   return (
     <div className="validation-summary" role="region" aria-label="Validation results">
       <div className="validation-summary__header">
-        <h2>Validation Results</h2>
+        <h2>Validation results</h2>
         <p className="validation-summary__disclaimer" role="note">
           Advisory check against DCAT-US schema version {schemaVersion}. This is not the official Data.gov validator.
         </p>
@@ -59,8 +63,8 @@ export function ValidationSummary({ catalogSummary, objectResults, onNavigateToO
               return (
                 <li key={type} className="validation-summary__item">
                   <div>
-                    <span className="validation-summary__count" aria-label={`${count} errors in ${type} objects`}>
-                      {count} {type} {count === 1 ? 'error' : 'errors'}
+                    <span className="validation-summary__count" aria-label={`${count} errors in ${classLabel(type)} objects`}>
+                      {count} {classLabel(type)} {count === 1 ? 'error' : 'errors'}
                     </span>
                     {objectsWithErrors && objectsWithErrors.length > 0 && onNavigateToObject && (
                       <ul className="validation-summary__objects margin-top-1">
@@ -69,9 +73,11 @@ export function ValidationSummary({ catalogSummary, objectResults, onNavigateToO
                             <button
                               type="button"
                               onClick={() => onNavigateToObject(obj.objectId)}
-                              className="validation-summary__object-link"
+                              className="usa-button usa-button--unstyled validation-summary__object-link"
                             >
-                              {obj.objectId} ({obj.errors.length} {obj.errors.length === 1 ? 'error' : 'errors'})
+                              {obj.label && <bdi>{obj.label}</bdi>}{' '}
+                              <code className="font-mono-3xs">{obj.objectId}</code> ({obj.errors.length}{' '}
+                              {obj.errors.length === 1 ? 'error' : 'errors'})
                             </button>
                           </li>
                         ))}

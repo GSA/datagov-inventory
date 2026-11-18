@@ -1,3 +1,4 @@
+import { ButtonGroup } from '@trussworks/react-uswds'
 import { Link } from '@tanstack/react-router'
 import { useCatalog, usePageTitle } from './session'
 
@@ -11,16 +12,20 @@ export default function Landing() {
       <p className="usa-intro">
         Open your organization&apos;s catalog, review its datasets, and download a file ready for Data.gov to harvest.
       </p>
-      <p className="margin-y-3">
-        <Link to="/import" className="usa-button">
-          Import a catalog
-        </Link>
-        {open && (
-          <Link to="/editor/$" params={{ _splat: '' }} className="usa-button usa-button--outline">
-            Continue with <bdi>{open.name}</bdi>
-          </Link>
-        )}
-      </p>
+      <ButtonGroup className="margin-y-3">
+        {[
+          <Link key="import" to="/import" className="usa-button">
+            Import a catalog
+          </Link>,
+          ...(open
+            ? [
+                <Link key="continue" to="/editor/$" params={{ _splat: '' }} className="usa-button usa-button--outline">
+                  Continue with <bdi>{open.name}</bdi>
+                </Link>,
+              ]
+            : []),
+        ]}
+      </ButtonGroup>
       <ol className="usa-process-list">
         <li className="usa-process-list__item">
           <h2 className="usa-process-list__heading">Import your catalog</h2>
@@ -32,13 +37,13 @@ export default function Landing() {
         <li className="usa-process-list__item">
           <h2 className="usa-process-list__heading">Review it</h2>
           <p>
-            Browse every dataset, distribution and contact, and follow the links between them. Each one has its own
-            address, so you can bookmark it. Editing is coming to this alpha.
+            Browse and edit every dataset, distribution and contact, and follow the links between them. Each one has
+            its own address, so you can bookmark it.
           </p>
         </li>
         <li className="usa-process-list__item">
           <h2 className="usa-process-list__heading">Export it</h2>
-          <p>Download the edited file and give it to your IT team to host where Data.gov harvests it. Coming soon.</p>
+          <p>Download the edited file and give it to your IT team to host where Data.gov harvests it.</p>
         </li>
       </ol>
       <p className="margin-top-4 text-base">

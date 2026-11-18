@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { Alert, AlertText, Button, Modal, ModalHeading, ModalFooter } from '@trussworks/react-uswds'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { getFormModel } from './schema'
@@ -7,7 +7,7 @@ import { type OpenCatalog, useCatalog, usePageTitle } from './session'
 import { findParentLinks } from './catalog/edit'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
-import { ancestorIds, count, labelOf, parentsOf, pathOf } from './tree'
+import { ancestorIds, classLabel, count, labelOf, parentsOf, pathOf } from './tree'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
@@ -53,7 +53,8 @@ function Breadcrumb({
   const ancestors = ancestorIds(object.id, parents).map((id) => catalog.objects.get(id)!)
   if (ancestors.length === 0) return null
   return (
-    <nav className="usa-breadcrumb padding-top-0" aria-label="Where this object is">
+    // Hidden on phones, where USWDS shows only its last link, "← parent", beside the form's own "← Back to …".
+    <nav className="usa-breadcrumb padding-top-0 display-none tablet:display-block" aria-label="Where this object is">
       <ol className="usa-breadcrumb__list">
         {ancestors.map((ancestor) => (
           <li key={ancestor.id} className="usa-breadcrumb__list-item">
@@ -70,23 +71,20 @@ function Breadcrumb({
   )
 }
 
-function ObjectDetail({
-  object,
-  catalog,
-  parents,
-}: {
-  object: CatalogObject
-  catalog: CatalogGraph
-  parents: Map<string, string[]>
-}) {
+/** Deletes the open object. One used in several places asks first, in place (no dialog), listing the places. */
+function DeleteObject({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
   const { deleteObject } = useCatalog()
   const navigate = useNavigate()
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{
-    objectId: string
-    parents: Array<{ id: string; label: string }>
-  } | undefined>(undefined)
-
-  const model = getFormModel(object.dcatClass)
+  const [places, setPlaces] = useState<{ key: string; parent: string; field: string }[]>()
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  const confirming = places !== undefined
+  // Focus follows the question: to its heading when it opens, and back to Delete when it is cancelled.
+  const opened = useRef(false)
+  useEffect(() => {
+    if (confirming) document.getElementById('delete-heading')?.focus()
+    else if (opened.current) deleteButton.current?.focus()
+    opened.current = confirming
+  }, [confirming])
 
   const handleDeleteClick = () => {
     const parentLinks = findParentLinks(catalog, object.id)
@@ -96,24 +94,68 @@ function ObjectDetail({
       deleteObject(object.id)
       navigate({ to: '/editor/$', params: { _splat: firstParentId === catalog.rootId ? '' : pathOf(firstParentId) } })
     } else {
-      const parents = parentLinks.map(link => {
-        const parent = catalog.objects.get(link.parentId)!
-        return { id: parent.id, label: labelOf(parent) }
-      })
-      setDeleteConfirmation({ objectId: object.id, parents })
+      setPlaces(
+        parentLinks.map((link) => {
+          const parent = catalog.objects.get(link.parentId)!
+          const field = getFormModel(parent.dcatClass)?.fields.find((f) => f.name === link.property)?.label
+          return { key: `${link.parentId} ${link.property} ${link.position}`, parent: labelOf(parent), field: field ?? link.property }
+        }),
+      )
     }
   }
 
   const handleConfirmDelete = () => {
-    if (!deleteConfirmation) return
-    deleteObject(deleteConfirmation.objectId)
-    setDeleteConfirmation(undefined)
+    deleteObject(object.id)
+    setPlaces(undefined)
     navigate({ to: '/editor' })
   }
 
-  const handleCancelDelete = () => {
-    setDeleteConfirmation(undefined)
-  }
+  return (
+    <div className="maxw-tablet margin-top-5 padding-top-3 border-top-1px border-base-lighter">
+      {confirming ? (
+        <Alert type="warning" className="margin-top-0">
+          <AlertHeading level="h3" id="delete-heading" tabIndex={-1}>
+            Delete this shared object?
+          </AlertHeading>
+          <AlertText>
+            <bdi>{labelOf(object)}</bdi> is used in {count(places.length)} places:
+          </AlertText>
+          <ul className="usa-list">
+            {places.map((place) => (
+              <li key={place.key}>
+                <bdi>{place.parent}</bdi> › {place.field}
+              </li>
+            ))}
+          </ul>
+          <AlertText>Deleting it removes it from all of them. Undo, at the top of the page, puts it back.</AlertText>
+          <ButtonGroup className="margin-top-2">
+            <Button type="button" secondary onClick={handleConfirmDelete}>
+              Delete from all {count(places.length)} places
+            </Button>
+            <Button type="button" outline onClick={() => setPlaces(undefined)}>
+              Cancel
+            </Button>
+          </ButtonGroup>
+        </Alert>
+      ) : (
+        <Button ref={deleteButton} type="button" onClick={handleDeleteClick} secondary>
+          Delete object
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function ObjectDetail({
+  object,
+  catalog,
+  parents,
+}: {
+  object: CatalogObject
+  catalog: CatalogGraph
+  parents: Map<string, string[]>
+}) {
+  const model = getFormModel(object.dcatClass)
 
   if (!model) {
     return (
@@ -122,12 +164,8 @@ function ObjectDetail({
         <h2 id="detail-heading" tabIndex={-1}>
           {labelOf(object)}
         </h2>
-        <p>No form model available for {object.dcatClass}</p>
-        <div className="margin-top-2">
-          <Button type="button" onClick={handleDeleteClick} secondary>
-            Delete object
-          </Button>
-        </div>
+        <p>No form model available for {classLabel(object.dcatClass)}</p>
+        <DeleteObject object={object} catalog={catalog} />
       </section>
     )
   }
@@ -136,46 +174,7 @@ function ObjectDetail({
     <>
       <Breadcrumb object={object} catalog={catalog} parents={parents} />
       <ObjectForm object={object} model={model} />
-      <div className="margin-top-3">
-        <Button type="button" onClick={handleDeleteClick} secondary>
-          Delete object
-        </Button>
-      </div>
-      {deleteConfirmation && (
-        <Modal
-          forceAction
-          aria-labelledby="delete-modal-heading"
-          aria-describedby="delete-modal-description"
-          id="delete-confirmation-modal"
-        >
-          <ModalHeading id="delete-modal-heading">
-            Delete shared object?
-          </ModalHeading>
-          <div id="delete-modal-description">
-            <p>
-              This object is used in {deleteConfirmation.parents.length} places:
-            </p>
-            <ul>
-              {deleteConfirmation.parents.map(parent => (
-                <li key={parent.id}>
-                  <bdi>{parent.label}</bdi>
-                </li>
-              ))}
-            </ul>
-            <p>
-              Deleting it will remove it from all of these locations. This action can be undone.
-            </p>
-          </div>
-          <ModalFooter>
-            <Button type="button" onClick={handleConfirmDelete}>
-              Delete
-            </Button>
-            <Button type="button" onClick={handleCancelDelete} unstyled>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </Modal>
-      )}
+      <DeleteObject object={object} catalog={catalog} />
     </>
   )
 }
@@ -195,7 +194,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
   const navigate = useNavigate()
 
-  usePageTitle(object ? `${labelOf(object)} (${object.dcatClass})` : 'Not found')
+  usePageTitle(object ? `${labelOf(object)} (${classLabel(object.dcatClass)})` : 'Not found')
 
   const handleValidateCatalog = async () => {
     setIsValidatingCatalog(true)
@@ -271,24 +270,31 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
         From <bdi>{open.name}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
-      <div className="margin-top-2 display-flex flex-gap-1">
-        <Button type="button" onClick={initiateExport}>
-          Export catalog
-        </Button>
-        {isReady && (
-          <Button
-            type="button"
-            onClick={handleValidateCatalog}
-            disabled={isValidatingCatalog}
-            secondary
-          >
-            {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
-          </Button>
-        )}
-        <Button type="button" onClick={undoRemoval} disabled={!canUndo} outline>
-          Undo
-        </Button>
-      </div>
+      {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
+      {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
+      <ButtonGroup className="catalog-actions flex-row flex-wrap margin-top-105">
+        {[
+          <Button key="export" type="button" onClick={initiateExport}>
+            Export catalog
+          </Button>,
+          ...(isReady
+            ? [
+                <Button
+                  key="validate"
+                  type="button"
+                  onClick={handleValidateCatalog}
+                  disabled={isValidatingCatalog}
+                  outline
+                >
+                  {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
+                </Button>,
+              ]
+            : []),
+          <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+            Undo
+          </Button>,
+        ]}
+      </ButtonGroup>
       {validationState === 'validating' && (
         <div className="margin-top-2">
           <ValidationProgress progress={validationProgress} total={objects.size} />
@@ -303,6 +309,7 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
                 const errors = validationContext.getObjectErrors(obj.id)
                 return {
                   objectId: obj.id,
+                  label: labelOf(obj),
                   objectType: obj.dcatClass,
                   valid: errors.length === 0,
                   errors,
@@ -335,14 +342,14 @@ function CatalogView({ open, id }: { open: OpenCatalog; id: string }) {
           <AlertText>{exportStatus.message}</AlertText>
         </Alert>
       )}
-      <div className="grid-row grid-gap-lg margin-top-4">
-        <nav aria-labelledby="tree-heading" className="tablet:grid-col-4">
-          <h2 id="tree-heading" className="font-heading-md margin-top-0">
+      <div className="grid-row grid-gap-lg margin-top-3">
+        <nav aria-labelledby="tree-heading" className="editor-nav tablet:grid-col-5 desktop:grid-col-4">
+          <h2 id="tree-heading" className="font-sans-md margin-top-0">
             Catalog contents
           </h2>
           <CatalogTree catalog={open.catalog} parents={parents} selectedId={id} />
         </nav>
-        <div className="tablet:grid-col-8">
+        <div className="tablet:grid-col-7 desktop:grid-col-8 margin-top-4 tablet:margin-top-0 tablet:padding-top-2">
           {object ? (
             <ObjectDetail key={object.id} object={object} catalog={open.catalog} parents={parents} />
           ) : (

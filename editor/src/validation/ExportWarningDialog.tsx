@@ -1,4 +1,5 @@
 import { Modal, ModalHeading, ModalFooter, Button } from '@trussworks/react-uswds'
+import { classLabel } from '../tree'
 
 interface ExportWarningDialogProps {
   isOpen: boolean
@@ -32,7 +33,7 @@ export function ExportWarningDialog({ isOpen, catalogSummary, onCancel, onExport
             if (count === 0) return null
             return (
               <li key={type}>
-                <strong>{count}</strong> {type} {count === 1 ? 'error' : 'errors'}
+                <strong>{count}</strong> {classLabel(type)} {count === 1 ? 'error' : 'errors'}
               </li>
             )
           })}
