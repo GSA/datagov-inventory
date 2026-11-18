@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { CatalogObject, CatalogGraph } from './types'
-import { removeLink, deleteObject, undoRemoval, findParentLinks, updateObject } from './edit'
+import { removeLink, deleteObject, undoRemoval, findParentLinks, updateObject, copyFor, createLinked, linkObject } from './edit'
+import { usesOf } from './uses'
 
 const createObject = (
   id: string,
@@ -340,5 +341,129 @@ describe('findParentLinks', () => {
     expect(parents).toHaveLength(2)
     expect(parents).toContainEqual({ parentId: '#', property: 'dataset', position: 0 })
     expect(parents).toContainEqual({ parentId: '#', property: 'service', position: 0 })
+  })
+})
+
+const object = (id: string, dcatClass: string, properties: Record<string, unknown> = {}, links: Record<string, string[]> = {}): CatalogObject => ({
+  id,
+  dcatClass,
+  properties,
+  links,
+  singleLinks: [],
+})
+const catalogOf = (...objects: CatalogObject[]): CatalogGraph => ({
+  rootId: objects[0].id,
+  objects: new Map(objects.map((o) => [o.id, o])),
+})
+
+/** A catalog with two datasets that share one contact, which has its own address. */
+const shared = () =>
+  catalogOf(
+    object('#', 'Catalog', { title: 'Catalog' }, { dataset: ['#/dataset/0', '#/dataset/1'] }),
+    object('#/dataset/0', 'Dataset', { title: 'Water' }, { contactPoint: ['#/dataset/0/contactPoint/0'] }),
+    object('#/dataset/1', 'Dataset', { title: 'Air' }, { contactPoint: ['#/dataset/0/contactPoint/0'] }),
+    object('#/dataset/0/contactPoint/0', 'Kind', { fn: 'Help desk' }, { address: ['#/dataset/0/contactPoint/0/address/0'] }),
+    object('#/dataset/0/contactPoint/0/address/0', 'Address', { locality: 'Springfield' }),
+  )
+
+describe('linkObject', () => {
+  it('adds the same object, so both parents show it', () => {
+    const catalog = linkObject(shared(), '#', 'contactPoint', '#/dataset/0/contactPoint/0')
+    expect(catalog.objects.get('#')!.links.contactPoint).toEqual(['#/dataset/0/contactPoint/0'])
+    expect(usesOf(catalog).get('#/dataset/0/contactPoint/0')).toHaveLength(3)
+    expect(catalog.objects.size).toBe(shared().objects.size)
+  })
+
+  it('writes a single field back as one object', () => {
+    const catalog = linkObject(shared(), '#', 'publisher', '#/dataset/0/contactPoint/0', true)
+    expect(catalog.objects.get('#')!.singleLinks).toEqual(['publisher'])
+    expect(() => linkObject(catalog, '#', 'publisher', '#/dataset/0', true)).toThrow(/holds one/)
+  })
+
+  it('refuses a loop and ignores a link that is already there', () => {
+    const catalog = shared()
+    expect(() => linkObject(catalog, '#/dataset/0', 'x', '#')).toThrow(/loop/)
+    expect(() => linkObject(catalog, '#/dataset/0', 'x', '#/dataset/0')).toThrow(/loop/)
+    expect(linkObject(catalog, '#/dataset/0', 'contactPoint', '#/dataset/0/contactPoint/0')).toBe(catalog)
+  })
+})
+
+describe('createLinked', () => {
+  it('creates a blank object with an address under its parent, and links it', () => {
+    const { catalog, id } = createLinked(shared(), '#/dataset/0', 'contactPoint', 'Kind')
+    expect(id).toBe('#/dataset/0/contactPoint/1')
+    expect(catalog.objects.get(id)).toEqual(object(id, 'Kind', { '@type': 'Kind' }))
+    expect(catalog.objects.get('#/dataset/0')!.links.contactPoint).toEqual(['#/dataset/0/contactPoint/0', id])
+  })
+
+  it('skips ids that are taken, and starts a field that was empty', () => {
+    const start = shared()
+    start.objects.set('#/dataset/1/contactPoint/1', object('#/dataset/1/contactPoint/1', 'Kind'))
+    expect(createLinked(start, '#/dataset/1', 'contactPoint', 'Kind').id).toBe('#/dataset/1/contactPoint/2')
+    const { catalog, id } = createLinked(start, '#', 'publisher', 'Organization', true)
+    expect(id).toBe('#/publisher/0')
+    expect(catalog.objects.get('#')!.singleLinks).toEqual(['publisher'])
+  })
+
+  it('turns a list field read as one object into a list at two, and an empty list as written gives way to the links', () => {
+    const start = catalogOf(
+      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
+      { ...object('#/d', 'Dataset', { sample: [] }, { distribution: ['#/d/distribution'] }), singleLinks: ['distribution'] },
+      object('#/d/distribution', 'Distribution', { title: 'one' }),
+    )
+    const { catalog } = createLinked(start, '#/d', 'distribution', 'Distribution')
+    expect(catalog.objects.get('#/d')!.singleLinks).toEqual([])
+    const withSample = createLinked(catalog, '#/d', 'sample', 'Distribution').catalog
+    expect(withSample.objects.get('#/d')!.properties).toEqual({})
+    expect(withSample.objects.get('#/d')!.links.sample).toHaveLength(1)
+  })
+})
+
+describe('copyFor', () => {
+  it('copies a shared object and what only it uses, for one place only', () => {
+    const before = shared()
+    const { catalog, id } = copyFor(before, '#/dataset/1', 'contactPoint', '#/dataset/0/contactPoint/0')
+    expect(id).toBe('#/dataset/1/contactPoint/1')
+    expect(catalog.objects.get('#/dataset/1')!.links.contactPoint).toEqual([id])
+    expect(catalog.objects.get('#/dataset/0')!.links.contactPoint).toEqual(['#/dataset/0/contactPoint/0'])
+
+    const copy = catalog.objects.get(id)!
+    expect(copy.properties).toEqual({ fn: 'Help desk' })
+    expect(copy.links.address).toEqual([`${id}/address/0`])
+    expect(catalog.objects.get(`${id}/address/0`)!.properties).toEqual({ locality: 'Springfield' })
+    expect(usesOf(catalog).get('#/dataset/0/contactPoint/0')).toHaveLength(1)
+    // The original catalog is unchanged.
+    expect(before.objects.size).toBe(5)
+  })
+
+  it('leaves the @id out of the copies, so they are not the same node as the originals', () => {
+    const start = shared()
+    const contact = start.objects.get('#/dataset/0/contactPoint/0')!
+    start.objects.set(contact.id, { ...contact, properties: { '@id': 'https://example.gov/help', fn: 'Help desk' } })
+    const { catalog, id } = copyFor(start, '#/dataset/1', 'contactPoint', contact.id)
+    expect(catalog.objects.get(id)!.properties).toEqual({ fn: 'Help desk' })
+    expect(catalog.objects.get(contact.id)!.properties['@id']).toBe('https://example.gov/help')
+  })
+
+  it('keeps links to objects shared with others', () => {
+    const start = linkObject(shared(), '#', 'contactPoint', '#/dataset/0/contactPoint/0/address/0')
+    const { catalog, id } = copyFor(start, '#/dataset/1', 'contactPoint', '#/dataset/0/contactPoint/0')
+    expect(catalog.objects.get(id)!.links.address).toEqual(['#/dataset/0/contactPoint/0/address/0'])
+  })
+
+  it('copies a loop inside the object as a loop', () => {
+    const start = catalogOf(
+      object('#', 'Catalog', {}, { hasPart: ['#/a'], catalog: ['#/a'] }),
+      object('#/a', 'Catalog', {}, { hasPart: ['#/a/b'] }),
+      object('#/a/b', 'Catalog', {}, { hasPart: ['#/a'] }),
+    )
+    const { catalog, id } = copyFor(start, '#', 'catalog', '#/a')
+    const inner = catalog.objects.get(id)!.links.hasPart[0]
+    expect(inner).toBe(`${id}/hasPart/0`)
+    expect(catalog.objects.get(inner)!.links.hasPart).toEqual([id])
+  })
+
+  it('refuses an object that is not in the field', () => {
+    expect(() => copyFor(shared(), '#', 'contactPoint', '#/dataset/0')).toThrow(/not in/)
   })
 })

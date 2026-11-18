@@ -11,8 +11,17 @@ import {
 } from '@tanstack/react-router'
 import { CatalogContext, type OpenCatalog } from './session'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
-import { copyFor, createLinked, keepIndex, linkObject } from './links'
-import { deleteObject, removeLink, undoRemoval, updateObject as updateCatalogObject, type RemovalRecord } from './catalog/edit'
+import { keepIndex } from './catalog/uses'
+import {
+  copyFor,
+  createLinked,
+  deleteObject,
+  linkObject,
+  removeLink,
+  undoRemoval,
+  updateObject as updateCatalogObject,
+  type RemovalRecord,
+} from './catalog/edit'
 import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'

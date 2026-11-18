@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import type { CatalogGraph, CatalogObject } from './catalog/types'
-import { usesOf } from './links'
+import { usesOf } from './catalog/uses'
 import { useValidationContext } from './validation/ValidationContext'
 import { count, isolate, labelOf, pathOf } from './tree'
 
