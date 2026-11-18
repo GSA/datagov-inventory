@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import type { CatalogObject, CatalogGraph } from './catalog/types'
-import { removeLink, deleteObject, undoRemoval, findParentLinks } from './session'
+import type { CatalogObject, CatalogGraph } from './types'
+import { removeLink, deleteObject, undoRemoval, findParentLinks, updateObject } from './edit'
 
 const createObject = (
   id: string,
@@ -18,6 +18,17 @@ const createObject = (
 const createCatalog = (objects: CatalogObject[]): CatalogGraph => ({
   rootId: objects[0].id,
   objects: new Map(objects.map(obj => [obj.id, obj])),
+})
+
+describe('updateObject', () => {
+  it('updates properties without mutating the input graph', () => {
+    const catalog = createCatalog([createObject('#', 'Catalog', { title: 'Before', description: 'Kept' })])
+
+    const result = updateObject(catalog, '#', { properties: { title: 'After' } })
+
+    expect(result.objects.get('#')?.properties).toEqual({ title: 'After', description: 'Kept' })
+    expect(catalog.objects.get('#')?.properties.title).toBe('Before')
+  })
 })
 
 describe('removeLink', () => {

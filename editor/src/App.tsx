@@ -9,9 +9,10 @@ import {
   RouterProvider,
   useRouter,
 } from '@tanstack/react-router'
-import { CatalogContext, type OpenCatalog, type RemovalRecord, removeLink, deleteObject, undoRemoval } from './session'
+import { CatalogContext, type OpenCatalog } from './session'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { copyFor, createLinked, keepIndex, linkObject } from './links'
+import { deleteObject, removeLink, undoRemoval, updateObject as updateCatalogObject, type RemovalRecord } from './catalog/edit'
 import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
@@ -145,27 +146,12 @@ export default function App() {
 
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
     if (!open) return
-
-    const object = open.catalog.objects.get(id)
-    if (!object) return
-
-    const updated = {
-      ...object,
-      ...updates,
-      properties: { ...object.properties, ...updates.properties }
-    }
-
-    const newObjects = new Map(open.catalog.objects)
-    newObjects.set(id, updated)
+    const catalog = updateCatalogObject(open.catalog, id, updates)
     // Saving a field's text leaves every link as it was, so the usage index stays valid.
-    if (!updates.links) keepIndex(open.catalog.objects, newObjects)
-
+    if (!updates.links) keepIndex(open.catalog.objects, catalog.objects)
     setOpen({
       ...open,
-      catalog: {
-        ...open.catalog,
-        objects: newObjects
-      }
+      catalog,
     })
   }, [open])
 
