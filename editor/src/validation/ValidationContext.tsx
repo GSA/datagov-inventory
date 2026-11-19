@@ -15,6 +15,8 @@ interface ValidationContextValue {
   validationProgress: number
   setValidationState: (state: ValidationState) => void
   setObjectValidation: (objectId: string, result: ValidationResult) => void
+  /** Stores many results in one update: calling `setObjectValidation` per object copies the map each time, O(n²). */
+  setObjectValidationResults: (results: Array<ValidationResult & { objectId: string }>) => void
   markStale: (objectId: string) => void
   setCatalogSummary: (
     summary: {
@@ -49,6 +51,19 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
     setStaleObjects((prev) => {
       const newSet = new Set(prev)
       newSet.delete(objectId)
+      return newSet
+    })
+  }, [])
+
+  const setObjectValidationResults = useCallback((results: Array<ValidationResult & { objectId: string }>) => {
+    setObjectValidations((prev) => {
+      const newMap = new Map(prev)
+      for (const result of results) newMap.set(result.objectId, result)
+      return newMap
+    })
+    setStaleObjects((prev) => {
+      const newSet = new Set(prev)
+      for (const { objectId } of results) newSet.delete(objectId)
       return newSet
     })
   }, [])
@@ -103,6 +118,7 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
         validationProgress,
         setValidationState,
         setObjectValidation,
+        setObjectValidationResults,
         markStale,
         setCatalogSummary,
         setValidationProgress,

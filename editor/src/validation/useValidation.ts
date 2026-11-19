@@ -11,6 +11,7 @@ export function useValidation() {
     validationProgress,
     setValidationState,
     setObjectValidation,
+    setObjectValidationResults,
     setCatalogSummary,
     setValidationProgress,
     getObjectState,
@@ -62,9 +63,7 @@ export function useValidation() {
         onProgress?.(progress)
       })
 
-      for (const objResult of result.objectResults) {
-        setObjectValidation(objResult.objectId, objResult)
-      }
+      setObjectValidationResults(result.objectResults)
 
       setCatalogSummary({
         valid: result.valid,
@@ -77,7 +76,7 @@ export function useValidation() {
       setValidationState(result.valid ? 'valid' : 'invalid')
       return result
     },
-    [runValidation, setObjectValidation, setCatalogSummary, setValidationProgress, setValidationState]
+    [runValidation, setObjectValidationResults, setCatalogSummary, setValidationProgress, setValidationState]
   )
 
   return {
