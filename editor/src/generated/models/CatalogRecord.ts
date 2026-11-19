@@ -28,7 +28,7 @@ export const CatalogRecordModel: FormModel = {
     },
 {
       name: 'conformsTo',
-      label: 'Conforms To',
+      label: 'Conforms to',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -85,7 +85,7 @@ export const CatalogRecordModel: FormModel = {
     },
 {
       name: 'primaryTopic',
-      label: 'Primary Topic',
+      label: 'Primary topic',
       type: 'string',
       required: true,
       cardinality: 'single',

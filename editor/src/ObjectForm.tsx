@@ -3,9 +3,9 @@ import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } fr
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
-import { classLabel, count, labelOf } from './tree'
+import { classLabel, count, fieldLabel, labelOf } from './tree'
 import { editorPath } from './objectRoute'
-import { getFormModel, type FormModel, type FormField } from './schema'
+import type { FormModel, FormField } from './schema'
 import { usesOf, type Use } from './catalog/uses'
 import { rowId } from './links'
 import { LinkField } from './LinkField'
@@ -458,9 +458,6 @@ function ControlledValueField({ field, value, error, onChange }: ControlledValue
 /** Places listed at most: a contact can be used by thousands of datasets. */
 const USES_SHOWN = 50
 
-const fieldLabel = (dcatClass: string, property: string) =>
-  getFormModel(dcatClass)?.fields.find(f => f.name === property)?.label ?? property
-
 /**
  * Where the object is used (#25): "Back to" the place the user came from, and every place that links to it, each
  * with "Edit a copy for this one" when there are several. The notice from Create new or a copy shows here too.
@@ -478,7 +475,7 @@ function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspac
   const parentOf = (use: Use) => catalog.objects.get(use.parentId)!
   const place = (use: Use) => (
     <>
-      <bdi>{labelOf(parentOf(use))}</bdi> › {fieldLabel(parentOf(use).dcatClass, use.property)}
+      <bdi>{labelOf(parentOf(use))}</bdi> › {fieldLabel(use.property)}
     </>
   )
   const linkTo = (use: Use, children: ReactNode, className = 'usa-link') => (
@@ -529,7 +526,7 @@ function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspac
                   unstyled
                   className="margin-left-1"
                   onClick={() => editCopy(parentOf(use), use.property, object)}
-                  aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(parentOf(use).dcatClass, use.property)}`}
+                  aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(use.property)}`}
                 >
                   Edit a copy for this one
                 </Button>

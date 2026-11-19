@@ -11,7 +11,7 @@ import { classLabel, count, isolate, labelOf } from './tree'
 import { editorPath } from './objectRoute'
 
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
-/** "Kind", "Agent or Organization": class names as the schema writes them. */
+/** "Contact", "Agent or Organization": class names as people read them (see classLabel). */
 const classList = (classes: readonly string[]) => classes.map(classLabel).join(' or ')
 
 /**

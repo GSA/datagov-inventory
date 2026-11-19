@@ -44,7 +44,7 @@ export const StandardModel: FormModel = {
     },
 {
       name: 'otherIdentifier',
-      label: 'Other Identifier',
+      label: 'Other identifier',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -86,7 +86,7 @@ export const StandardModel: FormModel = {
     },
 {
       name: 'inScheme',
-      label: 'In Scheme',
+      label: 'In scheme',
       type: 'object',
       required: false,
       cardinality: 'single',

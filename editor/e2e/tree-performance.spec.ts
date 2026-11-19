@@ -114,12 +114,12 @@ test('select and create in a field on 3,000 datasets', async ({ page }) => {
 
   for (let i = 0; i < 5; i++) {
     await page.getByRole('tree').getByRole('treeitem', { name: new RegExp(`^Water use ${i * 600 + 1} `) }).click()
-    const picker = field('Contact Point').getByRole('combobox')
+    const picker = field('Contact point').getByRole('combobox')
     record('pick: open the list (3,000 contacts)', await measure(page, () => picker.click()))
     for (const key of 'team 4') record('pick: type a key', await measure(page, () => page.keyboard.press(key)))
     record('pick: Down arrow', await measure(page, () => page.keyboard.press('ArrowDown')))
     record('pick: Enter adds the contact', await measure(page, () => page.keyboard.press('Enter')))
-    const copy = field('Contact Point').getByRole('button', { name: /^Edit a copy for this one/ }).first()
+    const copy = field('Contact point').getByRole('button', { name: /^Edit a copy for this one/ }).first()
     record('edit a copy (opens the copy)', await measure(page, () => copy.click()))
     await page.getByRole('link', { name: /^Back to / }).click()
     const create = field('Distribution').getByRole('button', { name: /^Create new Distribution/ })

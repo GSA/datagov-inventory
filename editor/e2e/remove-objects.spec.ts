@@ -96,7 +96,7 @@ test('passes accessibility checks', async ({ page }) => {
 test('asks in place, with no dialog, before deleting an object used in several places', async ({ page }) => {
   await loadSample(page)
   // The catalog and the dataset share the dataset's contact.
-  const contacts = page.getByRole('group', { name: 'Contact Point' })
+  const contacts = page.getByRole('group', { name: 'Contact point' })
   await contacts.getByRole('combobox').fill('air')
   await page.getByRole('option', { name: /Air Quality Team/ }).click()
   await contacts.getByRole('link', { name: 'Air Quality Team' }).click()
@@ -106,8 +106,8 @@ test('asks in place, with no dialog, before deleting an object used in several p
   await expect(question).toBeFocused()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.usa-alert--warning .usa-list > li')).toHaveText([
-    'Example Agency Catalog › Contact Point',
-    'Air quality readings › Contact Point',
+    'Example Agency Catalog › Contact point',
+    'Air quality readings › Contact point',
   ])
   const AxeBuilder = (await import('@axe-core/playwright')).default
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()

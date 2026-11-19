@@ -1,8 +1,9 @@
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Label, TextInput } from '@trussworks/react-uswds'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import type { CatalogGraph } from './catalog/types'
-import { FILTER_LIMIT, ancestorIds, classLabel, count, filterTree, labelOf, treeRows, type TreeRow } from './tree'
+import { usesOf } from './catalog/uses'
+import { FILTER_LIMIT, ancestorIds, count, fieldAndClass, filterTree, labelOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
 function revealSelected(pane: HTMLElement | null) {
@@ -42,9 +43,12 @@ export function CatalogTree({
   // the first commit already holds the expanded rows, so the scroll effect below finds the selected row.
   const [expandedTo, setExpandedTo] = useState(selectedId)
   const [focusKey, setFocusKey] = useState<string>()
+  // The row last opened from the tree (a click, Enter or Space): which place a shared object was selected in.
+  const [openedKey, setOpenedKey] = useState<string>()
   if (expandedTo !== selectedId) {
     setExpandedTo(selectedId)
     setFocusKey(undefined)
+    if (openedKey !== undefined && !openedKey.endsWith(selectedId)) setOpenedKey(undefined)
     const above = ancestorIds(selectedId, parents)
     if (above.some((id) => !expanded.has(id))) setExpanded(new Set([...expanded, ...above]))
   }
@@ -53,8 +57,15 @@ export function CatalogTree({
   const needle = useDeferredValue(filter.trim().toLowerCase())
   const found = useMemo(() => (needle ? filterTree(catalog, parents, needle) : undefined), [catalog, parents, needle])
   const rows = useMemo(() => treeRows(catalog, expanded, found?.shown), [catalog, expanded, found])
-  const tabStop =
-    rows.find((row) => row.key === focusKey) ?? rows.find((row) => row.object.id === selectedId) ?? rows[0]
+  // A shared object has a row in each place. The selected one is the row the user opened, else the one under the
+  // object they came from (a link in its form), else the first; the others show as the same object.
+  const from = useRouterState({ select: (s) => s.location.state.from })
+  const selectedRow =
+    rows.find((row) => row.key === openedKey && row.object.id === selectedId) ??
+    (from !== undefined ? rows.find((row) => row.key.endsWith(`${from} ${selectedId}`)) : undefined) ??
+    rows.find((row) => row.object.id === selectedId)
+  const tabStop = rows.find((row) => row.key === focusKey) ?? selectedRow ?? rows[0]
+  const uses = usesOf(catalog)
   const pane = useRef<HTMLDivElement>(null)
 
   // A filter's results start at the top; the whole tree, and a newly selected object, show the selected object.
@@ -66,12 +77,15 @@ export function CatalogTree({
     revealSelected(pane.current)
   }, [selectedId])
 
-  const open = (row: TreeRow) => navigate({
-    to: '/editor/$',
-    params: {
-      _splat: pathFor(row.object.id),
-    },
-  })
+  const open = (row: TreeRow) => {
+    setOpenedKey(row.key)
+    return navigate({
+      to: '/editor/$',
+      params: {
+        _splat: pathFor(row.object.id),
+      },
+    })
+  }
   // Callers don't toggle while filtering: the objects above the matches stay expanded.
   const toggle = (row: TreeRow) => {
     if (row.expanded === undefined) return
@@ -162,7 +176,14 @@ export function CatalogTree({
         <div className="catalog-tree" ref={pane}>
           <ul role="tree" aria-label="Catalog" onClick={onClick} onKeyDown={onKeyDown}>
             {rows.map(({ key, ...row }) => (
-              <TreeItem key={key} {...row} selected={row.object.id === selectedId} tabStop={key === tabStop.key} />
+              <TreeItem
+                key={key}
+                {...row}
+                selected={key === selectedRow?.key}
+                same={key !== selectedRow?.key && row.object.id === selectedId}
+                places={uses.get(row.object.id)?.length ?? 0}
+                tabStop={key === tabStop.key}
+              />
             ))}
           </ul>
         </div>
@@ -171,7 +192,12 @@ export function CatalogTree({
   )
 }
 
-/** One row. Memoized, so selecting, moving or expanding re-renders only the rows that change. */
+/**
+ * One row: the toggle's place (kept on leaves too, so each level lines up), the label, the field and class, the
+ * number of children while collapsed, and how many places use a shared object. Text that doesn't fit ends in an
+ * ellipsis; the whole label stays in the row's name and shows on hover. Memoized, so selecting, moving or expanding
+ * re-renders only the rows that change.
+ */
 const TreeItem = memo(function TreeItem({
   object,
   property,
@@ -179,9 +205,13 @@ const TreeItem = memo(function TreeItem({
   position,
   siblings,
   expanded,
+  childCount,
   selected,
+  same,
+  places,
   tabStop,
-}: Omit<TreeRow, 'key'> & { selected: boolean; tabStop: boolean }) {
+}: Omit<TreeRow, 'key'> & { selected: boolean; same: boolean; places: number; tabStop: boolean }) {
+  const label = labelOf(object)
   return (
     <li
       role="treeitem"
@@ -191,11 +221,18 @@ const TreeItem = memo(function TreeItem({
       aria-expanded={expanded}
       aria-selected={selected}
       tabIndex={tabStop ? 0 : -1}
-      style={{ paddingLeft: `${level + 0.5}rem` }}
+      className={same ? 'catalog-tree__same' : undefined}
+      style={{ paddingLeft: `${level - 1}rem` }}
     >
-      {expanded !== undefined && <span className="catalog-tree__toggle" aria-hidden="true" />}
-      <bdi>{labelOf(object)}</bdi>
-      {property && <span className="catalog-tree__class">{` ${property} · ${classLabel(object.dcatClass)}`}</span>}
+      <span className="catalog-tree__toggle" aria-hidden="true" />
+      <bdi className="catalog-tree__label" title={label}>
+        {label}
+      </bdi>
+      {property && <span className="catalog-tree__class">{` ${fieldAndClass(property, object.dcatClass)}`}</span>}
+      {expanded === false && (
+        <span className="catalog-tree__count">{` · ${count(childCount)} ${childCount === 1 ? 'item' : 'items'}`}</span>
+      )}
+      {places > 1 && <span className="catalog-tree__shared">{` Shared · ${count(places)} places`}</span>}
     </li>
   )
 })

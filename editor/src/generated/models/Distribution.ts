@@ -19,7 +19,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'representationTechnique',
-      label: 'Representation Technique',
+      label: 'Representation technique',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -37,7 +37,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'characterEncoding',
-      label: 'Character Encoding',
+      label: 'Character encoding',
       type: 'string',
       required: false,
       cardinality: 'multiple',
@@ -45,7 +45,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'accessService',
-      label: 'Access Service',
+      label: 'Access service',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -62,7 +62,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'byteSize',
-      label: 'Byte Size',
+      label: 'Byte size',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -70,7 +70,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'compressFormat',
-      label: 'Compress Format',
+      label: 'Compress format',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -86,7 +86,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'mediaType',
-      label: 'Media Type',
+      label: 'Media type',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -94,7 +94,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'packageFormat',
-      label: 'Package Format',
+      label: 'Package format',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -102,7 +102,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'spatialResolutionInMeters',
-      label: 'Spatial Resolution In Meters',
+      label: 'Spatial resolution in meters',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -110,7 +110,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'temporalResolution',
-      label: 'Temporal Resolution',
+      label: 'Temporal resolution',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -127,7 +127,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'accessRestriction',
-      label: 'Access Restriction',
+      label: 'Access restriction',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -136,7 +136,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'cuiRestriction',
-      label: 'CUI Restriction',
+      label: 'CUI restriction',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -145,7 +145,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'describedBy',
-      label: 'Described By',
+      label: 'Described by',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -154,7 +154,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'useRestriction',
-      label: 'Use Restriction',
+      label: 'Use restriction',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -163,7 +163,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'accessRights',
-      label: 'Access Rights',
+      label: 'Access rights',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -171,7 +171,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'conformsTo',
-      label: 'Conforms To',
+      label: 'Conforms to',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -205,7 +205,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'otherIdentifier',
-      label: 'Other Identifier',
+      label: 'Other identifier',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -270,7 +270,7 @@ export const DistributionModel: FormModel = {
     },
 {
       name: 'hasQualityMeasurement',
-      label: 'Has Quality Measurement',
+      label: 'Has quality measurement',
       type: 'object',
       required: false,
       cardinality: 'multiple',

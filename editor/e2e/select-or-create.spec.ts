@@ -10,9 +10,9 @@ async function loadSample(page: Page) {
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
 }
 
-/** On the catalog: adds the dataset's contact to the catalog's Contact Point, so the two share it. */
+/** On the catalog: adds the dataset's contact to the catalog's Contact point, so the two share it. */
 async function shareContact(page: Page) {
-  await field(page, 'Contact Point').getByRole('combobox').fill('air')
+  await field(page, 'Contact point').getByRole('combobox').fill('air')
   await page.getByRole('option', { name: /Air Quality Team/ }).click()
 }
 
@@ -24,14 +24,14 @@ const field = (page: Page, name: string) => page.getByRole('group', { name: new 
 
 test('searches by keyword and selects an existing object, which is then shared, not copied', async ({ page }) => {
   await loadSample(page)
-  const contacts = field(page, 'Contact Point')
-  const picker = contacts.getByRole('combobox', { name: 'Add an existing Kind' })
+  const contacts = field(page, 'Contact point')
+  const picker = contacts.getByRole('combobox', { name: 'Add an existing Contact' })
 
   await picker.fill('quality')
-  const options = page.getByRole('listbox', { name: 'Add an existing Kind' }).getByRole('option')
+  const options = page.getByRole('listbox', { name: 'Add an existing Contact' }).getByRole('option')
   await expect(options).toHaveCount(1)
   await expect(options.first()).toContainText('Air Quality Team')
-  await expect(options.first()).toContainText('Kind · used in Air quality readings')
+  await expect(options.first()).toContainText('Contact · used in Air quality readings')
   await expect(contacts.getByText('1 match.')).toBeVisible()
   await expect(picker).toHaveAccessibleDescription('1 match.')
   await options.first().click()
@@ -39,23 +39,23 @@ test('searches by keyword and selects an existing object, which is then shared, 
   // The catalog now links the same contact as the dataset.
   const row = contacts.getByRole('link', { name: 'Air Quality Team' })
   await expect(row).toBeFocused()
-  await expect(contacts.getByText('Kind · Used in 2 places')).toBeVisible()
-  await expect(contacts.getByRole('status')).toHaveText(`Added ${iso('Air Quality Team')} to Contact Point. It is now used in 2 places.`)
+  await expect(contacts.getByText('Contact · Used in 2 places')).toBeVisible()
+  await expect(contacts.getByRole('status')).toHaveText(`Added ${iso('Air Quality Team')} to Contact point. It is now used in 2 places.`)
   await expect(picker).toHaveValue('')
-  await expect(page.getByRole('treeitem', { name: 'Air Quality Team contactPoint · Kind' })).toBeVisible()
+  await expect(page.getByRole('treeitem', { name: 'Air Quality Team Contact point · Contact' })).toBeVisible()
 
   // The object shows how many places use it, and lists them.
   await row.click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   const usedIn = page.getByRole('group', { name: 'Used in 2 places' })
-  await expect(usedIn.getByRole('link')).toHaveText(['Example Agency Catalog › Contact Point', 'Air quality readings › Contact Point'])
+  await expect(usedIn.getByRole('link')).toHaveText(['Example Agency Catalog › Contact point', 'Air quality readings › Contact point'])
 
   // One edit shows in both places: it is one object.
-  const name = page.getByRole('textbox', { name: /^Full Name/ })
+  const name = page.getByRole('textbox', { name: /^Full name/ })
   await name.fill('Air team')
   await name.blur()
-  await usedIn.getByRole('link', { name: 'Air quality readings › Contact Point' }).click()
-  await expect(field(page, 'Contact Point').getByRole('link', { name: 'Air team' })).toBeFocused()
+  await usedIn.getByRole('link', { name: 'Air quality readings › Contact point' }).click()
+  await expect(field(page, 'Contact point').getByRole('link', { name: 'Air team' })).toBeFocused()
 })
 
 test('offers only objects of the field\'s classes, and none already in it', async ({ page }) => {
@@ -80,8 +80,8 @@ test('offers only objects of the field\'s classes, and none already in it', asyn
 
   // A distribution's data service belongs to the catalog's list of services: Add an existing only.
   await field(page, 'Distribution').getByRole('link', { name: 'Readings as CSV' }).click()
-  await expect(field(page, 'Access Service').getByRole('combobox', { name: 'Add an existing Data Service' })).toBeVisible()
-  await expect(field(page, 'Access Service').getByRole('button', { name: /^Create new/ })).toHaveCount(0)
+  await expect(field(page, 'Access service').getByRole('combobox', { name: 'Add an existing Data Service' })).toBeVisible()
+  await expect(field(page, 'Access service').getByRole('button', { name: /^Create new/ })).toHaveCount(0)
 })
 
 test('picks with the keyboard alone', async ({ page }) => {
@@ -166,8 +166,8 @@ test('leaves a long list with Tab, and the caret keys leave the options', async 
   await page.goto('/import')
   await page.getByLabel('Paste JSON').fill(JSON.stringify({ '@type': 'Catalog', title: 'Many', dataset: datasets }))
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
-  const picker = field(page, 'Contact Point').getByRole('combobox')
-  await expect(picker).toHaveAccessibleName('Add an existing Kind to Contact Point')
+  const picker = field(page, 'Contact point').getByRole('combobox')
+  await expect(picker).toHaveAccessibleName('Add an existing Contact to Contact point')
 
   // The list scrolls, which makes it a tab stop in Chrome unless it opts out.
   await picker.focus()
@@ -180,7 +180,7 @@ test('leaves a long list with Tab, and the caret keys leave the options', async 
   await expect(picker).toHaveAttribute('aria-expanded', 'false')
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Tab')
-  await expect(field(page, 'Contact Point').getByRole('button', { name: /^Create new Kind/ })).toBeFocused()
+  await expect(field(page, 'Contact point').getByRole('button', { name: /^Create new Contact/ })).toBeFocused()
 })
 
 test('creates an Organization in a field that allows Agents', async ({ page }) => {
@@ -197,34 +197,34 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await shareContact(page)
 
   // From the catalog's field: the copy takes the shared contact's place there only.
-  await field(page, 'Contact Point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
+  await field(page, 'Contact point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page.getByText(`This is a copy of ${iso('Air Quality Team')} for ${iso('Example Agency Catalog')} only. The other place still uses the original.`)).toBeVisible()
-  await expect(page.getByText('Used in 1 place: Example Agency Catalog › Contact Point')).toBeVisible()
-  const name = page.getByRole('textbox', { name: /^Full Name/ })
+  await expect(page.getByText('Used in 1 place: Example Agency Catalog › Contact point')).toBeVisible()
+  const name = page.getByRole('textbox', { name: /^Full name/ })
   await name.fill('Catalog contact')
   await name.blur()
   await expect(page.getByRole('treeitem', { name: /^Catalog contact/ })).toHaveCount(1)
   // The original is unchanged, and now used in the dataset alone.
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
-  await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
-  await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
-  await expect(page.getByRole('textbox', { name: /^Full Name/ })).toHaveValue('Air Quality Team')
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
+  await expect(page.getByText('Used in 1 place: Air quality readings › Contact point')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: /^Full name/ })).toHaveValue('Air Quality Team')
 
   // From the shared object's own list of places.
   await page.getByRole('treeitem', { name: 'Example Agency Catalog' }).click()
   await shareContact(page)
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
-  await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
   // The place the user came from (the dataset) is listed first. By keyboard: Enter on the button.
   const places = page.getByRole('group', { name: 'Used in 2 places' })
-  await expect(places.getByRole('link')).toHaveText(['Air quality readings › Contact Point', 'Example Agency Catalog › Contact Point'])
+  await expect(places.getByRole('link')).toHaveText(['Air quality readings › Contact point', 'Example Agency Catalog › Contact point'])
   await places.getByRole('button', { name: 'Edit a copy for this one: Air quality readings' }).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
-  await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
+  await expect(page.getByText('Used in 1 place: Air quality readings › Contact point')).toBeVisible()
 })
 
 test('has no accessibility violations axe can find: the open list, a new object, a shared object', async ({ page }) => {
@@ -235,13 +235,13 @@ test('has no accessibility violations axe can find: the open list, a new object,
   }
   await loadSample(page)
 
-  await field(page, 'Contact Point').getByRole('combobox').focus()
+  await field(page, 'Contact point').getByRole('combobox').focus()
   await page.keyboard.press('ArrowDown')
   await expect(page.getByRole('listbox').getByRole('option', { selected: true })).toBeVisible()
   await expectNoViolations()
 
   await page.keyboard.press('Enter')
-  await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
   await expect(page.getByRole('group', { name: 'Used in 2 places' })).toBeVisible()
   await expectNoViolations()
 
@@ -256,14 +256,14 @@ test('goes back to the place it came from when an object is used in several', as
 
   // Shared by the catalog and the dataset: opened from the dataset, Back goes to the dataset, by keyboard alone.
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
-  await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).focus()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   const back = page.getByRole('link', { name: 'Back to Air quality readings' })
   await back.focus()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
-  await expect(field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' })).toBeFocused()
+  await expect(field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' })).toBeFocused()
 
   // Create new by keyboard, then Back by keyboard.
   await field(page, 'Distribution').getByRole('button', { name: /^Create new Distribution/ }).focus()
@@ -295,7 +295,7 @@ test('exports every object added to a list field that was read as one object', a
     JSON.stringify({ '@type': 'Catalog', title: 'One', dataset: [{ '@type': 'Dataset', title: 'D', distribution: { title: 'one' } }] }),
   )
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
-  await page.getByRole('treeitem', { name: /^D dataset/ }).click()
+  await page.getByRole('treeitem', { name: /^D Dataset/ }).click()
   await field(page, 'Distribution').getByRole('button', { name: /^Create new Distribution/ }).click()
   const title = page.getByRole('textbox', { name: /^Title/ })
   await title.fill('two')

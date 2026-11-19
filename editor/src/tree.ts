@@ -3,29 +3,72 @@
  * `links` by id, so an object linked from several places shows as the same object in each.
  */
 import type { CatalogObject, CatalogGraph } from './catalog/types'
+import * as models from './generated/models'
 
 const LABEL_LENGTH = 200
 
 /** Labels by object, computed once: objects don't change after loading, and rows re-render. */
 const labels = new WeakMap<CatalogObject, string>()
 
+/** Short words that stay lower case inside a class name: PeriodOfTime is "Period of Time". */
+const MINOR_WORDS = new Set(['of', 'and', 'or', 'in', 'to'])
+
+/** Display names for classes whose schema name means little to people: vCard's `Kind` is a contact. */
+const CLASS_NAMES: Record<string, string> = { Kind: 'Contact' }
+
+const classLabels = new Map<string, string>()
+
+/**
+ * A DCAT class as people read it: `PeriodOfTime` is "Period of Time", `CUIRestriction` is "CUI Restriction" (a run
+ * of capitals stays one word), `Kind` is "Contact". The schema's own name stays the object's class; this is for
+ * display only. Cached, since every tree row asks.
+ */
+export function classLabel(dcatClass: string): string {
+  let label = classLabels.get(dcatClass)
+  if (label === undefined) {
+    const words = dcatClass.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [dcatClass]
+    label =
+      CLASS_NAMES[dcatClass] ??
+      words.map((word, i) => (i > 0 && MINOR_WORDS.has(word.toLowerCase()) ? word.toLowerCase() : word)).join(' ')
+    classLabels.set(dcatClass, label)
+  }
+  return label
+}
+
+/** Each property's label from the form models, built on first use. */
+let fieldLabels: Map<string, string> | undefined
+
+/**
+ * A field's label as the form shows it, in sentence case: `contactPoint` is "Contact point", `accessURL` is "Access
+ * URL", `fn` is "Full name". The model generator labels a property by its name alone, so every class that has the
+ * property gives it the same label, and no class is needed. A property no model has reads as words the same way.
+ */
+export function fieldLabel(property: string): string {
+  fieldLabels ??= new Map(
+    Object.values(models).flatMap((model) => model.fields.map((field): [string, string] => [field.name, field.label])),
+  )
+  const words = property.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [property]
+  return (
+    fieldLabels.get(property) ??
+    words.map((word, i) => (i === 0 ? word[0].toUpperCase() + word.slice(1) : /^[A-Z]+$/.test(word) ? word : word.toLowerCase())).join(' ')
+  )
+}
+
+/**
+ * A tree row's field and, when it says more, class: "Publisher · Organization", "Contact point · Contact", but just
+ * "Dataset" for a dataset listed under Dataset.
+ */
+export function fieldAndClass(property: string, dcatClass: string): string {
+  const field = fieldLabel(property)
+  const type = classLabel(dcatClass)
+  return field.toLowerCase() === type.toLowerCase() ? field : `${field} · ${type}`
+}
+
 /**
  * A short name for an object: its title, name, contact name or label, if one has visible
  * characters, cut to 200 characters. Render it in <bdi> so right-to-left overrides in it
  * cannot reorder the text around it.
  */
-/** Short words that stay lower case inside a class name: PeriodOfTime is "Period of Time". */
-const MINOR_WORDS = new Set(['of', 'and', 'or', 'in', 'to'])
-
-/**
- * A DCAT class as people read it: `PeriodOfTime` is "Period of Time", `CUIRestriction` is "CUI Restriction" (a run
- * of capitals stays one word). The schema's own name stays the object's class; this is for display only.
- */
-export function classLabel(dcatClass: string): string {
-  const words = dcatClass.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [dcatClass]
-  return words.map((word, i) => (i > 0 && MINOR_WORDS.has(word.toLowerCase()) ? word.toLowerCase() : word)).join(' ')
-}
-
 export function labelOf(object: CatalogObject): string {
   let label = labels.get(object)
   if (label === undefined) {
@@ -69,6 +112,8 @@ export interface TreeRow {
   siblings: number
   /** Whether its children are shown; undefined when it has none to show. */
   expanded?: boolean
+  /** How many children it shows when expanded. */
+  childCount: number
 }
 
 /**
@@ -145,7 +190,16 @@ export function treeRows(
       ids.filter((id) => !path.has(id) && (!shown || shown.has(id))).map((id) => ({ link, id })),
     )
     const open = children.length > 0 && (shown !== undefined || expanded.has(object.id))
-    rows.push({ key, object, property, level, position, siblings, expanded: children.length > 0 ? open : undefined })
+    rows.push({
+      key,
+      object,
+      property,
+      level,
+      position,
+      siblings,
+      expanded: children.length > 0 ? open : undefined,
+      childCount: children.length,
+    })
     if (open) children.forEach(({ link, id }, i) =>
       add(objects.get(id)!, `${key} ${id}`, level + 1, i + 1, children.length, link),
     )

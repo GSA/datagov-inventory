@@ -36,7 +36,7 @@ export const KindModel: FormModel = {
     },
 {
       name: 'family-name',
-      label: 'Family Name',
+      label: 'Family name',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -44,7 +44,7 @@ export const KindModel: FormModel = {
     },
 {
       name: 'fn',
-      label: 'Full Name',
+      label: 'Full name',
       type: 'string',
       required: true,
       cardinality: 'single',
@@ -52,7 +52,7 @@ export const KindModel: FormModel = {
     },
 {
       name: 'given-name',
-      label: 'Given Name',
+      label: 'Given name',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -60,7 +60,7 @@ export const KindModel: FormModel = {
     },
 {
       name: 'organization-name',
-      label: 'Organization Name',
+      label: 'Organization name',
       type: 'string',
       required: false,
       cardinality: 'single',

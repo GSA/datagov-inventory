@@ -5,7 +5,9 @@ import { test, expect, expectNoAxeViolations } from './fixtures'
 // fails the test on any CSP violation, axe's included). #30 adds the form, dialogs, check results and restore prompt.
 
 const tree = (page: Page) => page.getByRole('tree', { name: 'Catalog' })
-const item = (page: Page, name: string) => tree(page).getByRole('treeitem', { name, exact: true })
+/** A row by its label, field and class; a closed row's name also ends with how many items it holds. */
+const item = (page: Page, name: string) =>
+  tree(page).getByRole('treeitem', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( · [\\d,]+ items?)?$`) })
 
 async function loadSample(page: Page, name: string) {
   await page.getByLabel('Sample catalog').selectOption(name)
@@ -52,9 +54,9 @@ test('every page and state has no WCAG 2.1 AA violations axe can find', async ({
   })
 
   await test.step('editor with the tree expanded and a nested object open', async () => {
-    await item(page, 'Air quality readings dataset · Dataset').locator('.catalog-tree__toggle').click()
-    await item(page, 'Readings as CSV distribution · Distribution').locator('.catalog-tree__toggle').click()
-    await item(page, 'Untitled Checksum checksum · Checksum').click()
+    await item(page, 'Air quality readings Dataset').locator('.catalog-tree__toggle').click()
+    await item(page, 'Readings as CSV Distribution').locator('.catalog-tree__toggle').click()
+    await item(page, 'Untitled Checksum Checksum').click()
     await expect(page.locator('#detail-heading')).toHaveText('Untitled Checksum')
     await expectNoAxeViolations(page)
   })

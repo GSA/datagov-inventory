@@ -19,7 +19,7 @@ export const RelationshipModel: FormModel = {
     },
 {
       name: 'hadRole',
-      label: 'Had Role',
+      label: 'Had role',
       type: 'string',
       required: true,
       cardinality: 'single',
