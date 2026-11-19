@@ -12,7 +12,6 @@ interface ValidationContextValue {
     timestamp: number
     schemaVersion: string
   } | null
-  validationProgress: number
   setValidationState: (state: ValidationState) => void
   setObjectValidation: (objectId: string, result: ValidationResult) => void
   /** Stores many results in one update: calling `setObjectValidation` per object copies the map each time, O(n²). */
@@ -27,7 +26,6 @@ interface ValidationContextValue {
       schemaVersion: string
     } | null
   ) => void
-  setValidationProgress: (progress: number) => void
   getObjectState: (objectId: string) => ValidationState
   getObjectErrors: (objectId: string) => ValidationResult['errors']
   clearAll: () => void
@@ -40,7 +38,6 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
   const [objectValidations, setObjectValidations] = useState<Map<string, ValidationResult>>(new Map())
   const [staleObjects, setStaleObjects] = useState<Set<string>>(new Set())
   const [catalogSummary, setCatalogSummary] = useState<ValidationContextValue['catalogSummary']>(null)
-  const [validationProgress, setValidationProgress] = useState(0)
 
   const setObjectValidation = useCallback((objectId: string, result: ValidationResult) => {
     setObjectValidations((prev) => {
@@ -105,7 +102,6 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
     setObjectValidations(new Map())
     setStaleObjects(new Set())
     setCatalogSummary(null)
-    setValidationProgress(0)
   }, [])
 
   return (
@@ -115,13 +111,11 @@ export function ValidationProvider({ children }: { children: ReactNode }) {
         objectValidations,
         staleObjects,
         catalogSummary,
-        validationProgress,
         setValidationState,
         setObjectValidation,
         setObjectValidationResults,
         markStale,
         setCatalogSummary,
-        setValidationProgress,
         getObjectState,
         getObjectErrors,
         clearAll,

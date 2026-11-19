@@ -43,12 +43,10 @@ function MyComponent({ objectId }) {
 ### Validate Entire Catalog
 
 ```tsx
-const { validateCatalog, catalogSummary, validationProgress } = useValidation()
+const { validateCatalog, catalogSummary } = useValidation()
 
 const handleValidateCatalog = async () => {
-  await validateCatalog((progress) => {
-    console.log(`Validation progress: ${progress}%`)
-  })
+  const { totalErrors } = await validateCatalog()
 }
 ```
 
@@ -56,7 +54,6 @@ const handleValidateCatalog = async () => {
 
 - `ValidationStatusBadge` - Shows validation state (idle/validating/valid/invalid/stale)
 - `ValidationSummary` - Displays error summary grouped by class
-- `ValidationProgress` - Progress bar for catalog validation
 
 ## Architecture
 
@@ -71,7 +68,6 @@ validation/
 ├── useValidation.ts      # Main validation hook
 ├── ValidationStatusBadge.tsx
 ├── ValidationSummary.tsx
-├── ValidationProgress.tsx
 └── validation.css        # Component styles
 ```
 
