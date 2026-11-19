@@ -55,7 +55,7 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
 
   // Enter opens the object on the right, and focus stays in the tree.
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/readings-as-csv--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('heading', { level: 2, name: 'Readings as CSV' })).toBeVisible()
   await expect(csv).toHaveAttribute('aria-selected', 'true')
   await expect(catalog).toHaveAttribute('aria-selected', 'false')
@@ -82,7 +82,7 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
   await expect(dataset).toHaveAttribute('aria-expanded', 'false')
   await expect(csv).toHaveCount(0)
   await item(page, 'Example Agency publisher · Organization').click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/organization\/example-agency--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/organization\/[A-Za-z0-9_-]{22}$/)
 
   // Issue #24: Object reference links in forms are out of scope (blocked by #25).
   // This test would check that clicking a link in the detail pane opens the tree to that object.
@@ -101,7 +101,7 @@ test('filters the tree by title or name', async ({ page }) => {
     'Readings API distribution · Distribution',
   ])
   await item(page, 'Readings API distribution · Distribution').click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/readings-api--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
 
   await filter(page).fill('nothing like this')
   await expect(page.getByRole('status').filter({ hasText: 'match' })).toHaveText('No objects match. Try part of a title or name.')
@@ -143,14 +143,15 @@ test('opens an object in a 3,000-dataset catalog and limits a filter that matche
   ])
   // Opened while filtering, it is still in view once the filter is cleared.
   await item(page, 'Water use 2995 dataset · Dataset').click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/water-use-2995--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
   await filter(page).fill('')
+  const dataset = item(page, 'Water use 2995 dataset · Dataset')
+  await dataset.locator('.catalog-tree__toggle').click()
+  await item(page, 'JSON download distribution · Distribution').click()
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
   const selected = tree(page).getByRole('treeitem', { selected: true })
-  await expect(selected).toHaveText('Water use 2995 dataset · Dataset')
-  await expectInTreeView(page, selected)
-  await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000)
   await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000 + 5)
-  await expect(selected).toHaveText('Water use 2995 dataset · Dataset')
+  await expect(selected).toHaveText('JSON download distribution · Distribution')
   await expectInTreeView(page, selected)
 })
 

@@ -74,7 +74,7 @@ export function LinkField({
     markStale(object.id)
     if (id) {
       const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
-      navigate({ to: '/editor/$', params: { _splat: editorPath(open, id) }, state: { from: object.id, notice } })
+      navigate({ to: '/editor/$', params: { _splat: editorPath(open, { id, dcatClass }) }, state: { from: object.id, notice } })
     }
   }
 
@@ -105,7 +105,8 @@ export function LinkField({
         <ul className="usa-list usa-list--unstyled">
           {ids.map((childId, index) => {
             const child = catalog.objects.get(childId)
-            const label = child ? labelOf(child) : childId
+            // Do not expose an internal UUID when a dangling link is encountered.
+            const label = child ? labelOf(child) : 'Missing linked object'
             const n = uses.get(childId)?.length ?? 0
             return (
               <li key={childId} className="link-row margin-top-1">
@@ -119,7 +120,7 @@ export function LinkField({
                       }
                     }}
                     to="/editor/$"
-                    params={{ _splat: editorPath(open, child.id) }}
+                    params={{ _splat: editorPath(open, child) }}
                     state={{ from: object.id }}
                     className="usa-link text-bold"
                   >

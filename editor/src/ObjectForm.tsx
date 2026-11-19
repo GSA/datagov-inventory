@@ -156,7 +156,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         {labelOf(object)}
       </h2>
       <p className="text-base-dark margin-top-05">
-        {classLabel(object.dcatClass)} <code className="font-mono-3xs">{object.id}</code>
+        {classLabel(object.dcatClass)}
       </p>
       {open && <UsedIn object={object} open={open} />}
 
@@ -485,7 +485,7 @@ function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspac
     <Link
       to="/editor/$"
       params={{
-        _splat: editorPath(open, use.parentId),
+        _splat: editorPath(open, parentOf(use)),
       }}
       state={{ focus: rowId(use.property, object.id) }}
       className={className}

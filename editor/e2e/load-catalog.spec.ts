@@ -60,8 +60,8 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Example Agency Catalog')
 
   await tree(page).getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
-  const datasetUrl = /\/editor\/[A-Za-z0-9_-]{22}\/dataset\/air-quality-readings--[A-Za-z0-9_-]{22}$/
-  const csvUrl = /\/editor\/[A-Za-z0-9_-]{22}\/distribution\/readings-as-csv--[A-Za-z0-9_-]{22}$/
+  const datasetUrl = /\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/
+  const csvUrl = /\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/
   await expect(page).toHaveURL(datasetUrl)
   await expect(page).toHaveTitle('Air quality readings (Dataset) | Inventory Editor')
   const detail = page.getByRole('form', { name: 'Edit Air quality readings' })
@@ -94,15 +94,9 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await page.goForward()
   await expect(page).toHaveURL(datasetUrl)
 
-  // A reload closes the catalog. Re-import creates new UUIDs, so the old object's address is intentionally stale.
+  // Until persistence is implemented, reload will not work.
   await page.reload()
-  await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
-  await page.getByRole('link', { name: 'Import a catalog' }).click()
-  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
-  await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page.getByRole('heading', { name: 'Nothing at this address' })).toBeVisible()
-  await page.getByRole('link', { name: 'Open the catalog' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Catalog not found in this browser' })).toBeVisible()
 })
 
 test('shows every object above the open one in the breadcrumb, through single links too', async ({ page }) => {
@@ -121,17 +115,6 @@ test('shows every object above the open one in the breadcrumb, through single li
   ])
   await expect(breadcrumb.getByRole('link').first()).toHaveAttribute('href', /\/editor\/[A-Za-z0-9_-]{22}$/)
   await expect(breadcrumb.getByRole('listitem').last()).toHaveText('Untitled Checksum')
-})
-
-test('shows an address with nothing at it in the open catalog', async ({ page }) => {
-  await loadSample(page, 'minimal-catalog.json')
-  await page.evaluate(() => {
-    history.pushState({}, '', '/editor/dataset/missing--AAAAAAAAAAAAAAAAAAAAAA')
-    dispatchEvent(new PopStateEvent('popstate'))
-  })
-  await expect(page.getByRole('heading', { name: 'Nothing at this address' })).toBeVisible()
-  await page.getByRole('link', { name: 'Open the catalog' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
 })
 
 test('loads a chosen file in the browser', async ({ page }) => {

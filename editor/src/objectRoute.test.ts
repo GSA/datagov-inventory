@@ -23,27 +23,28 @@ const workspace: CatalogWorkspace = {
 }
 
 describe('editor routes', () => {
-  it('round trips distinct catalog and object UUIDs through a readable path', () => {
+  it('round trips distinct catalog and object UUIDs with the object type', () => {
     const path = objectPath(CATALOG_ID, object('Air Quality'))
-    expect(path).toBe('GfokmoTeT9uJ68hBqpV0rw/dataset/air-quality--byND73XUQ6eHsUP6ks4Kog')
-    expect(editorAddress(path)).toEqual({ catalogId: CATALOG_ID, objectId: OBJECT_ID })
+    expect(path).toBe('GfokmoTeT9uJ68hBqpV0rw/dataset/byND73XUQ6eHsUP6ks4Kog')
+    expect(editorAddress(path)).toEqual({ catalogId: CATALOG_ID, objectId: OBJECT_ID, objectType: 'dataset' })
+  })
+
+  it('builds a path for a newly identified object before it is in the catalog graph', () => {
+    expect(editorPath(workspace, { id: OTHER_OBJECT_ID, dcatClass: 'Distribution' }))
+      .toBe('GfokmoTeT9uJ68hBqpV0rw/distribution/eSDoB0JvRCK9OGyZexJYYQ')
   })
 
   it('identifies a catalog root without an object', () => {
     expect(editorAddress(catalogPath(CATALOG_ID))).toEqual({ catalogId: CATALOG_ID })
   })
 
-  it('ignores a stale label slug because the UUID token identifies the object', () => {
-    const path = `${catalogPath(CATALOG_ID)}/dataset/old-title--byND73XUQ6eHsUP6ks4Kog`
-    expect(editorAddress(path)).toEqual({ catalogId: CATALOG_ID, objectId: OBJECT_ID })
-  })
-
   it.each([
     '',
     'not-a-catalog-token',
-    `${catalogPath(CATALOG_ID)}/dataset/air--not-an-id`,
-    `${catalogPath(CATALOG_ID)}/dataset/air--byND73XUQ6eHsUP6ks4Ko`,
-    `${catalogPath(CATALOG_ID)}/extra/segments/without--identity`,
+    `${catalogPath(CATALOG_ID)}/dataset/not-an-id`,
+    `${catalogPath(CATALOG_ID)}/Dataset/byND73XUQ6eHsUP6ks4Kog`,
+    `${catalogPath(CATALOG_ID)}/dataset/byND73XUQ6eHsUP6ks4Ko`,
+    `${catalogPath(CATALOG_ID)}/extra/segments/without/identity`,
   ])('rejects malformed address %j', (path) => {
     expect(editorAddress(path)).toBeUndefined()
   })
@@ -58,15 +59,11 @@ describe('editor routes', () => {
   })
 
   it('uses the catalog path for the root, regardless of its DCAT class', () => {
-    expect(editorPath(workspace, root.id)).toBe(catalogPath(workspace.id))
+    expect(editorPath(workspace, root)).toBe(catalogPath(workspace.id))
   })
 
   it('uses an object path for a nested Catalog object', () => {
-    expect(editorPath(workspace, child.id)).toBe(objectPath(workspace.id, child))
-  })
-
-  it('refuses an object outside the catalog', () => {
-    expect(() => editorPath(workspace, 'missing')).toThrow('Object missing is not in the catalog.')
+    expect(editorPath(workspace, child)).toBe(objectPath(workspace.id, child))
   })
 
 })

@@ -50,13 +50,12 @@ for every path (`cf/nginx.conf`), and `vite preview` does the same.
 | `/import` | Import a file (chosen or dropped), pasted JSON, a sample, or a blank catalog. |
 | `/editor` | Editor entry point when no catalog identity is selected |
 | `/editor/<catalog-token>` | The identified catalog root: its tree on the left, the catalog on the right |
-| `/editor/<catalog-token>/distribution/readings-api--<object-token>` | A non-root object in that catalog. The tree opens down to it. |
+| `/editor/<catalog-token>/distribution/<object-token>` | A non-root object in that catalog. The tree opens down to it. |
 
 Canonical paths have the form `/editor/<catalog-token>` for a root and
-`/editor/<catalog-token>/<class>/<label>--<object-token>` for an object. Each 22-character
-token reversibly encodes a UUID. The catalog token selects the loaded catalog; the object
-token selects one object within it. Class and label are descriptive, so an old URL still
-identifies the same object after its label changes.
+`/editor/<catalog-token>/<object-type>/<object-token>` for an object. Each 22-character
+token reversibly encodes a UUID. The catalog token selects the loaded catalog; the lowercase
+DCAT class identifies the expected object type; and the object token selects one object within it.
 
 The catalog tree (`src/CatalogTree.tsx`, rows from `src/tree.ts`) shows the catalog and, under each open object, the
 objects it links to, in order. USWDS has no tree view, so it is a custom

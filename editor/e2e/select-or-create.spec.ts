@@ -46,7 +46,7 @@ test('searches by keyword and selects an existing object, which is then shared, 
 
   // The object shows how many places use it, and lists them.
   await row.click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   const usedIn = page.getByRole('group', { name: 'Used in 2 places' })
   await expect(usedIn.getByRole('link')).toHaveText(['Example Agency Catalog › Contact Point', 'Air quality readings › Contact Point'])
 
@@ -132,7 +132,7 @@ test('creates a new object in place of the form, three levels deep, and comes ba
 
   // Create new replaces the form: no dialog. What was typed is kept.
   await field(page, 'Distribution').getByRole('button', { name: 'Create new Distribution' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toBeFocused()
   await expect(page.getByText(`New Distribution, linked to ${iso('Air quality, hourly')} › Distribution.`)).toBeVisible()
@@ -145,20 +145,20 @@ test('creates a new object in place of the form, three levels deep, and comes ba
 
   // Another level down, then back up one level at a time; each Back lands on the row of the object it came from.
   await field(page, 'Checksum').getByRole('button', { name: 'Create new Checksum' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/checksum\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/checksum\/[A-Za-z0-9_-]{22}$/)
   await page.getByRole('link', { name: 'Back to Readings as Parquet' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
   await expect(field(page, 'Checksum').getByRole('link', { name: 'Untitled Checksum' })).toBeFocused()
   await expect(field(page, 'Checksum').getByText('Holds one Checksum.', { exact: false })).toBeVisible()
 
   await page.getByRole('link', { name: 'Back to Air quality, hourly' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
   await expect(field(page, 'Distribution').getByRole('link', { name: 'Readings as Parquet' })).toBeFocused()
   await expect(page.getByRole('textbox', { name: /^Title/ })).toHaveValue('Air quality, hourly')
 
   // The browser's Back works too, and the new object has its own address.
   await page.goBack()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
 })
 
 test('leaves a long list with Tab, and the caret keys leave the options', async ({ page }) => {
@@ -198,7 +198,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
 
   // From the catalog's field: the copy takes the shared contact's place there only.
   await field(page, 'Contact Point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page.getByText(`This is a copy of ${iso('Air Quality Team')} for ${iso('Example Agency Catalog')} only. The other place still uses the original.`)).toBeVisible()
   await expect(page.getByText('Used in 1 place: Example Agency Catalog › Contact Point')).toBeVisible()
@@ -223,7 +223,7 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await places.getByRole('button', { name: 'Edit a copy for this one: Air quality readings' }).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
 })
 
@@ -258,11 +258,11 @@ test('goes back to the place it came from when an object is used in several', as
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).focus()
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   const back = page.getByRole('link', { name: 'Back to Air quality readings' })
   await back.focus()
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
   await expect(field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' })).toBeFocused()
 
   // Create new by keyboard, then Back by keyboard.
@@ -285,7 +285,7 @@ test('ends the undo of a removal once something is added', async ({ page }) => {
 
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Distribution').getByRole('button', { name: /^Create new Distribution/ }).click()
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[^/]+--[A-Za-z0-9_-]{22}$/)
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
   await expect(undo).toBeDisabled()
 })
 

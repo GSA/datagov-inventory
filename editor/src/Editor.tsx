@@ -30,7 +30,7 @@ function ObjectLink({
   return (
     <Link
       to="/editor/$"
-      params={{ _splat: editorPath(open, object.id) }}
+      params={{ _splat: editorPath(open, object) }}
       activeOptions={{ exact: true }}
       data-paged-item
       {...props}
@@ -99,7 +99,7 @@ function DeleteObject({ object, open }: { object: CatalogObject; open: CatalogWo
       navigate({
         to: '/editor/$',
         params: {
-          _splat: editorPath(open, firstParent?.id ?? open.catalog.rootId),
+          _splat: editorPath(open, firstParent ?? open.catalog.objects.get(open.catalog.rootId)!),
         },
       })
     } else {
@@ -326,9 +326,10 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
               })
               .filter((r) => !r.valid)}
             onNavigateToObject={(objectId) => {
+              const object = open.catalog.objects.get(objectId)!
               navigate({
                 to: '/editor/$',
-                params: { _splat: editorPath(open, objectId) },
+                params: { _splat: editorPath(open, object) },
               })
             }}
           />
@@ -358,7 +359,12 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
           <h2 id="tree-heading" className="font-sans-md margin-top-0">
             Catalog contents
           </h2>
-          <CatalogTree catalog={open.catalog} pathFor={(objectId) => editorPath(open, objectId)} parents={parents} selectedId={id} />
+          <CatalogTree
+            catalog={open.catalog}
+            pathFor={(objectId) => editorPath(open, open.catalog.objects.get(objectId)!)}
+            parents={parents}
+            selectedId={id}
+          />
         </nav>
         <div className="tablet:grid-col-7 desktop:grid-col-8 margin-top-4 tablet:margin-top-0 tablet:padding-top-2">
           {object ? (
@@ -450,6 +456,9 @@ export default function Editor() {
   // valid `/editor/<catalog-token>...` route should first restore that exact catalog by id (or report not found /
   // storage unavailable), then resolve the optional object id within it; it must not display a different open catalog.
   if (!open || address.catalogId !== open.id) return <CatalogNotFound />
+
+  const object = address.objectId ? open.catalog.objects.get(address.objectId) : undefined
+  if (object && address.objectType !== object.dcatClass.toLowerCase()) return <InvalidEditorAddress />
 
   return <CatalogView key={open.id} open={open} id={address.objectId ?? open.catalog.rootId} />
 }

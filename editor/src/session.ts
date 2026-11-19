@@ -59,7 +59,7 @@ export function useEditCopy() {
     const rest = others === 1 ? 'The other place still uses' : `The other ${count(others)} places still use`
     navigate({
       to: '/editor/$',
-      params: { _splat: editorPath(open, id) },
+      params: { _splat: editorPath(open, { id, dcatClass: original.dcatClass }) },
       state: {
         from: parent.id,
         notice: `This is a copy of ${isolate(labelOf(original))} for ${isolate(labelOf(parent))} only. ${rest} the original.`,

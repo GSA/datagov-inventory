@@ -120,7 +120,7 @@ test('asks in place, with no dialog, before deleting an object used in several p
 
   await page.getByRole('button', { name: 'Delete object' }).click()
   await page.getByRole('button', { name: 'Delete from all 2 places' }).click()
-  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('treeitem', { name: /^Air Quality Team/ })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Undo' }).click()

@@ -1,19 +1,8 @@
 import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const OBJECT_TOKEN = /--([A-Za-z0-9_-]{22})$/
-const CATALOG_TOKEN = /^[A-Za-z0-9_-]{22}$/
-
-/** Descriptive route text only; it never determines object identity. */
-const slug = (value: string) =>
-  value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'untitled'
-
-const titleOf = (object: CatalogObject) =>
-  ['title', 'name', 'fn', 'prefLabel', 'label']
-    .map((key) => object.properties[key])
-    .find((value): value is string => typeof value === 'string' && value.trim().length > 0) ??
-  `untitled-${object.dcatClass}`
+const TOKEN = /^[A-Za-z0-9_-]{22}$/
+const OBJECT_TYPE = /^[a-z][a-z0-9]*$/
 
 /** Encodes all 128 UUID bits as 22 unpadded, URL-safe base64 characters. */
 function uuidToToken(uuid: string): string {
@@ -37,30 +26,31 @@ function tokenToUuid(token: string): string | undefined {
 /** The canonical editor path segment for a catalog root. */
 export const catalogPath = (catalogId: string) => uuidToToken(catalogId)
 
-/** `<catalog token>/<class>/<label>--<object token>`; only the tokens are identity-bearing. */
-export const objectPath = (catalogId: string, object: CatalogObject) =>
-  `${catalogPath(catalogId)}/${slug(object.dcatClass)}/${slug(titleOf(object))}--${uuidToToken(object.id)}`
+/** `<catalog token>/<lowercase class>/<object token>`; only the tokens are identity-bearing. */
+export const objectPath = (catalogId: string, object: Pick<CatalogObject, 'id' | 'dcatClass'>) =>
+  `${catalogPath(catalogId)}/${object.dcatClass.toLowerCase()}/${uuidToToken(object.id)}`
 
-/** Canonical path for an object in a catalog; the root is addressed by catalog identity alone. */
-export function editorPath(workspace: CatalogWorkspace, objectId: string): string {
-  const object = workspace.catalog.objects.get(objectId)
-  if (!object) throw new Error(`Object ${objectId} is not in the catalog.`)
-  return objectId === workspace.catalog.rootId ? catalogPath(workspace.id) : objectPath(workspace.id, object)
-}
+/** Canonical path for an object identity; the root is addressed by catalog identity alone. */
+export const editorPath = (workspace: CatalogWorkspace, object: Pick<CatalogObject, 'id' | 'dcatClass'>) =>
+  object.id === workspace.catalog.rootId ? catalogPath(workspace.id) : objectPath(workspace.id, object)
 
 export interface EditorAddress {
   catalogId: string
   objectId?: string
+  objectType?: string
 }
 
-/** Resolves the UUID while deliberately accepting stale descriptive slugs. */
+/** Resolves a catalog root or an exact `<catalog token>/<type>/<object token>` address. */
 export const editorAddress = (path: string): EditorAddress | undefined => {
-  const [catalogToken, ...objectParts] = path.split('/')
-  if (!CATALOG_TOKEN.test(catalogToken)) return undefined
+  const parts = path.split('/')
+  const [catalogToken] = parts
+  if (!TOKEN.test(catalogToken)) return undefined
   const catalogId = tokenToUuid(catalogToken)
   if (!catalogId) return undefined
-  if (objectParts.length === 0) return { catalogId }
-  const match = OBJECT_TOKEN.exec(objectParts.join('/'))
-  const objectId = match ? tokenToUuid(match[1]) : undefined
-  return objectId ? { catalogId, objectId } : undefined
+  if (parts.length === 1) return { catalogId }
+  if (parts.length !== 3) return undefined
+  const [, objectType, objectToken] = parts
+  if (!OBJECT_TYPE.test(objectType) || !TOKEN.test(objectToken)) return undefined
+  const objectId = tokenToUuid(objectToken)
+  return objectId ? { catalogId, objectId, objectType } : undefined
 }
