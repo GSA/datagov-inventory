@@ -1,5 +1,6 @@
 import type { CatalogGraph, CatalogObject } from './types'
 import { linkersOf, usesOf } from './uses'
+import { createUuid, type CreateUuid } from './id'
 
 export interface ParentLink {
   parentId: string
@@ -171,13 +172,6 @@ export function undoRemoval(graph: CatalogGraph, record: RemovalRecord): Catalog
 /** A copy of `records` merged, without a prototype, as decompose makes them, so a `__proto__` key stays data. */
 const record = <T,>(...records: Record<string, T>[]): Record<string, T> => Object.assign(Object.create(null), ...records)
 
-/** `${base}/${n}` for the first n from `start` that no object has. */
-function freeId(objects: CatalogGraph['objects'], base: string, start: number): string {
-  let n = start
-  while (objects.has(`${base}/${n}`)) n++
-  return `${base}/${n}`
-}
-
 /**
  * The catalog with `parent`'s `property` set to `ids`. A `single` field is written back as one object. A list field
  * that was read as one object (`"distribution": {…}`) becomes a list once it holds two. An empty list kept as written
@@ -221,9 +215,8 @@ export function linkObject(
 }
 
 /**
- * Creates a blank object of `dcatClass` and links it at the end of `parentId`'s `property`. Its id is
- * `<parent id>/<property>/<n>`, so it has an address like any loaded object. Its `@type` names its class, so a
- * subclass (an Organization in an Agent field) stays one after export and import.
+ * Creates a blank object of `dcatClass` with a UUID and links it at the end of `parentId`'s `property`. Its `@type`
+ * names its class, so a subclass (an Organization in an Agent field) stays one after export and import.
  */
 export function createLinked(
   catalog: CatalogGraph,
@@ -231,11 +224,12 @@ export function createLinked(
   property: string,
   dcatClass: string,
   single = false,
+  createUuidForObject: CreateUuid = createUuid,
 ): { catalog: CatalogGraph; id: string } {
   const parent = get(catalog, parentId)
   const ids = parent.links[property] ?? []
   if (single && ids.length > 0) throw new Error(`${parentId}.${property} holds one object already`)
-  const id = freeId(catalog.objects, `${parentId}/${property}`, ids.length)
+  const id = createUuidForObject()
   const object: CatalogObject = { id, dcatClass, properties: record({ '@type': dcatClass }), links: record({}), singleLinks: [] }
   // A new object links to nothing, so it cannot make a loop: no loop check, and no index built for nothing.
   const linked = withLinks(catalog, parent, property, [...ids, id], single)
@@ -253,6 +247,7 @@ export function copyFor(
   parentId: string,
   property: string,
   targetId: string,
+  createUuidForObject: CreateUuid = createUuid,
 ): { catalog: CatalogGraph; id: string } {
   const parent = get(catalog, parentId)
   const ids = parent.links[property] ?? []
@@ -283,7 +278,7 @@ export function copyFor(
 
   const objects = new Map(catalog.objects)
   const copies = new Map<string, string>()
-  const copy = (id: string, newId: string) => {
+  const copy = (id: string, newId = createUuidForObject()) => {
     copies.set(id, newId)
     const original = get(catalog, id)
     const links: Record<string, string[]> = record({})
@@ -291,7 +286,7 @@ export function copyFor(
       links[link] = children.map(
         (child) =>
           copies.get(child) ??
-          (inside.has(child) ? copy(child, freeId(objects, `${newId}/${link}`, 0)) : child),
+          (inside.has(child) ? copy(child) : child),
       )
     }
     // Not the `@id`: two objects with one IRI are one node to JSON-LD, which would undo "for this one only".
@@ -300,7 +295,7 @@ export function copyFor(
     objects.set(newId, { ...original, id: newId, properties, links })
     return newId
   }
-  const id = copy(targetId, freeId(objects, `${parentId}/${property}`, ids.length))
+  const id = copy(targetId)
   return {
     catalog: withLinks({ ...catalog, objects }, parent, property, ids.map((child) => (child === targetId ? id : child)), false),
     id,

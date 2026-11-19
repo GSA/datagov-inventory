@@ -7,7 +7,7 @@ async function openDataset(page: Page) {
   await page.goto('/import')
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
   await page.getByRole('treeitem', { name: `${DATASET} dataset · Dataset` }).click()
   return page.getByRole('form', { name: `Edit ${DATASET}` })
 }
@@ -93,9 +93,9 @@ test.describe('Validation', () => {
     await page.getByRole('treeitem', { name: 'Example Agency Catalog', exact: true }).click()
 
     await page.getByRole('button', { name: 'Validate catalog' }).click()
-    await page.getByRole('button', { name: /^Air quality readings #\/dataset\/0 \(\d+ errors?\)$/ }).click()
+    await page.getByRole('button', { name: /^Air quality readings \(\d+ errors?\)$/ }).click()
 
-    await expect(page).toHaveURL('/editor/dataset/0')
+    await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
     await expect(page.getByRole('form', { name: `Edit ${DATASET}` })).toBeVisible()
   })
 })

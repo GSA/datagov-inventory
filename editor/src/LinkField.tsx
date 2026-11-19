@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Alert, AlertText, Button, ButtonGroup, Label } from '@trussworks/react-uswds'
 import { Link, useNavigate } from '@tanstack/react-router'
-import type { CatalogObject, CatalogGraph } from './catalog/types'
+import type { CatalogGraph, CatalogObject, CatalogWorkspace } from './catalog/types'
 import { usesOf } from './catalog/uses'
 import { candidatesFor, classesFor, linkModeOf, rowId, search } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
 import { useValidationContext } from './validation/ValidationContext'
-import { classLabel, count, isolate, labelOf, pathOf } from './tree'
+import { classLabel, count, isolate, labelOf } from './tree'
+import { editorPath } from './objectRoute'
 
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`
 /** "Kind", "Agent or Organization": class names as the schema writes them. */
@@ -21,16 +22,17 @@ const classList = (classes: readonly string[]) => classes.map(classLabel).join('
 export function LinkField({
   field,
   object,
-  catalog,
+  open,
   error,
 }: {
   field: FormField
   object: CatalogObject
-  catalog: CatalogGraph
+  open: CatalogWorkspace
   /** The schema check's message for this field, such as that a required one is empty. */
   error?: string
 }) {
   const { removeLink, linkObject, createObject } = useCatalog()
+  const catalog = open.catalog
   const editCopy = useEditCopy()
   // A changed field makes the object's schema check (#27) out of date.
   const { markStale } = useValidationContext()
@@ -72,7 +74,7 @@ export function LinkField({
     markStale(object.id)
     if (id) {
       const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
-      navigate({ to: '/editor/$', params: { _splat: pathOf(id) }, state: { from: object.id, notice } })
+      navigate({ to: '/editor/$', params: { _splat: editorPath(open, { id, dcatClass }) }, state: { from: object.id, notice } })
     }
   }
 
@@ -103,7 +105,8 @@ export function LinkField({
         <ul className="usa-list usa-list--unstyled">
           {ids.map((childId, index) => {
             const child = catalog.objects.get(childId)
-            const label = child ? labelOf(child) : childId
+            // Do not expose an internal UUID when a dangling link is encountered.
+            const label = child ? labelOf(child) : 'Missing linked object'
             const n = uses.get(childId)?.length ?? 0
             return (
               <li key={childId} className="link-row margin-top-1">
@@ -117,7 +120,7 @@ export function LinkField({
                       }
                     }}
                     to="/editor/$"
-                    params={{ _splat: pathOf(childId) }}
+                    params={{ _splat: editorPath(open, child) }}
                     state={{ from: object.id }}
                     className="usa-link text-bold"
                   >

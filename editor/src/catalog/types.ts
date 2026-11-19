@@ -1,10 +1,6 @@
 export interface CatalogObject {
-    /**
-     * Synthetic and deterministic: the object's JSON Pointer in the source document, as a
-     * URI fragment (`#` is the root, `#/dataset/0/distribution/1` a distribution). Its
-     * `@id`, if any, stays in `properties`, because input `@id`s can repeat. Treat it as
-     * opaque: it names where the object was loaded from, not where it is after edits.
-     */
+    /** Identity within this graph. A raw graph may use any unique keys; a CatalogWorkspace always uses UUIDs.
+     * The `@id` field, if any, stays in `properties`, because input `@id`s can repeat. */
     id: string
     /**
      * The DCAT-US 3.0 class the schema allows where the object sits. Its `@type` only
@@ -24,4 +20,14 @@ export interface CatalogGraph {
     rootId: string
     /** Every object by id, in document order (each parent before its children). */
     objects: Map<string, CatalogObject>
+}
+
+/** An accepted catalog working copy: its catalog and object identities are application-generated UUIDs. */
+export interface CatalogWorkspace {
+    /** Stable identity of this loaded catalog, separate from its root object's identity. */
+    id: string
+    /** The file name, sample name, "Pasted JSON" or "Blank catalog". */
+    sourceName: string
+    /** Every object and link uses an application-generated UUID, never a source-location id. */
+    catalog: CatalogGraph
 }

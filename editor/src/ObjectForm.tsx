@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } from '@trussworks/react-uswds'
 import { Link, useRouterState } from '@tanstack/react-router'
-import type { CatalogObject, CatalogGraph } from './catalog/types'
+import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
-import { classLabel, count, labelOf, pathOf } from './tree'
+import { classLabel, count, labelOf } from './tree'
+import { editorPath } from './objectRoute'
 import { getFormModel, type FormModel, type FormField } from './schema'
 import { usesOf, type Use } from './catalog/uses'
 import { rowId } from './links'
@@ -133,7 +134,7 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
           />
         )
       case 'link':
-        return open && <LinkField key={field.name} field={field} object={object} catalog={open.catalog} error={fieldError?.message} />
+        return open && <LinkField key={field.name} field={field} object={object} open={open} error={fieldError?.message} />
     }
   }
 
@@ -155,9 +156,9 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
         {labelOf(object)}
       </h2>
       <p className="text-base-dark margin-top-05">
-        {classLabel(object.dcatClass)} <code className="font-mono-3xs">{object.id}</code>
+        {classLabel(object.dcatClass)}
       </p>
-      {open && <UsedIn object={object} catalog={open.catalog} />}
+      {open && <UsedIn object={object} open={open} />}
 
       {/* The badge and its button on one line, even on a phone, where USWDS buttons are otherwise full width. */}
       <div className="display-flex flex-wrap flex-align-center margin-y-2">
@@ -464,9 +465,10 @@ const fieldLabel = (dcatClass: string, property: string) =>
  * Where the object is used (#25): "Back to" the place the user came from, and every place that links to it, each
  * with "Edit a copy for this one" when there are several. The notice from Create new or a copy shows here too.
  */
-function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGraph }) {
+function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspace }) {
   const editCopy = useEditCopy()
   const { from, notice } = useRouterState({ select: s => s.location.state })
+  const catalog = open.catalog
   if (object.id === catalog.rootId) return null
 
   // The place the user came from first, so its "Edit a copy" is at hand among many.
@@ -482,7 +484,9 @@ function UsedIn({ object, catalog }: { object: CatalogObject; catalog: CatalogGr
   const linkTo = (use: Use, children: ReactNode, className = 'usa-link') => (
     <Link
       to="/editor/$"
-      params={{ _splat: pathOf(use.parentId) }}
+      params={{
+        _splat: editorPath(open, parentOf(use)),
+      }}
       state={{ focus: rowId(use.property, object.id) }}
       className={className}
     >

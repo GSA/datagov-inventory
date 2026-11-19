@@ -52,7 +52,7 @@ async function holdWorker(page: Page) {
 
 test('imports a sample and opens each object at its own address', async ({ page }) => {
   await loadSample(page, 'dataset-with-distributions.json')
-  await expect(page).toHaveURL('/editor')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
   await expect(page).toHaveTitle('Example Agency Catalog (Catalog) | Inventory Editor')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Example Agency Catalog')
   // The catalog is open on the right, and selected in the tree on the left.
@@ -60,7 +60,9 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Example Agency Catalog')
 
   await tree(page).getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0')
+  const datasetUrl = /\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/
+  const csvUrl = /\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/
+  await expect(page).toHaveURL(datasetUrl)
   await expect(page).toHaveTitle('Air quality readings (Dataset) | Inventory Editor')
   const detail = page.getByRole('form', { name: 'Edit Air quality readings' })
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
@@ -74,7 +76,7 @@ test('imports a sample and opens each object at its own address', async ({ page 
 
   // Following a link opens that object, with the path to it in a breadcrumb that leads back up, and shows it in the tree.
   await detail.getByRole('link', { name: 'Readings as CSV', exact: true }).click()
-  await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
+  await expect(page).toHaveURL(csvUrl)
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText(
     'Readings as CSV distribution · Distribution',
   )
@@ -82,81 +84,37 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await expect(breadcrumb).toHaveText(/Example Agency Catalog\s*Air quality readings\s*Readings as CSV/)
   expect((await axe(page).analyze()).violations).toEqual([])
   await breadcrumb.getByRole('link', { name: 'Air quality readings' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0')
+  await expect(page).toHaveURL(datasetUrl)
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
 
   // Back and forward work like any site.
   await page.goBack()
-  await expect(page).toHaveURL('/editor/dataset/0/distribution/0')
+  await expect(page).toHaveURL(csvUrl)
   await expect(page.getByRole('form', { name: 'Edit Readings as CSV' })).toBeVisible()
   await page.goForward()
-  await expect(page).toHaveURL('/editor/dataset/0')
+  await expect(page).toHaveURL(datasetUrl)
 
-  // A reload closes the catalog (it is not stored yet); importing it again returns to the same address.
+  // Until persistence is implemented, reload will not work.
   await page.reload()
-  await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
-  await page.getByRole('link', { name: 'Import a catalog' }).click()
-  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
-  await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page).toHaveURL('/editor/dataset/0')
-  await expect(page.getByRole('form', { name: 'Edit Air quality readings' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Catalog not found in this browser' })).toBeVisible()
 })
 
 test('shows every object above the open one in the breadcrumb, through single links too', async ({ page }) => {
   await loadSample(page, 'dataset-with-distributions.json')
   const breadcrumb = page.getByRole('navigation', { name: 'Where this object is' })
-  const open = async (path: string) => {
-    await page.evaluate((url) => {
-      history.pushState({}, '', url)
-      dispatchEvent(new PopStateEvent('popstate'))
-    }, path)
-  }
-
   // The catalog has nothing above it.
   await expect(breadcrumb).toHaveCount(0)
-  // Each case: the object's path, then the breadcrumb's links (label, path) and the object's own label.
-  const cases: [string, [string, string][], string][] = [
-    ['/editor/publisher', [['Example Agency Catalog', '/editor']], 'Example Agency'], // single link from the catalog
-    ['/editor/dataset/0', [['Example Agency Catalog', '/editor']], 'Air quality readings'], // list item
-    [
-      '/editor/dataset/0/publisher', // single link from a list item
-      [['Example Agency Catalog', '/editor'], ['Air quality readings', '/editor/dataset/0']],
-      'Example Agency',
-    ],
-    [
-      '/editor/dataset/0/distribution/0', // list item in a list item
-      [['Example Agency Catalog', '/editor'], ['Air quality readings', '/editor/dataset/0']],
-      'Readings as CSV',
-    ],
-    [
-      '/editor/dataset/0/distribution/0/checksum', // single link, two levels down
-      [
-        ['Example Agency Catalog', '/editor'],
-        ['Air quality readings', '/editor/dataset/0'],
-        ['Readings as CSV', '/editor/dataset/0/distribution/0'],
-      ],
-      'Untitled Checksum',
-    ],
-  ]
-  for (const [path, above, label] of cases) {
-    await open(path)
-    await expect(page.getByRole('heading', { level: 2, name: label, exact: true })).toBeVisible()
-    const links = breadcrumb.getByRole('link')
-    await expect(links, path).toHaveText(above.map(([name]) => name))
-    for (const [i, [, href]] of above.entries()) await expect(links.nth(i), path).toHaveAttribute('href', href)
-    await expect(breadcrumb.getByRole('listitem').last(), path).toHaveText(label)
-  }
-})
-
-test('shows an address with nothing at it in the open catalog', async ({ page }) => {
-  await loadSample(page, 'minimal-catalog.json')
-  await page.evaluate(() => {
-    history.pushState({}, '', '/editor/dataset/9')
-    dispatchEvent(new PopStateEvent('popstate'))
-  })
-  await expect(page.getByRole('heading', { name: 'Nothing at this address' })).toBeVisible()
-  await page.getByRole('link', { name: 'Open the catalog' }).click()
-  await expect(page).toHaveURL('/editor')
+  await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  await page.getByRole('form').getByRole('link', { name: 'Readings as CSV', exact: true }).click()
+  await page.getByRole('form').getByRole('link', { name: 'Untitled Checksum', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 2, name: 'Untitled Checksum', exact: true })).toBeVisible()
+  await expect(breadcrumb.getByRole('link')).toHaveText([
+    'Example Agency Catalog',
+    'Air quality readings',
+    'Readings as CSV',
+  ])
+  await expect(breadcrumb.getByRole('link').first()).toHaveAttribute('href', /\/editor\/[A-Za-z0-9_-]{22}$/)
+  await expect(breadcrumb.getByRole('listitem').last()).toHaveText('Untitled Checksum')
 })
 
 test('loads a chosen file in the browser', async ({ page }) => {

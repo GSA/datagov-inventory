@@ -76,7 +76,7 @@ export function ValidationSummary({ catalogSummary, objectResults, onNavigateToO
                               className="usa-button usa-button--unstyled validation-summary__object-link"
                             >
                               {obj.label && <bdi>{obj.label}</bdi>}{' '}
-                              <code className="font-mono-3xs">{obj.objectId}</code> ({obj.errors.length}{' '}
+                              ({obj.errors.length}{' '}
                               {obj.errors.length === 1 ? 'error' : 'errors'})
                             </button>
                           </li>

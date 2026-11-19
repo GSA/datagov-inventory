@@ -9,8 +9,8 @@ import {
   RouterProvider,
   useRouter,
 } from '@tanstack/react-router'
-import { CatalogContext, type OpenCatalog } from './session'
-import type { CatalogObject, CatalogGraph } from './catalog/types'
+import { CatalogContext } from './session'
+import type { CatalogObject, CatalogGraph, CatalogWorkspace } from './catalog/types'
 import { keepIndex } from './catalog/uses'
 import {
   copyFor,
@@ -115,13 +115,9 @@ const routeTree = root.addChildren([
   createRoute({
     getParentRoute: () => root,
     path: 'import',
-    // Where to go once a catalog opens: an editor page the user bookmarked before the catalog was open.
-    validateSearch: (search): { next?: string } => ({
-      next: typeof search.next === 'string' && search.next.startsWith('/editor') ? search.next : undefined,
-    }),
     component: ImportPage,
   }),
-  // An object's path is its id without the "#": `#/dataset/0` is /editor/dataset/0, and the catalog is /editor.
+  // Canonical roots and objects begin with an identity-bearing catalog UUID token; /editor is a convenience route.
   createRoute({
     getParentRoute: () => root,
     path: 'editor/$',
@@ -150,7 +146,7 @@ declare module '@tanstack/react-router' {
 }
 
 export default function App() {
-  const [open, setOpen] = useState<OpenCatalog | undefined>()
+  const [open, setOpen] = useState<CatalogWorkspace | undefined>()
   const [removalHistory, setRemovalHistory] = useState<RemovalRecord | undefined>()
 
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
@@ -209,7 +205,7 @@ export default function App() {
   }, [open, removalHistory])
 
   /**
-   * Applies a change that returns the new catalog and an id, and returns the id. It ends the last removal's undo:
+   * Applies a change that returns the new catalog graph and an id, and returns the id. It ends the last removal's undo:
    * undoing a removal after a pick, create or copy could restore an id that is in use again.
    */
   const change = useCallback(

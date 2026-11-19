@@ -20,7 +20,7 @@ export default function Landing() {
           ...(open
             ? [
                 <Link key="continue" to="/editor/$" params={{ _splat: '' }} className="usa-button usa-button--outline">
-                  Continue with <bdi>{open.name}</bdi>
+                  Continue with <bdi>{open.sourceName}</bdi>
                 </Link>,
               ]
             : []),
