@@ -80,7 +80,7 @@ export default function ImportPage() {
     try {
       const catalog = await loadCatalog(source, controller.signal)
       if (controller.signal.aborted) return
-      const loaded = { name, catalog }
+      const loaded = { sourceName: name, catalog }
       if (openNow.current) setPending(loaded)
       else show(loaded)
     } catch (e) {

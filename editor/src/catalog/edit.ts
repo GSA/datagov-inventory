@@ -215,9 +215,8 @@ export function linkObject(
 }
 
 /**
- * Creates a blank object of `dcatClass` and links it at the end of `parentId`'s `property`. Its id is
- * `<parent id>/<property>/<n>`, so it has an address like any loaded object. Its `@type` names its class, so a
- * subclass (an Organization in an Agent field) stays one after export and import.
+ * Creates a blank object of `dcatClass` with a UUID and links it at the end of `parentId`'s `property`. Its `@type`
+ * names its class, so a subclass (an Organization in an Agent field) stays one after export and import.
  */
 export function createLinked(
   catalog: CatalogGraph,

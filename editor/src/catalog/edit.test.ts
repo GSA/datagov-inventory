@@ -20,86 +20,92 @@ const createCatalog = (objects: CatalogObject[]): CatalogGraph => ({
   rootId: objects[0].id,
   objects: new Map(objects.map(obj => [obj.id, obj])),
 })
+const uuids = (...values: string[]) => {
+  let index = 0
+  return () => values[index++]
+}
+const UUID_1 = '00000000-0000-4000-8000-000000000001'
+const UUID_2 = '00000000-0000-4000-8000-000000000002'
 
 describe('updateObject', () => {
   it('updates properties without mutating the input graph', () => {
-    const catalog = createCatalog([createObject('#', 'Catalog', { title: 'Before', description: 'Kept' })])
+    const catalog = createCatalog([createObject('catalog-root', 'Catalog', { title: 'Before', description: 'Kept' })])
 
-    const result = updateObject(catalog, '#', { properties: { title: 'After' } })
+    const result = updateObject(catalog, 'catalog-root', { properties: { title: 'After' } })
 
-    expect(result.objects.get('#')?.properties).toEqual({ title: 'After', description: 'Kept' })
-    expect(catalog.objects.get('#')?.properties.title).toBe('Before')
+    expect(result.objects.get('catalog-root')?.properties).toEqual({ title: 'After', description: 'Kept' })
+    expect(catalog.objects.get('catalog-root')?.properties.title).toBe('Before')
   })
 })
 
 describe('removeLink', () => {
   it('removes a link from parent property array', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', { title: 'Test' }, {
-        dataset: ['#/dataset/0', '#/dataset/1']
+      createObject('catalog-root', 'Catalog', { title: 'Test' }, {
+        dataset: ['dataset-zero', 'dataset-one']
       }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset 0' }),
-      createObject('#/dataset/1', 'Dataset', { title: 'Dataset 1' }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset 0' }),
+      createObject('dataset-one', 'Dataset', { title: 'Dataset 1' }),
     ])
 
-    const result = removeLink(catalog, '#', 'dataset', '#/dataset/0')
+    const result = removeLink(catalog, 'catalog-root', 'dataset', 'dataset-zero')
 
-    expect(result.catalog.objects.get('#')?.links.dataset).toEqual(['#/dataset/1'])
-    expect(result.catalog.objects.has('#/dataset/0')).toBe(true)
+    expect(result.catalog.objects.get('catalog-root')?.links.dataset).toEqual(['dataset-one'])
+    expect(result.catalog.objects.has('dataset-zero')).toBe(true)
   })
 
   it('removes property entirely when removing last link', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset 0' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset 0' }),
     ])
 
-    const result = removeLink(catalog, '#', 'dataset', '#/dataset/0')
+    const result = removeLink(catalog, 'catalog-root', 'dataset', 'dataset-zero')
 
-    expect(result.catalog.objects.get('#')?.links.dataset).toBeUndefined()
+    expect(result.catalog.objects.get('catalog-root')?.links.dataset).toBeUndefined()
   })
 
   it('preserves singleLinks when removing from array', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset 0' }),
-      createObject('#/dataset/1', 'Dataset', { title: 'Dataset 1' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset 0' }),
+      createObject('dataset-one', 'Dataset', { title: 'Dataset 1' }),
     ])
-    catalog.objects.get('#')!.singleLinks = ['publisher']
+    catalog.objects.get('catalog-root')!.singleLinks = ['publisher']
 
-    const result = removeLink(catalog, '#', 'dataset', '#/dataset/0')
+    const result = removeLink(catalog, 'catalog-root', 'dataset', 'dataset-zero')
 
-    expect(result.catalog.objects.get('#')?.singleLinks).toEqual(['publisher'])
+    expect(result.catalog.objects.get('catalog-root')?.singleLinks).toEqual(['publisher'])
   })
 
   it('removes property from singleLinks when removing last link', () => {
-    const parent = createObject('#/dataset/0', 'Dataset', {}, { publisher: ['#/org/0'] })
+    const parent = createObject('dataset-zero', 'Dataset', {}, { publisher: ['organization-zero'] })
     parent.singleLinks = ['publisher']
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0'] }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero'] }),
       parent,
-      createObject('#/org/0', 'Organization', { name: 'Org' }),
+      createObject('organization-zero', 'Organization', { name: 'Org' }),
     ])
 
-    const result = removeLink(catalog, '#/dataset/0', 'publisher', '#/org/0')
+    const result = removeLink(catalog, 'dataset-zero', 'publisher', 'organization-zero')
 
-    expect(result.catalog.objects.get('#/dataset/0')?.singleLinks).toEqual([])
+    expect(result.catalog.objects.get('dataset-zero')?.singleLinks).toEqual([])
   })
 
   it('returns removal record for undo', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset 0' }),
-      createObject('#/dataset/1', 'Dataset', { title: 'Dataset 1' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset 0' }),
+      createObject('dataset-one', 'Dataset', { title: 'Dataset 1' }),
     ])
 
-    const { undoRecord } = removeLink(catalog, '#', 'dataset', '#/dataset/0')
+    const { undoRecord } = removeLink(catalog, 'catalog-root', 'dataset', 'dataset-zero')
 
     expect(undoRecord).toMatchObject({
       type: 'link',
-      parentId: '#',
+      parentId: 'catalog-root',
       property: 'dataset',
-      childId: '#/dataset/0',
+      childId: 'dataset-zero',
       position: 0,
     })
   })
@@ -108,89 +114,89 @@ describe('removeLink', () => {
 describe('deleteObject', () => {
   it('removes object from catalog', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset 0' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset 0' }),
     ])
 
-    const result = deleteObject(catalog, '#/dataset/0')
+    const result = deleteObject(catalog, 'dataset-zero')
 
-    expect(result.catalog.objects.has('#/dataset/0')).toBe(false)
+    expect(result.catalog.objects.has('dataset-zero')).toBe(false)
   })
 
   it('removes all links to object from all parents', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'First' }, {
-        contactPoint: ['#/contact']
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'First' }, {
+        contactPoint: ['shared-contact']
       }),
-      createObject('#/dataset/1', 'Dataset', { title: 'Second' }, {
-        contactPoint: ['#/contact']
+      createObject('dataset-one', 'Dataset', { title: 'Second' }, {
+        contactPoint: ['shared-contact']
       }),
-      createObject('#/contact', 'Kind', { fn: 'Shared Contact' }),
+      createObject('shared-contact', 'Kind', { fn: 'Shared Contact' }),
     ])
 
-    const result = deleteObject(catalog, '#/contact')
+    const result = deleteObject(catalog, 'shared-contact')
 
-    expect(result.catalog.objects.has('#/contact')).toBe(false)
-    expect(result.catalog.objects.get('#/dataset/0')?.links.contactPoint).toBeUndefined()
-    expect(result.catalog.objects.get('#/dataset/1')?.links.contactPoint).toBeUndefined()
+    expect(result.catalog.objects.has('shared-contact')).toBe(false)
+    expect(result.catalog.objects.get('dataset-zero')?.links.contactPoint).toBeUndefined()
+    expect(result.catalog.objects.get('dataset-one')?.links.contactPoint).toBeUndefined()
   })
 
   it('recursively deletes child objects when parent deleted', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset' }, {
-        distribution: ['#/dataset/0/distribution/0', '#/dataset/0/distribution/1']
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset' }, {
+        distribution: ['distribution-zero', 'distribution-one']
       }),
-      createObject('#/dataset/0/distribution/0', 'Distribution', { title: 'Dist 0' }),
-      createObject('#/dataset/0/distribution/1', 'Distribution', { title: 'Dist 1' }),
+      createObject('distribution-zero', 'Distribution', { title: 'Dist 0' }),
+      createObject('distribution-one', 'Distribution', { title: 'Dist 1' }),
     ])
 
-    const result = deleteObject(catalog, '#/dataset/0')
+    const result = deleteObject(catalog, 'dataset-zero')
 
-    expect(result.catalog.objects.has('#/dataset/0')).toBe(false)
-    expect(result.catalog.objects.has('#/dataset/0/distribution/0')).toBe(false)
-    expect(result.catalog.objects.has('#/dataset/0/distribution/1')).toBe(false)
+    expect(result.catalog.objects.has('dataset-zero')).toBe(false)
+    expect(result.catalog.objects.has('distribution-zero')).toBe(false)
+    expect(result.catalog.objects.has('distribution-one')).toBe(false)
   })
 
   it('does not delete shared child objects', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', {}, { publisher: ['#/org'] }),
-      createObject('#/dataset/1', 'Dataset', {}, { publisher: ['#/org'] }),
-      createObject('#/org', 'Organization', { name: 'Shared Org' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', {}, { publisher: ['shared-organization'] }),
+      createObject('dataset-one', 'Dataset', {}, { publisher: ['shared-organization'] }),
+      createObject('shared-organization', 'Organization', { name: 'Shared Org' }),
     ])
 
-    const result = deleteObject(catalog, '#/dataset/0')
+    const result = deleteObject(catalog, 'dataset-zero')
 
-    expect(result.catalog.objects.has('#/dataset/0')).toBe(false)
-    expect(result.catalog.objects.has('#/org')).toBe(true)
-    expect(result.catalog.objects.get('#/dataset/1')?.links.publisher).toEqual(['#/org'])
+    expect(result.catalog.objects.has('dataset-zero')).toBe(false)
+    expect(result.catalog.objects.has('shared-organization')).toBe(true)
+    expect(result.catalog.objects.get('dataset-one')?.links.publisher).toEqual(['shared-organization'])
   })
 
   it('returns undo record with object data and all parent links', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'First' }, {
-        contactPoint: ['#/contact']
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'First' }, {
+        contactPoint: ['shared-contact']
       }),
-      createObject('#/dataset/1', 'Dataset', { title: 'Second' }, {
-        contactPoint: ['#/contact']
+      createObject('dataset-one', 'Dataset', { title: 'Second' }, {
+        contactPoint: ['shared-contact']
       }),
-      createObject('#/contact', 'Kind', { fn: 'Shared Contact' }),
+      createObject('shared-contact', 'Kind', { fn: 'Shared Contact' }),
     ])
 
-    const { undoRecord } = deleteObject(catalog, '#/contact')
+    const { undoRecord } = deleteObject(catalog, 'shared-contact')
 
     expect(undoRecord.type).toBe('object')
     expect(undoRecord.object).toMatchObject({
-      id: '#/contact',
+      id: 'shared-contact',
       dcatClass: 'Kind',
       properties: { fn: 'Shared Contact' },
     })
     expect(undoRecord.parentLinks).toEqual([
-      { parentId: '#/dataset/0', property: 'contactPoint', position: 0 },
-      { parentId: '#/dataset/1', property: 'contactPoint', position: 0 },
+      { parentId: 'dataset-zero', property: 'contactPoint', position: 0 },
+      { parentId: 'dataset-one', property: 'contactPoint', position: 0 },
     ])
   })
 })
@@ -198,149 +204,149 @@ describe('deleteObject', () => {
 describe('undoRemoval', () => {
   it('restores removed link to parent at original position', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset 0' }),
-      createObject('#/dataset/1', 'Dataset', { title: 'Dataset 1' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset 0' }),
+      createObject('dataset-one', 'Dataset', { title: 'Dataset 1' }),
     ])
 
     const undoRecord = {
       type: 'link' as const,
-      parentId: '#',
+      parentId: 'catalog-root',
       property: 'dataset',
-      childId: '#/dataset/0',
+      childId: 'dataset-zero',
       position: 0,
       wasSingleLink: false,
     }
 
     const result = undoRemoval(catalog, undoRecord)
 
-    expect(result.objects.get('#')?.links.dataset).toEqual([
-      '#/dataset/0',
-      '#/dataset/1'
+    expect(result.objects.get('catalog-root')?.links.dataset).toEqual([
+      'dataset-zero',
+      'dataset-one'
     ])
   })
 
   it('restores singleLinks when undoing single-link removal', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0'] }),
-      createObject('#/dataset/0', 'Dataset', {}, {}),
-      createObject('#/org/0', 'Organization', { name: 'Org' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero'] }),
+      createObject('dataset-zero', 'Dataset', {}, {}),
+      createObject('organization-zero', 'Organization', { name: 'Org' }),
     ])
 
     const undoRecord = {
       type: 'link' as const,
-      parentId: '#/dataset/0',
+      parentId: 'dataset-zero',
       property: 'publisher',
-      childId: '#/org/0',
+      childId: 'organization-zero',
       position: 0,
       wasSingleLink: true,
     }
 
     const result = undoRemoval(catalog, undoRecord)
 
-    expect(result.objects.get('#/dataset/0')?.links.publisher).toEqual(['#/org/0'])
-    expect(result.objects.get('#/dataset/0')?.singleLinks).toContain('publisher')
+    expect(result.objects.get('dataset-zero')?.links.publisher).toEqual(['organization-zero'])
+    expect(result.objects.get('dataset-zero')?.singleLinks).toContain('publisher')
   })
 
   it('restores deleted object and all parent links', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', {}, { contactPoint: [] }),
-      createObject('#/dataset/1', 'Dataset', {}, { contactPoint: [] }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', {}, { contactPoint: [] }),
+      createObject('dataset-one', 'Dataset', {}, { contactPoint: [] }),
     ])
 
     const undoRecord = {
       type: 'object' as const,
-      object: createObject('#/contact', 'Kind', { fn: 'Shared Contact' }),
+      object: createObject('shared-contact', 'Kind', { fn: 'Shared Contact' }),
       children: [],
       parentLinks: [
-        { parentId: '#/dataset/0', property: 'contactPoint', position: 0 },
-        { parentId: '#/dataset/1', property: 'contactPoint', position: 0 },
+        { parentId: 'dataset-zero', property: 'contactPoint', position: 0 },
+        { parentId: 'dataset-one', property: 'contactPoint', position: 0 },
       ],
     }
 
     const result = undoRemoval(catalog, undoRecord)
 
-    expect(result.objects.has('#/contact')).toBe(true)
-    expect(result.objects.get('#/contact')).toMatchObject({
-      id: '#/contact',
+    expect(result.objects.has('shared-contact')).toBe(true)
+    expect(result.objects.get('shared-contact')).toMatchObject({
+      id: 'shared-contact',
       dcatClass: 'Kind',
       properties: { fn: 'Shared Contact' },
     })
-    expect(result.objects.get('#/dataset/0')?.links.contactPoint).toEqual(['#/contact'])
-    expect(result.objects.get('#/dataset/1')?.links.contactPoint).toEqual(['#/contact'])
+    expect(result.objects.get('dataset-zero')?.links.contactPoint).toEqual(['shared-contact'])
+    expect(result.objects.get('dataset-one')?.links.contactPoint).toEqual(['shared-contact'])
   })
 
   it('restores deleted object with its children', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: [] }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: [] }),
     ])
 
-    const deletedDataset = createObject('#/dataset/0', 'Dataset', { title: 'Dataset' }, {
-      distribution: ['#/dataset/0/distribution/0']
+    const deletedDataset = createObject('dataset-zero', 'Dataset', { title: 'Dataset' }, {
+      distribution: ['distribution-zero']
     })
-    const deletedDist = createObject('#/dataset/0/distribution/0', 'Distribution', { title: 'Dist' })
+    const deletedDist = createObject('distribution-zero', 'Distribution', { title: 'Dist' })
 
     const undoRecord = {
       type: 'object' as const,
       object: deletedDataset,
       children: [deletedDist],
       parentLinks: [
-        { parentId: '#', property: 'dataset', position: 0 },
+        { parentId: 'catalog-root', property: 'dataset', position: 0 },
       ],
     }
 
     const result = undoRemoval(catalog, undoRecord)
 
-    expect(result.objects.has('#/dataset/0')).toBe(true)
-    expect(result.objects.has('#/dataset/0/distribution/0')).toBe(true)
-    expect(result.objects.get('#')?.links.dataset).toEqual(['#/dataset/0'])
+    expect(result.objects.has('dataset-zero')).toBe(true)
+    expect(result.objects.has('distribution-zero')).toBe(true)
+    expect(result.objects.get('catalog-root')?.links.dataset).toEqual(['dataset-zero'])
   })
 })
 
 describe('findParentLinks', () => {
   it('finds all parent objects linking to target', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0', '#/dataset/1'] }),
-      createObject('#/dataset/0', 'Dataset', {}, { contactPoint: ['#/contact'] }),
-      createObject('#/dataset/1', 'Dataset', {}, { contactPoint: ['#/contact'] }),
-      createObject('#/contact', 'Kind', { fn: 'Contact' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero', 'dataset-one'] }),
+      createObject('dataset-zero', 'Dataset', {}, { contactPoint: ['shared-contact'] }),
+      createObject('dataset-one', 'Dataset', {}, { contactPoint: ['shared-contact'] }),
+      createObject('shared-contact', 'Kind', { fn: 'Contact' }),
     ])
 
-    const parents = findParentLinks(catalog, '#/contact')
+    const parents = findParentLinks(catalog, 'shared-contact')
 
     expect(parents).toEqual([
-      { parentId: '#/dataset/0', property: 'contactPoint', position: 0 },
-      { parentId: '#/dataset/1', property: 'contactPoint', position: 0 },
+      { parentId: 'dataset-zero', property: 'contactPoint', position: 0 },
+      { parentId: 'dataset-one', property: 'contactPoint', position: 0 },
     ])
   })
 
   it('returns empty array for unlinked object', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, { dataset: ['#/dataset/0'] }),
-      createObject('#/dataset/0', 'Dataset', {}, {}),
-      createObject('#/orphan', 'Kind', { fn: 'Orphan' }),
+      createObject('catalog-root', 'Catalog', {}, { dataset: ['dataset-zero'] }),
+      createObject('dataset-zero', 'Dataset', {}, {}),
+      createObject('orphan-contact', 'Kind', { fn: 'Orphan' }),
     ])
 
-    const parents = findParentLinks(catalog, '#/orphan')
+    const parents = findParentLinks(catalog, 'orphan-contact')
 
     expect(parents).toEqual([])
   })
 
   it('finds multiple links from same parent', () => {
     const catalog = createCatalog([
-      createObject('#', 'Catalog', {}, {
-        dataset: ['#/dataset/0'],
-        service: ['#/dataset/0']
+      createObject('catalog-root', 'Catalog', {}, {
+        dataset: ['dataset-zero'],
+        service: ['dataset-zero']
       }),
-      createObject('#/dataset/0', 'Dataset', { title: 'Dataset' }),
+      createObject('dataset-zero', 'Dataset', { title: 'Dataset' }),
     ])
 
-    const parents = findParentLinks(catalog, '#/dataset/0')
+    const parents = findParentLinks(catalog, 'dataset-zero')
 
     expect(parents).toHaveLength(2)
-    expect(parents).toContainEqual({ parentId: '#', property: 'dataset', position: 0 })
-    expect(parents).toContainEqual({ parentId: '#', property: 'service', position: 0 })
+    expect(parents).toContainEqual({ parentId: 'catalog-root', property: 'dataset', position: 0 })
+    expect(parents).toContainEqual({ parentId: 'catalog-root', property: 'service', position: 0 })
   })
 })
 
@@ -368,102 +374,100 @@ const shared = () =>
 
 describe('linkObject', () => {
   it('adds the same object, so both parents show it', () => {
-    const catalog = linkObject(shared(), '#', 'contactPoint', '#/dataset/0/contactPoint/0')
-    expect(catalog.objects.get('#')!.links.contactPoint).toEqual(['#/dataset/0/contactPoint/0'])
-    expect(usesOf(catalog).get('#/dataset/0/contactPoint/0')).toHaveLength(3)
+    const catalog = linkObject(shared(), 'catalog-root', 'contactPoint', 'shared-contact')
+    expect(catalog.objects.get('catalog-root')!.links.contactPoint).toEqual(['shared-contact'])
+    expect(usesOf(catalog).get('shared-contact')).toHaveLength(3)
     expect(catalog.objects.size).toBe(shared().objects.size)
   })
 
   it('writes a single field back as one object', () => {
-    const catalog = linkObject(shared(), '#', 'publisher', '#/dataset/0/contactPoint/0', true)
-    expect(catalog.objects.get('#')!.singleLinks).toEqual(['publisher'])
-    expect(() => linkObject(catalog, '#', 'publisher', '#/dataset/0', true)).toThrow(/holds one/)
+    const catalog = linkObject(shared(), 'catalog-root', 'publisher', 'shared-contact', true)
+    expect(catalog.objects.get('catalog-root')!.singleLinks).toEqual(['publisher'])
+    expect(() => linkObject(catalog, 'catalog-root', 'publisher', 'water-dataset', true)).toThrow(/holds one/)
   })
 
   it('refuses a loop and ignores a link that is already there', () => {
     const catalog = shared()
-    expect(() => linkObject(catalog, '#/dataset/0', 'x', '#')).toThrow(/loop/)
-    expect(() => linkObject(catalog, '#/dataset/0', 'x', '#/dataset/0')).toThrow(/loop/)
-    expect(linkObject(catalog, '#/dataset/0', 'contactPoint', '#/dataset/0/contactPoint/0')).toBe(catalog)
+    expect(() => linkObject(catalog, 'water-dataset', 'x', 'catalog-root')).toThrow(/loop/)
+    expect(() => linkObject(catalog, 'water-dataset', 'x', 'water-dataset')).toThrow(/loop/)
+    expect(linkObject(catalog, 'water-dataset', 'contactPoint', 'shared-contact')).toBe(catalog)
   })
 })
 
 describe('createLinked', () => {
-  it('creates a blank object with an address under its parent, and links it', () => {
-    const { catalog, id } = createLinked(shared(), '#/dataset/0', 'contactPoint', 'Kind')
-    expect(id).toBe('#/dataset/0/contactPoint/1')
+  it('creates a blank object with a UUID and links it', () => {
+    const { catalog, id } = createLinked(shared(), 'water-dataset', 'contactPoint', 'Kind', false, uuids(UUID_1))
+    expect(id).toBe(UUID_1)
     expect(catalog.objects.get(id)).toEqual(object(id, 'Kind', { '@type': 'Kind' }))
-    expect(catalog.objects.get('#/dataset/0')!.links.contactPoint).toEqual(['#/dataset/0/contactPoint/0', id])
+    expect(catalog.objects.get('water-dataset')!.links.contactPoint).toEqual(['shared-contact', id])
   })
 
-  it('skips ids that are taken, and starts a field that was empty', () => {
+  it('starts a field that was empty', () => {
     const start = shared()
-    start.objects.set('#/dataset/1/contactPoint/1', object('#/dataset/1/contactPoint/1', 'Kind'))
-    expect(createLinked(start, '#/dataset/1', 'contactPoint', 'Kind').id).toBe('#/dataset/1/contactPoint/2')
-    const { catalog, id } = createLinked(start, '#', 'publisher', 'Organization', true)
-    expect(id).toBe('#/publisher/0')
-    expect(catalog.objects.get('#')!.singleLinks).toEqual(['publisher'])
+    const { catalog, id } = createLinked(start, 'catalog-root', 'publisher', 'Organization', true, uuids(UUID_1))
+    expect(id).toBe(UUID_1)
+    expect(catalog.objects.get('catalog-root')!.singleLinks).toEqual(['publisher'])
   })
 
   it('turns a list field read as one object into a list at two, and an empty list as written gives way to the links', () => {
     const start = catalogOf(
-      object('#', 'Catalog', {}, { dataset: ['#/d'] }),
-      { ...object('#/d', 'Dataset', { sample: [] }, { distribution: ['#/d/distribution'] }), singleLinks: ['distribution'] },
-      object('#/d/distribution', 'Distribution', { title: 'one' }),
+      object('catalog-root', 'Catalog', {}, { dataset: ['dataset'] }),
+      { ...object('dataset', 'Dataset', { sample: [] }, { distribution: ['distribution-one'] }), singleLinks: ['distribution'] },
+      object('distribution-one', 'Distribution', { title: 'one' }),
     )
-    const { catalog } = createLinked(start, '#/d', 'distribution', 'Distribution')
-    expect(catalog.objects.get('#/d')!.singleLinks).toEqual([])
-    const withSample = createLinked(catalog, '#/d', 'sample', 'Distribution').catalog
-    expect(withSample.objects.get('#/d')!.properties).toEqual({})
-    expect(withSample.objects.get('#/d')!.links.sample).toHaveLength(1)
+    const { catalog } = createLinked(start, 'dataset', 'distribution', 'Distribution', false, uuids(UUID_1))
+    expect(catalog.objects.get('dataset')!.singleLinks).toEqual([])
+    const withSample = createLinked(catalog, 'dataset', 'sample', 'Distribution', false, uuids(UUID_2)).catalog
+    expect(withSample.objects.get('dataset')!.properties).toEqual({})
+    expect(withSample.objects.get('dataset')!.links.sample).toEqual([UUID_2])
   })
 })
 
 describe('copyFor', () => {
   it('copies a shared object and what only it uses, for one place only', () => {
     const before = shared()
-    const { catalog, id } = copyFor(before, '#/dataset/1', 'contactPoint', '#/dataset/0/contactPoint/0')
-    expect(id).toBe('#/dataset/1/contactPoint/1')
-    expect(catalog.objects.get('#/dataset/1')!.links.contactPoint).toEqual([id])
-    expect(catalog.objects.get('#/dataset/0')!.links.contactPoint).toEqual(['#/dataset/0/contactPoint/0'])
+    const { catalog, id } = copyFor(before, 'air-dataset', 'contactPoint', 'shared-contact', uuids(UUID_1, UUID_2))
+    expect(id).toBe(UUID_1)
+    expect(catalog.objects.get('air-dataset')!.links.contactPoint).toEqual([id])
+    expect(catalog.objects.get('water-dataset')!.links.contactPoint).toEqual(['shared-contact'])
 
     const copy = catalog.objects.get(id)!
     expect(copy.properties).toEqual({ fn: 'Help desk' })
-    expect(copy.links.address).toEqual([`${id}/address/0`])
-    expect(catalog.objects.get(`${id}/address/0`)!.properties).toEqual({ locality: 'Springfield' })
-    expect(usesOf(catalog).get('#/dataset/0/contactPoint/0')).toHaveLength(1)
+    expect(copy.links.address).toEqual([UUID_2])
+    expect(catalog.objects.get(UUID_2)!.properties).toEqual({ locality: 'Springfield' })
+    expect(usesOf(catalog).get('shared-contact')).toHaveLength(1)
     // The original catalog is unchanged.
     expect(before.objects.size).toBe(5)
   })
 
   it('leaves the @id out of the copies, so they are not the same node as the originals', () => {
     const start = shared()
-    const contact = start.objects.get('#/dataset/0/contactPoint/0')!
+    const contact = start.objects.get('shared-contact')!
     start.objects.set(contact.id, { ...contact, properties: { '@id': 'https://example.gov/help', fn: 'Help desk' } })
-    const { catalog, id } = copyFor(start, '#/dataset/1', 'contactPoint', contact.id)
+    const { catalog, id } = copyFor(start, 'air-dataset', 'contactPoint', contact.id, uuids(UUID_1, UUID_2))
     expect(catalog.objects.get(id)!.properties).toEqual({ fn: 'Help desk' })
     expect(catalog.objects.get(contact.id)!.properties['@id']).toBe('https://example.gov/help')
   })
 
   it('keeps links to objects shared with others', () => {
-    const start = linkObject(shared(), '#', 'contactPoint', '#/dataset/0/contactPoint/0/address/0')
-    const { catalog, id } = copyFor(start, '#/dataset/1', 'contactPoint', '#/dataset/0/contactPoint/0')
-    expect(catalog.objects.get(id)!.links.address).toEqual(['#/dataset/0/contactPoint/0/address/0'])
+    const start = linkObject(shared(), 'catalog-root', 'contactPoint', 'contact-address')
+    const { catalog, id } = copyFor(start, 'air-dataset', 'contactPoint', 'shared-contact', uuids(UUID_1))
+    expect(catalog.objects.get(id)!.links.address).toEqual(['contact-address'])
   })
 
   it('copies a loop inside the object as a loop', () => {
     const start = catalogOf(
-      object('#', 'Catalog', {}, { hasPart: ['#/a'], catalog: ['#/a'] }),
-      object('#/a', 'Catalog', {}, { hasPart: ['#/a/b'] }),
-      object('#/a/b', 'Catalog', {}, { hasPart: ['#/a'] }),
+      object('catalog-root', 'Catalog', {}, { hasPart: ['catalog-a'], catalog: ['catalog-a'] }),
+      object('catalog-a', 'Catalog', {}, { hasPart: ['catalog-b'] }),
+      object('catalog-b', 'Catalog', {}, { hasPart: ['catalog-a'] }),
     )
-    const { catalog, id } = copyFor(start, '#', 'catalog', '#/a')
+    const { catalog, id } = copyFor(start, 'catalog-root', 'catalog', 'catalog-a', uuids(UUID_1, UUID_2))
     const inner = catalog.objects.get(id)!.links.hasPart[0]
-    expect(inner).toBe(`${id}/hasPart/0`)
+    expect(inner).toBe(UUID_2)
     expect(catalog.objects.get(inner)!.links.hasPart).toEqual([id])
   })
 
   it('refuses an object that is not in the field', () => {
-    expect(() => copyFor(shared(), '#', 'contactPoint', '#/dataset/0')).toThrow(/not in/)
+    expect(() => copyFor(shared(), 'catalog-root', 'contactPoint', 'dataset-zero')).toThrow(/not in/)
   })
 })
