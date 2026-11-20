@@ -8,18 +8,17 @@ export function useValidation() {
   const {
     validationState,
     catalogSummary,
-    validationProgress,
     setValidationState,
     setObjectValidation,
+    setObjectValidationResults,
     setCatalogSummary,
-    setValidationProgress,
     getObjectState,
     getObjectErrors,
   } = useValidationContext()
   const { open } = useCatalog()
 
   const runValidation = useCallback(
-    async (onProgress?: (progress: number) => void) => {
+    async () => {
       if (!isReady) {
         throw new Error('Validation worker not ready')
       }
@@ -31,7 +30,7 @@ export function useValidation() {
       setValidationState('validating')
 
       try {
-        return await validateCatalogWorker(open.catalog, onProgress)
+        return await validateCatalogWorker(open.catalog)
       } catch (error) {
         setValidationState('idle')
         throw error
@@ -56,15 +55,10 @@ export function useValidation() {
   )
 
   const validateCatalog = useCallback(
-    async (onProgress?: (progress: number) => void) => {
-      const result = await runValidation((progress) => {
-        setValidationProgress(progress)
-        onProgress?.(progress)
-      })
+    async () => {
+      const result = await runValidation()
 
-      for (const objResult of result.objectResults) {
-        setObjectValidation(objResult.objectId, objResult)
-      }
+      setObjectValidationResults(result.objectResults)
 
       setCatalogSummary({
         valid: result.valid,
@@ -77,7 +71,7 @@ export function useValidation() {
       setValidationState(result.valid ? 'valid' : 'invalid')
       return result
     },
-    [runValidation, setObjectValidation, setCatalogSummary, setValidationProgress, setValidationState]
+    [runValidation, setObjectValidationResults, setCatalogSummary, setValidationState]
   )
 
   return {
@@ -88,6 +82,5 @@ export function useValidation() {
     isReady,
     validationState,
     catalogSummary,
-    validationProgress,
   }
 }

@@ -9,7 +9,7 @@ interface WorkerMessage {
 
 interface WorkerResponse {
   id?: string
-  type: 'ready' | 'result' | 'progress' | 'error'
+  type: 'ready' | 'result' | 'error'
   payload?: unknown
 }
 
@@ -18,7 +18,6 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
 
   try {
     const result = validateCatalog(payload)
-    self.postMessage({ id, type: 'progress', payload: { progress: 100 } } as WorkerResponse)
     self.postMessage({ id, type: 'result', payload: result } as WorkerResponse)
   } catch (error) {
     self.postMessage({

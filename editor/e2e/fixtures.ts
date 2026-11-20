@@ -31,8 +31,12 @@ export { expect }
 /** WCAG 2.1 A and AA (ADR 0002), the rules #30 makes blocking. */
 export const wcag21aa = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
-/** Fails with each axe violation on the page as it is now: rule, impact, and the elements that break it. */
-export async function expectNoAxeViolations(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).withTags(wcag21aa).analyze()
+/**
+ * Fails with each axe violation on the page as it is now: rule, impact, and the elements that break it. `include`: a
+ * selector to check only part of the page (axe takes minutes on a tree of thousands of rows).
+ */
+export async function expectNoAxeViolations(page: Page, include?: string) {
+  const builder = new AxeBuilder({ page }).withTags(wcag21aa)
+  const { violations } = await (include ? builder.include(include) : builder).analyze()
   expect(violations.map(({ id, impact, nodes }) => ({ id, impact, targets: nodes.map((node) => node.target) }))).toEqual([])
 }
