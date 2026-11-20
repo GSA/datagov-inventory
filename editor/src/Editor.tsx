@@ -182,7 +182,7 @@ function ObjectDetail({
   return (
     <>
       <Breadcrumb object={object} open={open} parents={parents} />
-      <ObjectForm object={object} model={model} />
+      <ObjectForm object={object} model={model} parentId={ancestorIds(object.id, parents).pop()} />
       <DeleteObject object={object} open={open} />
     </>
   )
