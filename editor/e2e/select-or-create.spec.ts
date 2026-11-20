@@ -48,6 +48,10 @@ test('searches by keyword and selects an existing object, which is then shared, 
   await row.click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   const usedIn = page.getByRole('group', { name: 'Used in 2 places' })
+  await expect(usedIn).toContainText('Changes here apply to every place.')
+  // The places fold away, so a contact used by hundreds of datasets doesn't push the form down.
+  await expect(usedIn.getByRole('link')).toHaveCount(0)
+  await usedIn.getByRole('button', { name: 'Places and copy options', expanded: false }).click()
   await expect(usedIn.getByRole('link')).toHaveText(['Example Agency Catalog › Contact Point', 'Air quality readings › Contact Point'])
 
   // One edit shows in both places: it is one object.
@@ -137,7 +141,9 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toBeFocused()
   await expect(page.getByText(`New Distribution, linked to ${iso('Air quality, hourly')} › Distribution.`)).toBeVisible()
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Distribution' })).toHaveAccessibleDescription(/^New Distribution, linked to/)
-  await expect(page.getByText('Used in 1 place: Air quality, hourly › Distribution')).toBeVisible()
+  // Back follows the notice; an object used in one place doesn't list it again.
+  await expect(page.getByRole('link', { name: 'Back to Air quality, hourly' })).toBeVisible()
+  await expect(page.getByText(/^Used in/)).toHaveCount(0)
   await expect(page.getByRole('treeitem', { name: /^Untitled Distribution/ })).toHaveAttribute('aria-selected', 'true')
   const distributionTitle = page.getByRole('textbox', { name: /^Title/ })
   await distributionTitle.fill('Readings as Parquet')
@@ -151,7 +157,13 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   await expect(field(page, 'Checksum').getByRole('link', { name: 'Untitled Checksum' })).toBeFocused()
   await expect(field(page, 'Checksum').getByText('Holds one Checksum.', { exact: false })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Back to Air quality, hourly' }).click()
+  // Without a notice, the breadcrumb leads to the same place, so Back shows on phones only, where the breadcrumb is hidden.
+  const backToDataset = page.getByRole('link', { name: 'Back to Air quality, hourly' })
+  await expect(backToDataset).toBeHidden()
+  await expect(page.getByRole('navigation', { name: 'Where this object is' }).getByRole('link', { name: 'Air quality, hourly' })).toBeVisible()
+  await page.setViewportSize({ width: 375, height: 812 })
+  await expect(page.getByRole('navigation', { name: 'Where this object is' })).toBeHidden()
+  await backToDataset.click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
   await expect(field(page, 'Distribution').getByRole('link', { name: 'Readings as Parquet' })).toBeFocused()
   await expect(page.getByRole('textbox', { name: /^Title/ })).toHaveValue('Air quality, hourly')
@@ -201,7 +213,8 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page.getByText(`This is a copy of ${iso('Air Quality Team')} for ${iso('Example Agency Catalog')} only. The other place still uses the original.`)).toBeVisible()
-  await expect(page.getByText('Used in 1 place: Example Agency Catalog › Contact Point')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Back to Example Agency Catalog' })).toBeVisible()
+  await expect(page.getByRole('group', { name: /^Used in/ })).toHaveCount(0)
   const name = page.getByRole('textbox', { name: /^Full Name/ })
   await name.fill('Catalog contact')
   await name.blur()
@@ -209,7 +222,8 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   // The original is unchanged, and now used in the dataset alone.
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
-  await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
+  await expect(page.getByRole('group', { name: /^Used in/ })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Where this object is' }).getByRole('link').last()).toHaveText('Air quality readings')
   await expect(page.getByRole('textbox', { name: /^Full Name/ })).toHaveValue('Air Quality Team')
 
   // From the shared object's own list of places.
@@ -219,12 +233,14 @@ test('edits a copy of a shared object for one place only', async ({ page }) => {
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
   // The place the user came from (the dataset) is listed first. By keyboard: Enter on the button.
   const places = page.getByRole('group', { name: 'Used in 2 places' })
+  await places.getByRole('button', { name: 'Places and copy options' }).click()
   await expect(places.getByRole('link')).toHaveText(['Air quality readings › Contact Point', 'Example Agency Catalog › Contact Point'])
   await places.getByRole('button', { name: 'Edit a copy for this one: Air quality readings' }).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { level: 2, name: 'Air Quality Team' })).toBeFocused()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/kind\/[A-Za-z0-9_-]{22}$/)
-  await expect(page.getByText('Used in 1 place: Air quality readings › Contact Point')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Back to Air quality readings' })).toBeVisible()
+  await expect(page.getByRole('group', { name: /^Used in/ })).toHaveCount(0)
 })
 
 test('has no accessibility violations axe can find: the open list, a new object, a shared object', async ({ page }) => {
@@ -242,7 +258,8 @@ test('has no accessibility violations axe can find: the open list, a new object,
 
   await page.keyboard.press('Enter')
   await field(page, 'Contact Point').getByRole('link', { name: 'Air Quality Team' }).click()
-  await expect(page.getByRole('group', { name: 'Used in 2 places' })).toBeVisible()
+  await page.getByRole('group', { name: 'Used in 2 places' }).getByRole('button', { name: 'Places and copy options' }).click()
+  await expect(page.getByRole('group', { name: 'Used in 2 places' }).getByRole('link')).toHaveCount(2)
   await expectNoViolations()
 
   await field(page, 'Address').getByRole('button', { name: /^Create new Address/ }).click()
@@ -316,6 +333,7 @@ test('counts only places still in the catalog, and keeps focus in a field emptie
   await expect(page.getByRole('group', { name: 'Used in 2 places' })).toBeVisible()
 
   // Removing the dataset from the catalog leaves the agency used by the catalog alone.
+  await page.getByRole('button', { name: 'Places and copy options' }).click()
   await page.getByRole('link', { name: 'Example Agency Catalog › Publisher' }).click()
   await field(page, 'Dataset').getByRole('button', { name: 'Remove Air quality readings from Dataset' }).click()
   await expect(field(page, 'Dataset').getByRole('button', { name: /^Create new Dataset/ })).toBeFocused()

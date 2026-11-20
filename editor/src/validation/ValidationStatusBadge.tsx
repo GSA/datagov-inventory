@@ -13,18 +13,20 @@ export function ValidationStatusBadge({ state, errorCount }: ValidationStatusBad
       case 'validating':
         return 'Validating...'
       case 'valid':
-        return 'Valid'
+        return 'No errors found'
       case 'invalid':
         return errorCount ? `${errorCount} ${errorCount === 1 ? 'error' : 'errors'}` : 'Invalid'
       case 'stale':
-        return 'Needs revalidation'
+        return 'Changed since last check'
       default:
         return 'Unknown'
     }
   }
 
+  // Before any check, Validate beside it says enough: the status is there for screen readers only, and stays in the
+  // page so the result of the first check is announced.
   const getClassName = () => {
-    return `validation-badge validation-badge--${state}`
+    return state === 'idle' ? 'usa-sr-only' : `validation-badge validation-badge--${state}`
   }
 
   const getIcon = () => {

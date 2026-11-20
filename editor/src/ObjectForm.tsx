@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } from '@trussworks/react-uswds'
+import { Accordion, Label, TextInput, Textarea, Button, Alert, AlertHeading, AlertText } from '@trussworks/react-uswds'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { useCatalog, useEditCopy } from './session'
@@ -18,9 +18,11 @@ import { getFieldLabel } from './validation/messages'
 interface ObjectFormProps {
   object: CatalogObject
   model: FormModel
+  /** The object the breadcrumb leads up to, if any: "Back to …" the same object is shown on phones only. */
+  parentId?: string
 }
 
-export function ObjectForm({ object, model }: ObjectFormProps) {
+export function ObjectForm({ object, model, parentId }: ObjectFormProps) {
   const { updateObject, open } = useCatalog()
   const notice = useRouterState({ select: s => s.location.state.notice })
   const [formState, setFormState] = useState(object.properties)
@@ -151,36 +153,43 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
   // One width (a USWDS tablet, 40rem) for fields, hints, rows and rules, so lines stay readable on a wide screen.
   return (
     <form aria-label={`Edit ${labelOf(object)}`} className="object-form maxw-tablet">
-      {/* The note on a new object or a copy is read with the heading that focus moves to. */}
-      <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined} className="margin-top-1 margin-bottom-0">
-        {labelOf(object)}
-      </h2>
-      <p className="text-base-dark margin-top-05">
-        {classLabel(object.dcatClass)}
-      </p>
-      {open && <UsedIn object={object} open={open} />}
+      {/*
+        The header, one block under a rule: what this is, the way back, whether it is valid, and where else it is used
+        when it is shared. Only what changes the edit shows; the breadcrumb above already says where it is.
+      */}
+      <div className="padding-bottom-2 border-bottom-1px border-base-lighter">
+        {/* The class beside the title, outside the heading, so the heading is the object's name alone. */}
+        <div className="display-flex flex-wrap flex-align-baseline">
+          {/* The note on a new object or a copy is read with the heading that focus moves to. */}
+          <h2 id="detail-heading" tabIndex={-1} aria-describedby={notice ? 'object-notice' : undefined} className="margin-top-1 margin-bottom-0 margin-right-1">
+            {labelOf(object)}
+          </h2>
+          <span className="text-base-dark">{classLabel(object.dcatClass)}</span>
+        </div>
+        {open && <BackTo object={object} open={open} parentId={parentId} />}
 
-      {/* The badge and its button on one line, even on a phone, where USWDS buttons are otherwise full width. */}
-      <div className="display-flex flex-wrap flex-align-center margin-y-2">
-        <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
-        {isReady && (
-          <Button
-            type="button"
-            onClick={handleValidate}
-            outline
-            disabled={isValidating}
-            className="width-auto margin-y-0 margin-left-1"
-            aria-label={`Validate ${labelOf(object)}`}
-          >
-            {isValidating ? 'Validating...' : 'Validate'}
-          </Button>
-        )}
-      </div>
+        {/* The badge and its button on one line, even on a phone, where USWDS buttons are otherwise full width. */}
+        <div className="display-flex flex-wrap flex-align-center margin-top-2">
+          <ValidationStatusBadge state={validationState} errorCount={validationErrors.length} />
+          {isReady && (
+            <Button
+              type="button"
+              onClick={handleValidate}
+              outline
+              disabled={isValidating}
+              className="width-auto margin-y-0"
+              aria-label={`Validate ${labelOf(object)}`}
+            >
+              {isValidating ? 'Validating...' : 'Validate'}
+            </Button>
+          )}
+        </div>
 
-      {validationErrors.length > 0 && (
-        <>
-          <Alert type="error" role="alert" aria-live="polite">
-            <AlertHeading level="h3">Validation errors</AlertHeading>
+        {validationErrors.length > 0 && (
+          <Alert type="error" role="alert" aria-live="polite" className="margin-top-2">
+            <AlertHeading level="h3">
+              {validationErrors.length === 1 ? 'Fix this error' : `Fix these ${count(validationErrors.length)} errors`}
+            </AlertHeading>
             <ul className="usa-list margin-y-1">
               {validationErrors.map((error, idx) => (
                 <li key={idx}>
@@ -188,13 +197,15 @@ export function ObjectForm({ object, model }: ObjectFormProps) {
                 </li>
               ))}
             </ul>
+            {/* In the alert's own ink, not the hint's grey, which is too faint on its background. */}
+            <ValidationDisclaimer className="font-sans-2xs margin-top-1 margin-bottom-0" />
           </Alert>
-          <ValidationDisclaimer />
-        </>
-      )}
+        )}
+        {open && <UsedIn object={object} open={open} />}
+      </div>
 
       {fields.some(f => f.required) && (
-        <p className="usa-hint margin-top-3 margin-bottom-0">
+        <p className="usa-hint margin-top-2 margin-bottom-0">
           Required fields are marked with an asterisk (<abbr title="required" className="usa-hint--required">*</abbr>).
         </p>
       )}
@@ -462,19 +473,13 @@ const fieldLabel = (dcatClass: string, property: string) =>
   getFormModel(dcatClass)?.fields.find(f => f.name === property)?.label ?? property
 
 /**
- * Where the object is used (#25): "Back to" the place the user came from, and every place that links to it, each
- * with "Edit a copy for this one" when there are several. The notice from Create new or a copy shows here too.
+ * The places that link to an object (#25), the one the user came from first, so its "Back to …" and "Edit a copy"
+ * are at hand among many; and a link to each, which returns focus to the object's row there.
  */
-function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspace }) {
-  const editCopy = useEditCopy()
-  const { from, notice } = useRouterState({ select: s => s.location.state })
+function placesOf(object: CatalogObject, open: CatalogWorkspace, from: string | undefined) {
   const catalog = open.catalog
-  if (object.id === catalog.rootId) return null
-
-  // The place the user came from first, so its "Edit a copy" is at hand among many.
   const all = usesOf(catalog).get(object.id) ?? []
   const uses = [...all.filter(use => use.parentId === from), ...all.filter(use => use.parentId !== from)]
-  const back = uses[0]
   const parentOf = (use: Use) => catalog.objects.get(use.parentId)!
   const place = (use: Use) => (
     <>
@@ -493,52 +498,94 @@ function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspac
       {children}
     </Link>
   )
+  return { uses, parentOf, place, linkTo }
+}
+
+/**
+ * The notice from Create new or a copy, then "Back to" the place the user came from. Back is the one way back on a
+ * phone, where the breadcrumb is hidden. On wider screens it shows only where the breadcrumb doesn't lead the same
+ * way: right after Create new or a copy, or for a shared object opened from another place than the breadcrumb's.
+ */
+function BackTo({ object, open, parentId }: { object: CatalogObject; open: CatalogWorkspace; parentId?: string }) {
+  const { from, notice } = useRouterState({ select: s => s.location.state })
+  if (object.id === open.catalog.rootId) return null
+  const { uses, parentOf, linkTo } = placesOf(object, open, from)
+  const back = uses[0]
+  const sameAsBreadcrumb = !notice && back?.parentId === parentId
   return (
-    <div className="margin-bottom-1">
-      {/* The one way back on a phone, where the breadcrumb is hidden; a link, not a button, beside it on wider screens. */}
+    <>
+      {notice && (
+        <Alert id="object-notice" type="info" slim className="margin-top-1 margin-bottom-0">
+          <AlertText>{notice}</AlertText>
+        </Alert>
+      )}
       {back && (
-        <p className="margin-top-1 margin-bottom-05">
+        <p className={`margin-top-1 margin-bottom-0${sameAsBreadcrumb ? ' tablet:display-none' : ''}`}>
           {linkTo(
             back,
             <>
               <span aria-hidden="true">← </span>Back to <bdi>{labelOf(parentOf(back))}</bdi>
             </>,
-            'usa-link text-bold',
           )}
         </p>
       )}
-      {notice && (
-        <Alert id="object-notice" type="info" slim className="margin-y-1">
-          <AlertText>{notice}</AlertText>
-        </Alert>
-      )}
-      {uses.length === 0 && <p className="text-base-dark">Not linked anywhere.</p>}
-      {uses.length === 1 && <p className="text-base-dark margin-top-05 margin-bottom-0">Used in 1 place: {linkTo(uses[0], place(uses[0]))}</p>}
-      {uses.length > 1 && (
-        <div role="group" aria-labelledby="used-in-heading">
-          <h3 id="used-in-heading" className="font-sans-sm margin-bottom-0">
-            Used in {count(uses.length)} places
-          </h3>
-          <p className="text-base-dark margin-top-05">Changes apply to all of them. To change it for one place only, edit a copy there.</p>
-          <ul className="usa-list">
-            {uses.slice(0, USES_SHOWN).map(use => (
-              <li key={`${use.parentId} ${use.property}`}>
-                {linkTo(use, place(use))}{' '}
-                <Button
-                  type="button"
-                  unstyled
-                  className="margin-left-1"
-                  onClick={() => editCopy(parentOf(use), use.property, object)}
-                  aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(parentOf(use).dcatClass, use.property)}`}
-                >
-                  Edit a copy for this one
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {uses.length > USES_SHOWN && <p className="text-base-dark">… and {count(uses.length - USES_SHOWN)} more.</p>}
-        </div>
-      )}
+    </>
+  )
+}
+
+/**
+ * Where a shared object is used: the count and what it means are always in view; the places, each with "Edit a copy
+ * for this one", fold away, since a contact can be used by hundreds of datasets. An object used in one place says
+ * nothing here (the breadcrumb and Back show that place), and one used nowhere says so.
+ */
+function UsedIn({ object, open }: { object: CatalogObject; open: CatalogWorkspace }) {
+  const editCopy = useEditCopy()
+  const from = useRouterState({ select: s => s.location.state.from })
+  if (object.id === open.catalog.rootId) return null
+
+  const { uses, parentOf, place, linkTo } = placesOf(object, open, from)
+  if (uses.length === 0) return <p className="text-base-dark margin-top-2 margin-bottom-0">Not used anywhere in this catalog.</p>
+  if (uses.length === 1) return null
+  return (
+    <div role="group" aria-labelledby="used-in-heading" className="margin-top-2">
+      <h3 id="used-in-heading" className="font-sans-sm margin-y-0">
+        Used in {count(uses.length)} places
+      </h3>
+      <p className="text-base-dark margin-top-05 margin-bottom-1">
+        Changes here apply to every place. To change one place only, edit a copy for it.
+      </p>
+      <Accordion
+        bordered={false}
+        items={[
+          {
+            id: 'used-in-places',
+            title: 'Places and copy options',
+            headingLevel: 'h4',
+            expanded: false,
+            content: (
+              <>
+                <ul className="usa-list usa-list--unstyled">
+                  {uses.slice(0, USES_SHOWN).map(use => (
+                    <li key={`${use.parentId} ${use.property}`} className="margin-bottom-1">
+                      {linkTo(use, place(use))}{' '}
+                      <Button
+                        type="button"
+                        unstyled
+                        className="margin-left-1"
+                        onClick={() => editCopy(parentOf(use), use.property, object)}
+                        aria-label={`Edit a copy for this one: ${labelOf(parentOf(use))} › ${fieldLabel(parentOf(use).dcatClass, use.property)}`}
+                      >
+                        Edit a copy for this one
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                {uses.length > USES_SHOWN && <p className="text-base-dark">… and {count(uses.length - USES_SHOWN)} more.</p>}
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

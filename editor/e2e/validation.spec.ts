@@ -27,7 +27,7 @@ test.describe('Validation', () => {
 
     await form.getByRole('button', { name: `Validate ${DATASET}` }).click()
 
-    await expect(form.getByRole('alert').filter({ hasText: 'Validation errors' })).toContainText('Issued')
+    await expect(form.getByRole('alert').filter({ hasText: 'Fix this error' })).toContainText('Issued')
     await expect(form.locator('.usa-error-message')).toHaveText('is not in an accepted form')
     await expect(form.locator('.validation-badge--invalid')).toContainText(/error/i)
   })
@@ -44,15 +44,19 @@ test.describe('Validation', () => {
 
   test('marks validation as stale after an edit', async ({ page }) => {
     const form = await openDataset(page)
+    // Before a check, only Validate shows; the status is there for screen readers.
+    const status = form.getByRole('status', { name: /^Validation status:/ })
+    await expect(status).toHaveAccessibleName('Validation status: Not validated')
+    await expect(status).toHaveClass('usa-sr-only')
 
     await form.getByRole('button', { name: `Validate ${DATASET}` }).click()
-    await expect(form.locator('.validation-badge--valid')).toBeVisible()
+    await expect(form.locator('.validation-badge--valid')).toHaveText('✓No errors found')
 
     const title = form.getByRole('textbox', { name: /^Title/ })
     await title.fill('Updated Title')
     await title.blur()
 
-    await expect(page.locator('.validation-badge--stale')).toBeVisible()
+    await expect(page.locator('.validation-badge--stale')).toHaveText('⚠Changed since last check')
   })
 
   test('warns before exporting a catalog with errors', async ({ page }) => {
@@ -74,7 +78,7 @@ test.describe('Validation', () => {
 
     await form.getByRole('button', { name: `Validate ${DATASET}` }).click()
 
-    const alert = form.getByRole('alert').filter({ hasText: 'Validation errors' })
+    const alert = form.getByRole('alert').filter({ hasText: 'Fix this error' })
     await expect(alert).toHaveAttribute('aria-live', 'polite')
     await expect(alert).toContainText('Issued')
   })
