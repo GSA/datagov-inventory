@@ -78,16 +78,21 @@ reuse, so `linkModeOf` follows the 2026-11-06 huddle: Create new only for a cata
 distributions and value-like classes (a period of time, a checksum), and Add an existing only for datasets, series and
 services outside the catalog's own lists.
 
-The catalog is held in memory only until #28 stores it. After a reload, `/editor` says "No catalog open," while an
-identified `/editor/<catalog-token>...` address says "Catalog not found in this browser." Re-importing creates new
-UUIDs, so an old catalog or object address is not durable until restore is implemented. When the path changes, focus
-moves to the new page's `h1` (or, within the editor, to the object's heading) and the tab title changes.
+An accepted catalog is stored in this browser's IndexedDB before the editor opens. Subsequent edits autosave; the
+editor reports Saving, Saved, or Not saved. Reloading an identified `/editor/<catalog-token>...` address restores that
+catalog and optional object from browser storage. The copy is per browser and device, is not a backup, and is lost if
+site data is cleared. When the path changes, focus moves to the new page's `h1` (or, within the editor, to the object's 
+heading) and the tab title changes.
 
-`src/loadCatalog.ts` is the one way a catalog loads (a file, pasted JSON, a sample, a blank catalog, and the
-restore from browser storage in #28). It checks a file's size before reading it, then parses and decomposes in a
+`src/loadCatalog.ts` is the one way imported JSON loads (a file, pasted JSON, a sample, or a blank catalog). It checks
+a file's size before reading it, then parses and decomposes in a
 worker (`src/catalog/parse.worker.ts`, a same-origin file, which the CSP's `script-src 'self'` allows). The worker
 posts the objects in batches, so even a 25 MB catalog never blocks the page for long. A newer load, or "Cancel
 loading", stops the read or the worker.
+
+`src/storage/IndexedDbCatalogRepository.ts` restores saved catalogs and stores catalog metadata, metadata objects, and
+ordered object references in separate records. Create and autosave writes commit atomically across those stores;
+autosave updates only records or reference sets that changed.
 
 ## npm Scripts
 
@@ -133,7 +138,7 @@ npm run test:coverage
 - Unit tests live next to source files: `src/Component.test.tsx`
 - Test component rendering and user interactions
 - Use `@testing-library/react` for component testing
-- Mock external dependencies (future: API calls, IndexedDB)
+- Mock external APIs where isolation helps; test IndexedDB repository behavior in Playwright against the browser's real implementation
 - Keep tests fast - no real browser, no network calls
 
 **Example unit test:**
@@ -165,8 +170,10 @@ npm run test:browser:ui
 ```
 
 **Guidelines:**
-- Browser tests live in `e2e/` directory
+- End-to-end user workflow tests live in `e2e/`
+- Direct browser integration tests live in `integration/`
 - Test user workflows and page interactions
+- Direct repository integration tests use the test-only `integration/storage/index.html` Vite harness to execute against real browser IndexedDB; the harness is not included in the production build
 - Include accessibility scanning with @axe-core/playwright
 - Tests run against production build (`npm run build` + `npm run preview`)
 - Use page object pattern for complex workflows

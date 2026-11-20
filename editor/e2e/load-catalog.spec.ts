@@ -11,6 +11,22 @@ test.beforeEach(async ({ page }) => {
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
 })
 
+test('reports a valid import when browser storage is unavailable and does not open it', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'indexedDB', { value: undefined, configurable: true })
+  })
+  await page.reload()
+
+  await page.getByLabel('Sample catalog').selectOption('minimal-catalog.json')
+  await page.getByRole('button', { name: 'Load sample' }).click()
+
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('minimal-catalog.json could not be loaded')
+  await expect(alert).toContainText('Browser storage is unavailable.')
+  await expect(page).toHaveURL('/import')
+  await expect(page.getByText(/is open\. Importing another catalog replaces it/)).toHaveCount(0)
+})
+
 /** The catalog tree's rows, as shown. */
 const tree = (page: Page) => page.getByRole('tree', { name: 'Catalog' })
 const treeRows = (page: Page) => tree(page).getByRole('treeitem').allInnerTexts()
@@ -94,9 +110,10 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await page.goForward()
   await expect(page).toHaveURL(datasetUrl)
 
-  // Until persistence is implemented, reload will not work.
+  // The object address restores the same catalog and selected object from browser storage.
   await page.reload()
-  await expect(page.getByRole('heading', { level: 1, name: 'Catalog not found in this browser' })).toBeVisible()
+  await expect(page.getByRole('form', { name: 'Edit Air quality readings' })).toBeVisible()
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
 })
 
 test('shows every object above the open one in the breadcrumb, through single links too', async ({ page }) => {

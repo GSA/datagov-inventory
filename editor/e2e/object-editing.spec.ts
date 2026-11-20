@@ -35,6 +35,20 @@ test('edits text field and updates tree label', async ({ page }) => {
   await expect(page.getByRole('treeitem', { name: 'Updated Air Quality Data dataset · Dataset' })).toBeVisible()
 })
 
+test('autosaves an edit and restores it from the object URL after reload', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  const title = page.getByRole('form').getByRole('textbox', { name: /^Title/ })
+  await title.fill('Persisted Air Quality Data')
+  await title.blur()
+  await expect(page.getByText(/· Saved$/)).toBeVisible()
+
+  await page.reload()
+
+  await expect(page.getByRole('form', { name: 'Edit Persisted Air Quality Data' })).toBeVisible()
+  await expect(page.getByRole('treeitem', { name: 'Persisted Air Quality Data dataset · Dataset' })).toBeVisible()
+})
+
 test('shows required marker on required fields', async ({ page }) => {
   await loadSample(page)
 
