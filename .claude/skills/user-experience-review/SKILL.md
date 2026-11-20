@@ -14,7 +14,7 @@ Checks a change against [DESIGN.md](../../../DESIGN.md), which holds the rules.
 3. Run each lens below as an independent reviewer: a sub-agent per lens where the harness supports them, otherwise one after another, each fresh. Give it its checklist, the screenshots, the code and DESIGN.md, not other lenses' findings. It returns ranked findings with evidence (state, width, measurement).
 4. Combine: adopt what lenses agree on, settle conflicts by DESIGN.md, and on a tie accessibility wins. Record each conflict and its resolution.
 5. Check the result against DESIGN.md rule by rule; run the axe specs, and the perf specs if anything could be slower.
-6. Report in the PR: findings by lens, conflicts and how they were settled, what was deliberately left alone, before and after screenshots, measurements.
+6. Open the PR with the [pull-request](../pull-request/SKILL.md) skill, adding findings by lens, conflicts and how they were settled, and what was deliberately left alone.
 
 ## Lenses
 

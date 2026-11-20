@@ -2,7 +2,7 @@
 
 Data.gov's [Inventory](https://inventory.data.gov/) rewrite for DCAT-US 3.0: a browser-only React editor in `editor/`. Architecture: [editor/README.md](editor/README.md); decisions: [docs/decisions/](docs/decisions/).
 
-**Read [DESIGN.md](DESIGN.md) before any user interface or design change.** Review UI changes with the [user-experience-review](.claude/skills/user-experience-review/SKILL.md) skill.
+**Read [DESIGN.md](DESIGN.md) before any user interface or design change.** Review UI changes with the [user-experience-review](.claude/skills/user-experience-review/SKILL.md) skill, and open pull requests with the [pull-request](.claude/skills/pull-request/SKILL.md) skill.
 
 ## Commands
 

@@ -33,7 +33,7 @@ Rules for the editor's user interface (`editor/`). Review changes against them w
 
 ## Performance
 
-- ≤100 ms input to next paint on 3,000+ datasets (`editor/fixtures/largeCatalog.ts`), measured on the production build with `PERF=1 npx playwright test tree-performance validation-performance`, not assumed. Wait in-page (MutationObserver), not with Playwright locators, which inflate timings 3–4×.
+- ≤100 ms input to next paint on 3,000+ datasets (`editor/fixtures/largeCatalog.ts`), measured on the production build with `PERF=1 npx playwright test tree-performance validation-performance`, not assumed, and reported in the PR (the [pull-request](.claude/skills/pull-request/SKILL.md) skill). Wait in-page (MutationObserver), not with Playwright locators, which inflate timings 3–4×.
 - No virtualization libraries; add memoization only where a measurement shows it helps.
 
 ## Security
