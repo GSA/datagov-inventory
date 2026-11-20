@@ -9,7 +9,7 @@ async function openDataset(page: Page) {
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
-  await page.getByRole('treeitem', { name: `${DATASET} dataset · Dataset` }).click()
+  await page.getByRole('treeitem', { name: `${DATASET} Dataset` }).click()
   return page.getByRole('form', { name: `Edit ${DATASET}` })
 }
 
@@ -108,10 +108,10 @@ test.describe('Validation', () => {
 test('marks an empty required link field in the field itself', async ({ page }) => {
   const form = await openDataset(page)
   // An empty required link field.
-  const contacts = form.getByRole('group', { name: /^Contact Point/ })
+  const contacts = form.getByRole('group', { name: /^Contact point/ })
   await contacts.getByRole('button', { name: /^Remove Air Quality Team/ }).click()
   await form.getByRole('button', { name: `Validate ${DATASET}` }).click()
-  await expect(contacts.locator('.usa-error-message')).toHaveText('Contact Point is required')
+  await expect(contacts.locator('.usa-error-message')).toHaveText('Contact point is required')
   await expect(contacts.getByText('This required field has no values')).toHaveCount(0)
 })
 

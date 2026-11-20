@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { decompose } from './catalog/decompose'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
-import { FILTER_LIMIT, ancestorIds, classLabel, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
+import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
 // Built once and shared: 3,000 datasets, each with a contact, a publisher and three distributions.
@@ -15,11 +15,13 @@ describe('the tree of a 3,000-dataset catalog', () => {
     expect(rows).toHaveLength(3_001)
     expect(rows[0]).toMatchObject({ key: '#', level: 1, position: 1, siblings: 1, expanded: true, property: undefined })
     expect(rows[3_000]).toMatchObject({ level: 2, position: 3_000, siblings: 3_000, expanded: false, property: 'dataset' })
+    // A closed row still counts its children: a contact, a publisher and three distributions.
+    expect(rows[3_000].childCount).toBe(5)
     expect(rows.slice(1).map((row) => row.object.id)).toEqual(Array.from({ length: 3_000 }, (_, i) => `#/dataset/${i}`))
   })
 
   it('shows nothing below a closed catalog', () => {
-    expect(treeRows(big, new Set())).toMatchObject([{ key: '#', expanded: false }])
+    expect(treeRows(big, new Set())).toMatchObject([{ key: '#', expanded: false, childCount: 3_000 }])
   })
 
   it("expands an object to its children in link order, under the property that links them", () => {
@@ -34,6 +36,7 @@ describe('the tree of a 3,000-dataset catalog', () => {
       ['distribution', '#/dataset/7/distribution/2', 3, 5],
     ])
     expect(rows[at + 1].expanded).toBeUndefined() // no children
+    expect(rows[at + 1].childCount).toBe(0)
     expect(rows[at + 6].object.id).toBe('#/dataset/8')
     expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length)
   })
@@ -131,14 +134,8 @@ describe('an object linked from more than one place', () => {
       '4 #/dataset/0',
     ])
     expect(rows[2].expanded).toBeUndefined()
-  })
-})
-
-describe('classLabel', () => {
-  it('splits a class name into words, keeping runs of capitals together', () => {
-    expect(classLabel('Dataset')).toBe('Dataset')
-    expect(classLabel('PeriodOfTime')).toBe('Period of Time')
-    expect(classLabel('DatasetSeries')).toBe('Dataset Series')
-    expect(classLabel('CUIRestriction')).toBe('CUI Restriction')
+    // The contact's only child is above it, so there is nothing to count.
+    expect(rows[2].childCount).toBe(0)
+    expect(rows[4]).toMatchObject({ expanded: true, childCount: 1 })
   })
 })

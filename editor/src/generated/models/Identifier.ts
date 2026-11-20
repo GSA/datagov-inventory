@@ -19,7 +19,7 @@ export const IdentifierModel: FormModel = {
     },
 {
       name: 'schemaAgency',
-      label: 'Schema Agency',
+      label: 'Schema agency',
       type: 'string',
       required: false,
       cardinality: 'single',

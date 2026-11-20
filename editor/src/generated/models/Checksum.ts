@@ -27,7 +27,7 @@ export const ChecksumModel: FormModel = {
     },
 {
       name: 'checksumValue',
-      label: 'Checksum Value',
+      label: 'Checksum value',
       type: 'string',
       required: true,
       cardinality: 'single',

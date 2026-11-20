@@ -1,47 +1,9 @@
 import type { ErrorObject } from 'ajv'
+import { fieldLabel } from '../labels'
 import type { ValidationError } from './types'
 
-const FIELD_LABELS: Record<string, string> = {
-  'dct:title': 'Title',
-  'dct:description': 'Description',
-  'dcat:keyword': 'Keywords',
-  'dcat:theme': 'Theme',
-  'dct:spatial': 'Spatial Coverage',
-  'dct:temporal': 'Temporal Coverage',
-  'dcat:distribution': 'Distribution',
-  'dcat:accessURL': 'Access URL',
-  'dcat:downloadURL': 'Download URL',
-  'dcat:format': 'Format',
-  'dcat:mediaType': 'Media Type',
-  'dcat:contactPoint': 'Contact Point',
-  'dct:publisher': 'Publisher',
-  'foaf:name': 'Name',
-  'vcard:fn': 'Name',
-  'vcard:hasEmail': 'Email',
-  'dct:identifier': 'Identifier',
-  'dct:issued': 'Issued Date',
-  'dct:modified': 'Modified Date',
-  'dct:accrualPeriodicity': 'Update Frequency',
-  'dcat:landingPage': 'Landing Page',
-}
-
-export function getFieldLabel(property: string): string {
-  if (FIELD_LABELS[property]) {
-    return FIELD_LABELS[property]
-  }
-
-  const parts = property.split(':')
-  if (parts.length === 2 && parts[0] === 'unknown') {
-    return 'Unknown Property'
-  }
-
-  const name = parts[parts.length - 1]
-  if (name) {
-    return name.replace(/([A-Z]+)/g, ' $1').trim().replace(/^./, (str) => str.toUpperCase())
-  }
-
-  return 'Unknown Property'
-}
+/** A property's label, as its field in the form shows it: "Contact point", "Access URL". */
+export const getFieldLabel = fieldLabel
 
 export function formatFieldPath(instancePath: string): string {
   if (!instancePath || instancePath === '/') {

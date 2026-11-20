@@ -19,7 +19,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'bbox',
-      label: 'Bounding Box',
+      label: 'Bounding box',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -44,7 +44,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'otherIdentifier',
-      label: 'Other Identifier',
+      label: 'Other identifier',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -61,7 +61,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'inScheme',
-      label: 'In Scheme',
+      label: 'In scheme',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -70,7 +70,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'altLabel',
-      label: 'Alternative Label',
+      label: 'Alternative label',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -78,7 +78,7 @@ export const LocationModel: FormModel = {
     },
 {
       name: 'prefLabel',
-      label: 'Preferred Label',
+      label: 'Preferred label',
       type: 'string',
       required: false,
       cardinality: 'single',

@@ -19,7 +19,7 @@ export const PeriodOfTimeModel: FormModel = {
     },
 {
       name: 'endDate',
-      label: 'End Date',
+      label: 'End date',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -27,7 +27,7 @@ export const PeriodOfTimeModel: FormModel = {
     },
 {
       name: 'startDate',
-      label: 'Start Date',
+      label: 'Start date',
       type: 'string',
       required: false,
       cardinality: 'single',

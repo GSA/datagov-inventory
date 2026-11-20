@@ -28,7 +28,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'contactPoint',
-      label: 'Contact Point',
+      label: 'Contact point',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -46,7 +46,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'datasetSeries',
-      label: 'Dataset Series',
+      label: 'Dataset series',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -90,7 +90,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'themeTaxonomy',
-      label: 'Theme Taxonomy',
+      label: 'Theme taxonomy',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -99,7 +99,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'accessRights',
-      label: 'Access Rights',
+      label: 'Access rights',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -107,7 +107,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'conformsTo',
-      label: 'Conforms To',
+      label: 'Conforms to',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -133,7 +133,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'hasPart',
-      label: 'Has Part',
+      label: 'Has part',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -151,7 +151,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'otherIdentifier',
-      label: 'Other Identifier',
+      label: 'Other identifier',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -209,7 +209,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'rightsHolder',
-      label: 'Rights Holder',
+      label: 'Rights holder',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -271,7 +271,7 @@ export const CatalogModel: FormModel = {
     },
 {
       name: 'qualifiedAttribution',
-      label: 'Qualified Attribution',
+      label: 'Qualified attribution',
       type: 'object',
       required: false,
       cardinality: 'multiple',

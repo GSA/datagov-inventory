@@ -19,7 +19,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'otherIdentifier',
-      label: 'Other Identifier',
+      label: 'Other identifier',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -46,7 +46,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'supportedSchema',
-      label: 'Supported Schema',
+      label: 'Supported schema',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -55,7 +55,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'versionNotes',
-      label: 'Version Notes',
+      label: 'Version notes',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -63,7 +63,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'contactPoint',
-      label: 'Contact Point',
+      label: 'Contact point',
       type: 'object',
       required: true,
       cardinality: 'multiple',
@@ -90,7 +90,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'hasCurrentVersion',
-      label: 'Has Current Version',
+      label: 'Has current version',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -99,7 +99,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'hasVersion',
-      label: 'Has Version',
+      label: 'Has version',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -116,7 +116,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'landingPage',
-      label: 'Landing Page',
+      label: 'Landing page',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -125,7 +125,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'previousVersion',
-      label: 'Previous Version',
+      label: 'Previous version',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -134,7 +134,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'qualifiedRelation',
-      label: 'Qualified Relation',
+      label: 'Qualified relation',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -143,7 +143,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'spatialResolutionInMeters',
-      label: 'Spatial Resolution In Meters',
+      label: 'Spatial resolution in meters',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -151,7 +151,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'temporalResolution',
-      label: 'Temporal Resolution',
+      label: 'Temporal resolution',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -176,7 +176,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'describedBy',
-      label: 'Described By',
+      label: 'Described by',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -185,7 +185,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'liabilityStatement',
-      label: 'Liability Statement',
+      label: 'Liability statement',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -193,7 +193,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'metadataDistribution',
-      label: 'Metadata Distribution',
+      label: 'Metadata distribution',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -210,7 +210,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'accessRights',
-      label: 'Access Rights',
+      label: 'Access rights',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -218,7 +218,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'accrualPeriodicity',
-      label: 'Accrual Periodicity',
+      label: 'Accrual periodicity',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -226,7 +226,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'conformsTo',
-      label: 'Conforms To',
+      label: 'Conforms to',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -269,7 +269,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'hasPart',
-      label: 'Has Part',
+      label: 'Has part',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -287,7 +287,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'isReferencedBy',
-      label: 'Is Referenced By',
+      label: 'Is referenced by',
       type: 'string',
       required: false,
       cardinality: 'multiple',
@@ -369,7 +369,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'accessRestriction',
-      label: 'Access Restriction',
+      label: 'Access restriction',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -378,7 +378,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'cuiRestriction',
-      label: 'CUI Restriction',
+      label: 'CUI restriction',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -387,7 +387,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'useRestriction',
-      label: 'Use Restriction',
+      label: 'Use restriction',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -404,7 +404,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'rightsHolder',
-      label: 'Rights Holder',
+      label: 'Rights holder',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -466,7 +466,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'hasQualityMeasurement',
-      label: 'Has Quality Measurement',
+      label: 'Has quality measurement',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -484,7 +484,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'qualifiedAttribution',
-      label: 'Qualified Attribution',
+      label: 'Qualified attribution',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -493,7 +493,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'wasAttributedTo',
-      label: 'Was Attributed To',
+      label: 'Was attributed to',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -502,7 +502,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'wasGeneratedBy',
-      label: 'Was Generated By',
+      label: 'Was generated by',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -511,7 +511,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'wasUsedBy',
-      label: 'Was Used By',
+      label: 'Was used by',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -528,7 +528,7 @@ export const DatasetModel: FormModel = {
     },
 {
       name: 'scopeNote',
-      label: 'Scope Note',
+      label: 'Scope note',
       type: 'string',
       required: false,
       cardinality: 'single',

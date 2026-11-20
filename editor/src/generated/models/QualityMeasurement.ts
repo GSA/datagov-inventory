@@ -19,7 +19,7 @@ export const QualityMeasurementModel: FormModel = {
     },
 {
       name: 'isMeasurementOf',
-      label: 'Is Measurement Of',
+      label: 'Is measurement of',
       type: 'object',
       required: true,
       cardinality: 'single',
@@ -36,7 +36,7 @@ export const QualityMeasurementModel: FormModel = {
     },
 {
       name: 'unitMeasure',
-      label: 'Unit Measure',
+      label: 'Unit measure',
       type: 'string',
       required: false,
       cardinality: 'single',

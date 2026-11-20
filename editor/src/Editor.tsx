@@ -7,7 +7,8 @@ import { useCatalog, usePageTitle } from './session'
 import { findParentLinks } from './catalog/edit'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
-import { ancestorIds, classLabel, count, labelOf, parentsOf } from './tree'
+import { classLabel, fieldLabel } from './labels'
+import { ancestorIds, count, labelOf, parentsOf } from './tree'
 import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
@@ -106,8 +107,7 @@ function DeleteObject({ object, open }: { object: CatalogObject; open: CatalogWo
       setPlaces(
         parentLinks.map((link) => {
           const parent = catalog.objects.get(link.parentId)!
-          const field = getFormModel(parent.dcatClass)?.fields.find((f) => f.name === link.property)?.label
-          return { key: `${link.parentId} ${link.property} ${link.position}`, parent: labelOf(parent), field: field ?? link.property }
+          return { key: `${link.parentId} ${link.property} ${link.position}`, parent: labelOf(parent), field: fieldLabel(link.property) }
         }),
       )
     }

@@ -20,7 +20,7 @@ export const DatasetSeriesModel: FormModel = {
     },
 {
       name: 'contactPoint',
-      label: 'Contact Point',
+      label: 'Contact point',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -47,7 +47,7 @@ export const DatasetSeriesModel: FormModel = {
     },
 {
       name: 'seriesMember',
-      label: 'Series Member',
+      label: 'Series member',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -56,7 +56,7 @@ export const DatasetSeriesModel: FormModel = {
     },
 {
       name: 'accrualPeriodicity',
-      label: 'Accrual Periodicity',
+      label: 'Accrual periodicity',
       type: 'string',
       required: false,
       cardinality: 'single',

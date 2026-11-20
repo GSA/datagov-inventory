@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 /** The catalog tree's rows, as shown. */
 const tree = (page: Page) => page.getByRole('tree', { name: 'Catalog' })
-const treeRows = (page: Page) => tree(page).getByRole('treeitem').allInnerTexts()
+const treeRows = (page: Page) => tree(page).getByRole('treeitem').allTextContents()
 const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
   page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -59,13 +59,14 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await expect(page.locator('#detail-heading')).toHaveText('Example Agency Catalog')
   await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Example Agency Catalog')
 
-  await tree(page).getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  await tree(page).getByRole('treeitem', { name: 'Air quality readings Dataset' }).click()
   const datasetUrl = /\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/
   const csvUrl = /\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/
   await expect(page).toHaveURL(datasetUrl)
   await expect(page).toHaveTitle('Air quality readings (Dataset) | Inventory Editor')
   const detail = page.getByRole('form', { name: 'Edit Air quality readings' })
-  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
+  // Closed, it says how many objects it holds.
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings Dataset · 5 items')
   // The tree is on the left and the selected object on the right (#20, James's comment).
   const list = await page.getByRole('navigation', { name: 'Catalog contents' }).boundingBox()
   const pane = await detail.boundingBox()
@@ -77,15 +78,13 @@ test('imports a sample and opens each object at its own address', async ({ page 
   // Following a link opens that object, with the path to it in a breadcrumb that leads back up, and shows it in the tree.
   await detail.getByRole('link', { name: 'Readings as CSV', exact: true }).click()
   await expect(page).toHaveURL(csvUrl)
-  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText(
-    'Readings as CSV distribution · Distribution',
-  )
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Readings as CSV Distribution · 1 item')
   const breadcrumb = page.getByRole('navigation', { name: 'Where this object is' })
   await expect(breadcrumb).toHaveText(/Example Agency Catalog\s*Air quality readings\s*Readings as CSV/)
   expect((await axe(page).analyze()).violations).toEqual([])
   await breadcrumb.getByRole('link', { name: 'Air quality readings' }).click()
   await expect(page).toHaveURL(datasetUrl)
-  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings Dataset')
 
   // Back and forward work like any site.
   await page.goBack()
@@ -104,7 +103,7 @@ test('shows every object above the open one in the breadcrumb, through single li
   const breadcrumb = page.getByRole('navigation', { name: 'Where this object is' })
   // The catalog has nothing above it.
   await expect(breadcrumb).toHaveCount(0)
-  await page.getByRole('treeitem', { name: 'Air quality readings dataset · Dataset' }).click()
+  await page.getByRole('treeitem', { name: 'Air quality readings Dataset' }).click()
   await page.getByRole('form').getByRole('link', { name: 'Readings as CSV', exact: true }).click()
   await page.getByRole('form').getByRole('link', { name: 'Untitled Checksum', exact: true }).click()
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Checksum', exact: true })).toBeVisible()
@@ -120,7 +119,7 @@ test('shows every object above the open one in the breadcrumb, through single li
 test('loads a chosen file in the browser', async ({ page }) => {
   await chooseFile(page, fixture('minimal-catalog.json'))
   await expectOpened(page, 'minimal-catalog.json')
-  expect(await treeRows(page)).toEqual(['Untitled Catalog', 'Minimal dataset dataset · Dataset'])
+  expect(await treeRows(page)).toEqual(['Untitled Catalog', 'Minimal dataset Dataset · 1 item'])
 })
 
 test('a newer load cancels a file still being read', async ({ page }) => {
@@ -171,7 +170,7 @@ test('loads a dropped file', async ({ page }) => {
 test('loads a catalog with schema errors', async ({ page }) => {
   await chooseFile(page, fixture('dataset-missing-title.json', 'invalid'))
   await expectOpened(page, 'dataset-missing-title.json')
-  await expect(tree(page).getByRole('treeitem', { name: 'Untitled Dataset dataset · Dataset' })).toBeVisible()
+  await expect(tree(page).getByRole('treeitem', { name: 'Untitled Dataset Dataset' })).toBeVisible()
 })
 
 test('asks before replacing a loaded catalog', async ({ page }) => {
@@ -329,7 +328,7 @@ test('shows unknown properties as text only', async ({ page }) => {
       ],
     }),
   )
-  await tree(page).getByRole('treeitem', { name: `${payload} dataset · Dataset` }).click()
+  await tree(page).getByRole('treeitem', { name: `${payload} Dataset` }).click()
   const form = page.getByRole('form', { name: `Edit ${payload}` })
   // Issue #24: Other properties now shown in a section, not a table
   const otherProps = form.getByRole('region', { name: 'Other properties' })
@@ -356,7 +355,7 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
   const rows = tree(page).getByRole('treeitem')
   await expect(rows).toHaveCount(502)
   await expect(rows.nth(1).locator('bdi')).toHaveText('Evil \u202E(Catalog)')
-  await expect(rows.nth(2)).toHaveText('Untitled Dataset dataset · Dataset')
+  await expect(rows.nth(2)).toHaveText('Untitled Dataset Dataset')
   await expect(rows.nth(3).locator('bdi')).toHaveText(`${'L'.repeat(200)}…`)
 
   // Issue #24: Object reference links in forms are out of scope (blocked by #25).

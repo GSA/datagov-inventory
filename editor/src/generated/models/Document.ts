@@ -44,7 +44,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'mediaType',
-      label: 'Media Type',
+      label: 'Media type',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -60,7 +60,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'bibliographicCitation',
-      label: 'Bibliographic Citation',
+      label: 'Bibliographic citation',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -68,7 +68,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'conformsTo',
-      label: 'Conforms To',
+      label: 'Conforms to',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -77,7 +77,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'corporateCreator',
-      label: 'Corporate Creator',
+      label: 'Corporate creator',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -103,7 +103,7 @@ export const DocumentModel: FormModel = {
     },
 {
       name: 'otherIdentifier',
-      label: 'Other Identifier',
+      label: 'Other identifier',
       type: 'object',
       required: false,
       cardinality: 'multiple',
