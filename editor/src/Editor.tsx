@@ -12,7 +12,7 @@ import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
-import { ValidationProgress } from './validation/ValidationProgress'
+import { useDelayedFlag } from './validation/useDelayedFlag'
 import { ExportWarningDialog } from './validation/ExportWarningDialog'
 
 /** A link to an object. */
@@ -198,20 +198,31 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
   const [showValidationSummary, setShowValidationSummary] = useState(false)
-  const { validateCatalog, catalogSummary, validationProgress, validationState, isReady } = useValidation()
+  const { validateCatalog, catalogSummary, isReady } = useValidation()
   const validationContext = useValidationContext()
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
+  // Most checks finish before a person would notice (a 3,000-dataset catalog in about 0.2 s), so the button says
+  // "Validating…" only if a check runs past 400 ms, and then for at least 500 ms, so it neither flashes nor blinks.
+  const showValidating = useDelayedFlag(isValidatingCatalog, 400, 500)
+  const [validationResult, setValidationResult] = useState('')
   const navigate = useNavigate()
 
   usePageTitle(object ? `${labelOf(object)} (${classLabel(object.dcatClass)})` : 'Not found')
 
   const handleValidateCatalog = async () => {
+    // Ignores clicks while busy instead of disabling the button, which would take focus from it.
+    if (isValidatingCatalog || showValidating) return
     setIsValidatingCatalog(true)
     setShowValidationSummary(true)
+    setValidationResult('')
     try {
-      await validateCatalog()
+      const { totalErrors } = await validateCatalog()
+      setValidationResult(
+        `Validation finished: ${totalErrors ? `${count(totalErrors)} ${totalErrors === 1 ? 'error' : 'errors'}` : 'no errors'} found.`,
+      )
     } catch (error) {
       console.error('Catalog validation failed:', error)
+      setValidationResult('Validation could not finish. Try again.')
     } finally {
       setIsValidatingCatalog(false)
     }
@@ -292,10 +303,14 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
                   key="validate"
                   type="button"
                   onClick={handleValidateCatalog}
-                  disabled={isValidatingCatalog}
+                  aria-disabled={showValidating || undefined}
                   outline
                 >
-                  {isValidatingCatalog ? 'Validating...' : 'Validate catalog'}
+                  {/* Both labels hold the space, so the button keeps its width and Undo stays put. */}
+                  <span className="button-labels">
+                    <span className={showValidating ? 'button-labels__off' : undefined}>Validate catalog</span>
+                    <span className={showValidating ? undefined : 'button-labels__off'}>Validating…</span>
+                  </span>
                 </Button>,
               ]
             : []),
@@ -304,11 +319,10 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
           </Button>,
         ]}
       </ButtonGroup>
-      {validationState === 'validating' && (
-        <div className="margin-top-2">
-          <ValidationProgress progress={validationProgress} total={objects.size} />
-        </div>
-      )}
+      {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page. */}
+      <p role="status" className="usa-sr-only">
+        {isValidatingCatalog && showValidating ? 'Validating catalog…' : validationResult}
+      </p>
       {showValidationSummary && catalogSummary && (
         <div className="margin-top-2">
           <ValidationSummary

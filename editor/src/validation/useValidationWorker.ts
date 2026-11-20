@@ -10,7 +10,7 @@ interface WorkerMessage {
 
 interface WorkerResponse {
   id: string
-  type: 'ready' | 'result' | 'progress' | 'error'
+  type: 'ready' | 'result' | 'error'
   payload?: unknown
 }
 
@@ -23,7 +23,6 @@ export function useValidationWorker() {
       {
         resolve: (value: unknown) => void
         reject: (error: Error) => void
-        onProgress?: (progress: number) => void
       }
     >
   >(new Map())
@@ -47,9 +46,6 @@ export function useValidationWorker() {
           pending.resolve(payload)
           pendingRequests.current.delete(id)
           break
-        case 'progress':
-          pending.onProgress?.((payload as { progress: number }).progress)
-          break
         case 'error':
           pending.reject(new Error((payload as { message: string }).message))
           pendingRequests.current.delete(id)
@@ -66,7 +62,7 @@ export function useValidationWorker() {
   }, [])
 
   const validateCatalog = useCallback(
-    (catalog: CatalogGraph, onProgress?: (progress: number) => void): Promise<CatalogValidationResult> => {
+    (catalog: CatalogGraph): Promise<CatalogValidationResult> => {
       return new Promise<CatalogValidationResult>((resolve, reject) => {
         if (!workerRef.current || !isReady) {
           reject(new Error('Worker not ready'))
@@ -77,7 +73,6 @@ export function useValidationWorker() {
         pendingRequests.current.set(id, {
           resolve: resolve as (value: unknown) => void,
           reject,
-          onProgress,
         })
 
         workerRef.current.postMessage({ id, type: 'validateCatalog', payload: catalog } as WorkerMessage)

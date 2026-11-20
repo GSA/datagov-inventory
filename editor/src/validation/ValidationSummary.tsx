@@ -40,14 +40,14 @@ export function ValidationSummary({ catalogSummary, objectResults, onNavigateToO
       </div>
 
       {valid ? (
-        <div className="validation-summary__success" role="status" aria-live="polite">
+        <div className="validation-summary__success">
           <span className="validation-summary__icon" aria-hidden="true">
             ✓
           </span>
           <p>No errors found in the catalog.</p>
         </div>
       ) : (
-        <div className="validation-summary__errors" role="status" aria-live="polite">
+        <div className="validation-summary__errors">
           <p className="validation-summary__total">
             <strong>{totalErrors}</strong> {totalErrors === 1 ? 'error' : 'errors'} found
           </p>
