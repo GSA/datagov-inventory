@@ -161,6 +161,23 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
 })
 
+test('restores newly created nested objects and their links after reload', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Distribution').getByRole('button', { name: 'Create new Distribution' }).click()
+  const title = page.getByRole('textbox', { name: /^Title/ })
+  await title.fill('Persistent Parquet')
+  await title.blur()
+  await field(page, 'Checksum').getByRole('button', { name: 'Create new Checksum' }).click()
+  await expect(page.getByText(/· Saved$/)).toBeVisible()
+
+  await page.reload()
+
+  await expect(page.getByRole('heading', { level: 2, name: 'Untitled Checksum' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Back to Persistent Parquet' })).toBeVisible()
+  await expect(page.getByText('Used in 1 place: Persistent Parquet › Checksum')).toBeVisible()
+})
+
 test('leaves a long list with Tab, and the caret keys leave the options', async ({ page }) => {
   const datasets = Array.from({ length: 30 }, (_, i) => ({ '@type': 'Dataset', title: `D${i}`, contactPoint: { fn: `Team ${i}` } }))
   await page.goto('/import')
