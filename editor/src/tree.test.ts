@@ -1,18 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { decompose } from './catalog/decompose'
 import type { CatalogObject, CatalogGraph } from './catalog/types'
-import {
-  FILTER_LIMIT,
-  ancestorIds,
-  classLabel,
-  fieldAndClass,
-  fieldLabel,
-  filterTree,
-  labelOf,
-  parentsOf,
-  treeRows,
-  type TreeRow,
-} from './tree'
+import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
 // Built once and shared: 3,000 datasets, each with a contact, a publisher and three distributions.
@@ -148,47 +137,5 @@ describe('an object linked from more than one place', () => {
     // The contact's only child is above it, so there is nothing to count.
     expect(rows[2].childCount).toBe(0)
     expect(rows[4]).toMatchObject({ expanded: true, childCount: 1 })
-  })
-})
-
-describe('classLabel', () => {
-  it('splits a class name into words, keeping runs of capitals together', () => {
-    expect(classLabel('Dataset')).toBe('Dataset')
-    expect(classLabel('PeriodOfTime')).toBe('Period of Time')
-    expect(classLabel('DatasetSeries')).toBe('Dataset Series')
-    expect(classLabel('CUIRestriction')).toBe('CUI Restriction')
-  })
-
-  it("names vCard's Kind a contact", () => {
-    expect(classLabel('Kind')).toBe('Contact')
-  })
-})
-
-describe('fieldLabel', () => {
-  it("gives a property its form field's label, in sentence case", () => {
-    expect(fieldLabel('contactPoint')).toBe('Contact point')
-    expect(fieldLabel('dataset')).toBe('Dataset')
-    expect(fieldLabel('accessURL')).toBe('Access URL')
-    expect(fieldLabel('fn')).toBe('Full name')
-    expect(fieldLabel('cuiRestriction')).toBe('CUI restriction')
-  })
-
-  it('reads a property no model has as words the same way', () => {
-    expect(fieldLabel('someLegacyURLField')).toBe('Some legacy URL field')
-  })
-})
-
-describe('fieldAndClass', () => {
-  it('adds the class only when it says more than the field', () => {
-    expect(fieldAndClass('dataset', 'Dataset')).toBe('Dataset')
-    expect(fieldAndClass('distribution', 'Distribution')).toBe('Distribution')
-    expect(fieldAndClass('publisher', 'Organization')).toBe('Publisher · Organization')
-    expect(fieldAndClass('contactPoint', 'Kind')).toBe('Contact point · Contact')
-    expect(fieldAndClass('temporal', 'PeriodOfTime')).toBe('Temporal · Period of Time')
-  })
-
-  it('ignores case when comparing the two', () => {
-    expect(fieldAndClass('cuiRestriction', 'CUIRestriction')).toBe('CUI restriction')
-    expect(fieldAndClass('datasetSeries', 'DatasetSeries')).toBe('Dataset series')
   })
 })

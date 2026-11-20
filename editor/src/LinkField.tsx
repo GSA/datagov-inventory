@@ -7,7 +7,8 @@ import { candidatesFor, classesFor, linkModeOf, rowId, search } from './links'
 import type { FormField } from './schema'
 import { useCatalog, useEditCopy } from './session'
 import { useValidationContext } from './validation/ValidationContext'
-import { classLabel, count, isolate, labelOf } from './tree'
+import { classLabel } from './labels'
+import { count, isolate, labelOf } from './tree'
 import { editorPath } from './objectRoute'
 
 const places = (n: number) => `${count(n)} ${n === 1 ? 'place' : 'places'}`

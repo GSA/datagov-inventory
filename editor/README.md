@@ -63,7 +63,7 @@ objects it links to, in order. USWDS has no tree view, so it is a custom
 open and close; Enter, Space or a click opens an object, and focus stays in the tree. The filter shows objects whose
 title or name matches, with the objects above them, at most 200 matches at a time. Each row is one line: the object's
 label, then its field and, when it says more, its class ("Publisher · Organization", but just "Dataset"), from
-`fieldLabel` and `classLabel` in `src/tree.ts`, which the form and validation messages use too. A closed row says how
+`fieldLabel` and `classLabel` in `src/labels.ts`, which the form, validation messages and the model generator use too. A closed row says how
 many items it holds, and an object used in several places says "Shared · N places"; the place it was opened in is
 selected, and its other places are outlined. It renders every row without
 virtualization: with 3,000 datasets (18,001 objects) each action paints in about 100 ms or less (measured in the pull request for #23;

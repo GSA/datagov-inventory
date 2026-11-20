@@ -3,7 +3,8 @@ import { Label, TextInput } from '@trussworks/react-uswds'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import type { CatalogGraph } from './catalog/types'
 import { usesOf } from './catalog/uses'
-import { FILTER_LIMIT, ancestorIds, count, fieldAndClass, filterTree, labelOf, treeRows, type TreeRow } from './tree'
+import { fieldAndClass } from './labels'
+import { FILTER_LIMIT, ancestorIds, count, filterTree, labelOf, treeRows, type TreeRow } from './tree'
 
 /** Scrolls the selected row into the pane's view when none of it shows. */
 function revealSelected(pane: HTMLElement | null) {

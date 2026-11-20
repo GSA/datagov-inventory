@@ -1,5 +1,5 @@
 import type { ErrorObject } from 'ajv'
-import { fieldLabel } from '../tree'
+import { fieldLabel } from '../labels'
 import type { ValidationError } from './types'
 
 /** A property's label, as its field in the form shows it: "Contact point", "Access URL". */
