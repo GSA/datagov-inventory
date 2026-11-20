@@ -19,7 +19,7 @@ export const UseRestrictionModel: FormModel = {
     },
 {
       name: 'restrictionNote',
-      label: 'Restriction Note',
+      label: 'Restriction note',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -27,7 +27,7 @@ export const UseRestrictionModel: FormModel = {
     },
 {
       name: 'restrictionStatus',
-      label: 'Restriction Status',
+      label: 'Restriction status',
       type: 'object',
       required: true,
       cardinality: 'single',
@@ -36,7 +36,7 @@ export const UseRestrictionModel: FormModel = {
     },
 {
       name: 'specificRestriction',
-      label: 'Specific Restriction',
+      label: 'Specific restriction',
       type: 'object',
       required: false,
       cardinality: 'single',

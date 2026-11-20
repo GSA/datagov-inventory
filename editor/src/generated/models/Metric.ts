@@ -19,7 +19,7 @@ export const MetricModel: FormModel = {
     },
 {
       name: 'expectedDataType',
-      label: 'Expected Data Type',
+      label: 'Expected data type',
       type: 'string',
       required: true,
       cardinality: 'single',
@@ -27,7 +27,7 @@ export const MetricModel: FormModel = {
     },
 {
       name: 'inDimension',
-      label: 'In Dimension',
+      label: 'In dimension',
       type: 'string',
       required: true,
       cardinality: 'single',

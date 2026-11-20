@@ -19,7 +19,7 @@ export const CUIRestrictionModel: FormModel = {
     },
 {
       name: 'cuiBannerMarking',
-      label: 'CUI Banner Marking',
+      label: 'CUI banner marking',
       type: 'string',
       required: true,
       cardinality: 'single',
@@ -27,7 +27,7 @@ export const CUIRestrictionModel: FormModel = {
     },
 {
       name: 'designationIndicator',
-      label: 'Designation Indicator',
+      label: 'Designation indicator',
       type: 'string',
       required: true,
       cardinality: 'single',
@@ -35,7 +35,7 @@ export const CUIRestrictionModel: FormModel = {
     },
 {
       name: 'requiredIndicatorPerAuthority',
-      label: 'Required Indicator Per Authority',
+      label: 'Required indicator per authority',
       type: 'string',
       required: false,
       cardinality: 'multiple',

@@ -1,5 +1,5 @@
 import { Modal, ModalHeading, ModalFooter, Button } from '@trussworks/react-uswds'
-import { classLabel } from '../tree'
+import { classLabel } from '../labels'
 
 interface ExportWarningDialogProps {
   isOpen: boolean

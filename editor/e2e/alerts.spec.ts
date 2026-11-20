@@ -107,13 +107,13 @@ test('import page alerts keep the icon clear of the text', async ({ page }) => {
 test('editor alerts keep the icon clear of the text: an empty required field, a shared delete', async ({ page }) => {
   await loadSample(page, 'dataset-with-distributions.json')
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
-  const contacts = page.getByRole('group', { name: /^Contact Point/ })
+  const contacts = page.getByRole('group', { name: /^Contact point/ })
   await contacts.getByRole('button', { name: /^Remove Air Quality Team/ }).click()
   await expectIconClearOfText(page, contacts.locator('.usa-alert--warning'))
 
   await page.getByRole('button', { name: 'Undo' }).click()
   await page.getByRole('treeitem', { name: 'Example Agency Catalog', exact: true }).click()
-  const catalogContacts = page.getByRole('group', { name: /^Contact Point/ })
+  const catalogContacts = page.getByRole('group', { name: /^Contact point/ })
   await catalogContacts.getByRole('combobox').fill('air')
   await page.getByRole('option', { name: /Air Quality Team/ }).click()
   await catalogContacts.getByRole('link', { name: 'Air Quality Team' }).click()

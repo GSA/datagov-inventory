@@ -61,11 +61,16 @@ The catalog tree (`src/CatalogTree.tsx`, rows from `src/tree.ts`) shows the cata
 objects it links to, in order. USWDS has no tree view, so it is a custom
 [WAI-ARIA treeview](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/): one tab stop, arrow keys, Home and End move,
 open and close; Enter, Space or a click opens an object, and focus stays in the tree. The filter shows objects whose
-title or name matches, with the objects above them, at most 200 matches at a time. It renders every row without
+title or name matches, with the objects above them, at most 200 matches at a time. Each row is one line: the object's
+label, then its field and, when it says more, its class ("Publisher · Organization", but just "Dataset"), from
+`fieldLabel` and `classLabel` in `src/labels.ts`, which the form, validation messages and the model generator use too. A closed row says how
+many items it holds, and an object used in several places says "Shared · N places"; the place it was opened in is
+selected, and its other places are outlined. It renders every row without
 virtualization: with 3,000 datasets (18,001 objects) each action paints in about 100 ms or less (measured in the pull request for #23;
-`PERF=1 npx playwright test tree-performance` measures again). Two things kept it fast: memoized rows, so an action
-re-renders only the rows it changes, and a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
-a float before the tree made each change lay out every row again.
+`PERF=1 npx playwright test tree-performance` measures again). Three things keep it fast: memoized rows, so an action
+re-renders only the rows it changes; a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
+a float before the tree made each change lay out every row again; and `content-visibility: auto` on the rows, which all
+have the same height, so the browser lays out only the rows in view.
 
 Class-valued fields (`src/LinkField.tsx`, with the logic in `src/links.ts`) list the objects they link to and offer
 "Add an existing …" and "Create new …" (#25). There are no dialogs. "Add an existing …" is a

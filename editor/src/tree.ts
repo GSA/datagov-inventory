@@ -3,6 +3,7 @@
  * `links` by id, so an object linked from several places shows as the same object in each.
  */
 import type { CatalogObject, CatalogGraph } from './catalog/types'
+import { classLabel } from './labels'
 
 const LABEL_LENGTH = 200
 
@@ -14,18 +15,6 @@ const labels = new WeakMap<CatalogObject, string>()
  * characters, cut to 200 characters. Render it in <bdi> so right-to-left overrides in it
  * cannot reorder the text around it.
  */
-/** Short words that stay lower case inside a class name: PeriodOfTime is "Period of Time". */
-const MINOR_WORDS = new Set(['of', 'and', 'or', 'in', 'to'])
-
-/**
- * A DCAT class as people read it: `PeriodOfTime` is "Period of Time", `CUIRestriction` is "CUI Restriction" (a run
- * of capitals stays one word). The schema's own name stays the object's class; this is for display only.
- */
-export function classLabel(dcatClass: string): string {
-  const words = dcatClass.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [dcatClass]
-  return words.map((word, i) => (i > 0 && MINOR_WORDS.has(word.toLowerCase()) ? word.toLowerCase() : word)).join(' ')
-}
-
 export function labelOf(object: CatalogObject): string {
   let label = labels.get(object)
   if (label === undefined) {
@@ -69,6 +58,8 @@ export interface TreeRow {
   siblings: number
   /** Whether its children are shown; undefined when it has none to show. */
   expanded?: boolean
+  /** How many children it shows when expanded. */
+  childCount: number
 }
 
 /**
@@ -145,7 +136,16 @@ export function treeRows(
       ids.filter((id) => !path.has(id) && (!shown || shown.has(id))).map((id) => ({ link, id })),
     )
     const open = children.length > 0 && (shown !== undefined || expanded.has(object.id))
-    rows.push({ key, object, property, level, position, siblings, expanded: children.length > 0 ? open : undefined })
+    rows.push({
+      key,
+      object,
+      property,
+      level,
+      position,
+      siblings,
+      expanded: children.length > 0 ? open : undefined,
+      childCount: children.length,
+    })
     if (open) children.forEach(({ link, id }, i) =>
       add(objects.get(id)!, `${key} ${id}`, level + 1, i + 1, children.length, link),
     )

@@ -5,48 +5,49 @@ describe('Validation Messages', () => {
     it('should format JSON pointer to readable path', async () => {
       const { formatFieldPath } = await import('./messages')
 
-      expect(formatFieldPath('/dct:title')).toBe('Title')
-      expect(formatFieldPath('/dct:description')).toBe('Description')
-      expect(formatFieldPath('/dcat:distribution/0/dcat:accessURL')).toBe('Distribution 1 → Access URL')
+      expect(formatFieldPath('/title')).toBe('Title')
+      expect(formatFieldPath('/description')).toBe('Description')
+      expect(formatFieldPath('/distribution/0/accessURL')).toBe('Distribution 1 → Access URL')
     })
 
     it('should handle array indices', async () => {
       const { formatFieldPath } = await import('./messages')
 
-      expect(formatFieldPath('/dcat:distribution/0')).toBe('Distribution 1')
-      expect(formatFieldPath('/dcat:distribution/5/dcat:format')).toBe('Distribution 6 → Format')
+      expect(formatFieldPath('/distribution/0')).toBe('Distribution 1')
+      expect(formatFieldPath('/distribution/5/format')).toBe('Distribution 6 → Format')
     })
 
     it('should handle nested paths', async () => {
       const { formatFieldPath } = await import('./messages')
 
-      expect(formatFieldPath('/dcat:contactPoint/vcard:hasEmail')).toBe('Contact Point → Email')
+      expect(formatFieldPath('/contactPoint/hasEmail')).toBe('Contact point → Email')
     })
   })
 
   describe('getFieldLabel', () => {
-    it('should map DCAT property to readable label', async () => {
+    it('should label a property as its field in the form does', async () => {
       const { getFieldLabel } = await import('./messages')
 
-      expect(getFieldLabel('dct:title')).toBe('Title')
-      expect(getFieldLabel('dct:description')).toBe('Description')
-      expect(getFieldLabel('dcat:keyword')).toBe('Keywords')
-      expect(getFieldLabel('dcat:theme')).toBe('Theme')
-      expect(getFieldLabel('dct:spatial')).toBe('Spatial Coverage')
+      expect(getFieldLabel('title')).toBe('Title')
+      expect(getFieldLabel('description')).toBe('Description')
+      expect(getFieldLabel('keyword')).toBe('Keyword')
+      expect(getFieldLabel('fn')).toBe('Full name')
+      expect(getFieldLabel('spatialResolutionInMeters')).toBe('Spatial resolution in meters')
     })
 
     it('should label DCAT-US 3.0 property names, which have no prefix', async () => {
       const { getFieldLabel } = await import('./messages')
 
       expect(getFieldLabel('title')).toBe('Title')
-      expect(getFieldLabel('contactPoint')).toBe('Contact Point')
+      expect(getFieldLabel('contactPoint')).toBe('Contact point')
       expect(getFieldLabel('downloadURL')).toBe('Download URL')
     })
 
     it('should handle unknown properties gracefully', async () => {
       const { getFieldLabel } = await import('./messages')
 
-      expect(getFieldLabel('unknown:property')).toBe('Unknown Property')
+      expect(getFieldLabel('someUnknownProperty')).toBe('Some unknown property')
+      expect(getFieldLabel('legacyURLField')).toBe('Legacy URL field')
     })
   })
 
@@ -58,8 +59,8 @@ describe('Validation Messages', () => {
         keyword: 'required',
         instancePath: '',
         schemaPath: '#/required',
-        params: { missingProperty: 'dct:title' },
-        message: "must have required property 'dct:title'"
+        params: { missingProperty: 'title' },
+        message: "must have required property 'title'"
       }
 
       const humanized = humanizeError(error)
@@ -74,8 +75,8 @@ describe('Validation Messages', () => {
 
       const error = {
         keyword: 'type',
-        instancePath: '/dct:title',
-        schemaPath: '#/properties/dct:title/type',
+        instancePath: '/title',
+        schemaPath: '#/properties/title/type',
         params: { type: 'string' },
         message: 'must be string'
       }
@@ -92,8 +93,8 @@ describe('Validation Messages', () => {
 
       const error = {
         keyword: 'pattern',
-        instancePath: '/vcard:hasEmail',
-        schemaPath: '#/properties/vcard:hasEmail/pattern',
+        instancePath: '/hasEmail',
+        schemaPath: '#/properties/hasEmail/pattern',
         params: { pattern: '^mailto:' },
         message: 'must match pattern "^mailto:"'
       }

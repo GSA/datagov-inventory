@@ -19,7 +19,7 @@ export const AddressModel: FormModel = {
     },
 {
       name: 'country-name',
-      label: 'Country Name',
+      label: 'Country name',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -35,7 +35,7 @@ export const AddressModel: FormModel = {
     },
 {
       name: 'postal-code',
-      label: 'Postal Code',
+      label: 'Postal code',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -51,7 +51,7 @@ export const AddressModel: FormModel = {
     },
 {
       name: 'street-address',
-      label: 'Street Address',
+      label: 'Street address',
       type: 'string',
       required: false,
       cardinality: 'single',

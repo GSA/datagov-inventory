@@ -27,7 +27,7 @@ export const OrganizationModel: FormModel = {
     },
 {
       name: 'subOrganizationOf',
-      label: 'Sub Organization Of',
+      label: 'Sub organization of',
       type: 'object',
       required: false,
       cardinality: 'multiple',
@@ -36,7 +36,7 @@ export const OrganizationModel: FormModel = {
     },
 {
       name: 'altLabel',
-      label: 'Alternative Label',
+      label: 'Alternative label',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -52,7 +52,7 @@ export const OrganizationModel: FormModel = {
     },
 {
       name: 'prefLabel',
-      label: 'Preferred Label',
+      label: 'Preferred label',
       type: 'string',
       required: false,
       cardinality: 'single',

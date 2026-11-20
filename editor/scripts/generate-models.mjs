@@ -27,32 +27,9 @@ try {
   process.exit(1)
 }
 const { classSchemas, getClassSchema, getClassProperties } = schemaModule
-
-/** Labels the property name can't give: vCard's terse names and abbreviations. */
-const LABELS = {
-  fn: 'Full Name',
-  tel: 'Telephone',
-  hasEmail: 'Email',
-  bbox: 'Bounding Box',
-  altLabel: 'Alternative Label',
-  prefLabel: 'Preferred Label',
-}
-/** Words written in capitals, whatever the property name's case. */
-const ACRONYMS = new Set(['cui', 'url', 'iri', 'id'])
-
-/**
- * A property name as a label in title case: `accessURL` is "Access URL" (a run of capitals stays one word),
- * `family-name` is "Family Name", `cuiBannerMarking` is "CUI Banner Marking". JSON-LD keys (`@id`) stay as written.
- */
-function toLabel(name) {
-  if (name.startsWith('@')) return name
-  if (LABELS[name]) return LABELS[name]
-  return name
-    .split(/[-_\s]+/)
-    .flatMap((part) => part.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? [])
-    .map((word) => (ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1)))
-    .join(' ')
-}
+// Field labels come from the app's own labelling, so the form, tree and validation messages agree with the models.
+const { module: labelsModule } = await runnerImport(join(__dirname, '..', 'src', 'labels.ts'), { configFile: false, logLevel: 'error' })
+const toLabel = labelsModule.fieldLabel
 
 /**
  * What a property's value can be, across `type` lists and `anyOf`/`oneOf`/`allOf` branches:

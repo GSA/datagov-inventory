@@ -1,4 +1,4 @@
-import { classLabel } from '../tree'
+import { classLabel } from '../labels'
 
 interface ValidationSummaryProps {
   catalogSummary: {

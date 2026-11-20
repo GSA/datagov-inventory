@@ -19,7 +19,7 @@ export const ConceptModel: FormModel = {
     },
 {
       name: 'altLabel',
-      label: 'Alternative Label',
+      label: 'Alternative label',
       type: 'string',
       required: false,
       cardinality: 'single',
@@ -35,7 +35,7 @@ export const ConceptModel: FormModel = {
     },
 {
       name: 'inScheme',
-      label: 'In Scheme',
+      label: 'In scheme',
       type: 'object',
       required: false,
       cardinality: 'single',
@@ -52,7 +52,7 @@ export const ConceptModel: FormModel = {
     },
 {
       name: 'prefLabel',
-      label: 'Preferred Label',
+      label: 'Preferred label',
       type: 'string',
       required: true,
       cardinality: 'single',
