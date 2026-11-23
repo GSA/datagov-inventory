@@ -115,11 +115,17 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
   }
 
   const objects = new Map<string, CatalogObject>()
-  /** The first object read for each merge key. */
-  const firstWithKey = new Map<string, string>()
+  /** The objects kept for each merge key, in document order: usually one, more if a list repeats an object. */
+  const keptWithKey = new Map<string, string[]>()
   let merged = 0
-  /** Adds `node` and the objects inside it, and returns the id it is linked by: its own, or an identical object's. */
-  const add = (node: Record<string, unknown>, dcatClass: string, id: string): string => {
+  /**
+   * Adds `node` and the objects inside it, and returns the id it is linked by: its own, or an identical object's. A
+   * field never lists one object twice (`linkObject` refuses it, and the tree and forms key rows by id), so the k-th
+   * copy of an object in one list merges into the k-th object kept with its key, or is kept if there are fewer. So a
+   * list that repeats an object keeps the repeats, and two lists that repeat it alike still end up the same. `inList`
+   * counts the copies of each key in the list so far; constant time per object, however long a crafted list is.
+   */
+  const add = (node: Record<string, unknown>, dcatClass: string, id: string, inList?: Map<string, number>): string => {
     const object: CatalogObject = {
       id,
       dcatClass,
@@ -138,8 +144,9 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
         continue
       }
       const base = `${id}/${key}` // a schema property name: no "/" or "~" to escape
+      const inThisList = new Map<string, number>()
       object.links[key] = children.map((child, i) =>
-        add(child, classIn(child, allowed), Array.isArray(value) ? `${base}/${i}` : base),
+        add(child, classIn(child, allowed), Array.isArray(value) ? `${base}/${i}` : base, inThisList),
       )
       if (!Array.isArray(value)) object.singleLinks.push(key)
     }
@@ -147,14 +154,17 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
     // A merged copy's children are all merged too (or it would not match), so deleting it leaves none behind.
     if (NEVER_MERGED.has(dcatClass)) return id
     const key = mergeKey(object)
-    const first = firstWithKey.get(key)
-    if (first === undefined) {
-      firstWithKey.set(key, id)
-      return id
+    const copy = inList?.get(key) ?? 0
+    inList?.set(key, copy + 1)
+    const kept = keptWithKey.get(key)
+    if (!kept) keptWithKey.set(key, [id])
+    else if (copy >= kept.length) kept.push(id)
+    else {
+      objects.delete(id)
+      merged++
+      return kept[copy]
     }
-    objects.delete(id)
-    merged++
-    return first
+    return id
   }
   return { rootId: add(root, rootClass, '#'), objects, merged }
 }

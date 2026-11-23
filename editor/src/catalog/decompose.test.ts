@@ -254,12 +254,39 @@ describe('decompose: merging identical objects', () => {
     expect(catalog.merged).toBe(1)
   })
 
-  it('merges identical distributions, and links a merged object twice if one parent lists it twice', () => {
+  it('merges identical distributions, but never lists one object twice in a field', () => {
     const csv = { '@type': 'Distribution', title: 'CSV', downloadURL: 'https://example.gov/data.csv' }
-    const catalog = decompose(catalogOf([dataset('A', { distribution: [csv, csv] }), dataset('B', { distribution: [csv] })]))
-    const id = '#/dataset/0/distribution/0'
-    expect(linksOf(catalog, 'distribution')).toEqual([[id, id], [id]])
-    expect(catalog.merged).toBe(2)
+    const catalog = decompose(
+      catalogOf([
+        dataset('A', { distribution: [csv, csv] }),
+        dataset('B', { distribution: [csv] }),
+        dataset('C', { distribution: [csv, csv, csv] }),
+      ]),
+    )
+    const [first, second, third] = ['#/dataset/0/distribution/0', '#/dataset/0/distribution/1', '#/dataset/2/distribution/2']
+    expect(linksOf(catalog, 'distribution')).toEqual([[first, second], [first], [first, second, third]])
+    expect(catalog.merged).toBe(3)
+  })
+
+  it('takes a list of 100,000 identical objects in linear time', () => {
+    const themes = Array.from({ length: 100_000 }, () => ({ '@type': 'Concept', prefLabel: 'Health' }))
+    const started = performance.now()
+    const catalog = decompose(catalogOf([dataset('A', { theme: themes })]), { maxContainers: 200_000 })
+    expect(catalog.objects.size).toBe(100_002)
+    expect(catalog.merged).toBe(0)
+    expect(performance.now() - started).toBeLessThan(2_000)
+  })
+
+  it('merges parents whose lists repeat the same object', () => {
+    const health = { '@type': 'Concept', prefLabel: 'Health' }
+    const scheme = { '@type': 'Organization', name: 'Agency', subOrganizationOf: [{ name: 'Dept' }, { name: 'Dept' }] }
+    const catalog = decompose(catalogOf([dataset('A', { publisher: scheme, theme: [health, health] }), dataset('B', { publisher: scheme })]))
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/dataset/0/publisher'], ['#/dataset/0/publisher']])
+    expect(catalog.objects.get('#/dataset/0/publisher')!.links.subOrganizationOf).toEqual([
+      '#/dataset/0/publisher/subOrganizationOf/0',
+      '#/dataset/0/publisher/subOrganizationOf/1',
+    ])
+    expect(linksOf(catalog, 'theme')[0]).toEqual(['#/dataset/0/theme/0', '#/dataset/0/theme/1'])
   })
 
   it('keeps each object after the first object that links to it', () => {

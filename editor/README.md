@@ -34,7 +34,8 @@ shared object linked from every place they appeared, as
 [ADR 0008](../docs/decisions/0008-onboard-via-data-json-reimport.md#convergence-of-identical-objects) says
 (`mergeKey` in `decompose.ts`). Matching is exact: the same class, and every value the same, with key order ignored and
 array order kept, and an `@id` compared like any other property. Children are compared first, so parents whose children
-merged can match too. Datasets, catalogs and dataset series are never merged. The merged object keeps the first copy's
+merged can match too. Datasets, catalogs and dataset series are never merged, and a field never lists one object
+twice, so copies repeated within one list stay separate. The merged object keeps the first copy's
 id and key order, and the editor's summary line says how many copies were merged ("· 1 identical copy merged"). Export
 (`assemble.ts`) writes a shared object in full at each place, since DCAT-US 3.0 has no reference form. Decomposition may use source-location
 keys, but accepting a graph into a `Catalog` working copy replaces every object id and reference with
