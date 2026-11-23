@@ -112,6 +112,7 @@ loading", stops the read or the worker.
 | `npm run schema:check` | Check the schema pin matches the submodule (runs in CI) |
 | `npm run generate:models` | Generate TypeScript form models from DCAT-US 3.0 JSON Schema |
 | `npm run generate:models:check` | Verify committed models match current schema (runs in CI) |
+| `npm run generate:catalogs [-- <dir>]` | Write generated catalogs of 300, 1,000, 3,000 and 6,000 datasets (default: the OS temp dir) |
 
 ## Testing
 
@@ -175,6 +176,10 @@ npm run test:browser:ui
 - Include accessibility scanning with @axe-core/playwright
 - Tests run against production build (`npm run build` + `npm run preview`)
 - Use page object pattern for complex workflows
+
+**Large catalogs:** `npm run generate:catalogs` writes synthetic catalogs of 300, 1,000, 3,000 and 6,000 datasets
+(`catalog-<n>-datasets.json`, from `fixtures/largeCatalog.ts`) to `<os temp dir>/inventory-catalogs`, or to the
+directory given after `--`, and prints each file's path and size. Import them by hand to check responsiveness.
 
 **Example browser test:**
 ```typescript
