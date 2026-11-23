@@ -1,3 +1,4 @@
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore } from 'idb'
 import type { CatalogObject, CatalogWorkspace } from '../catalog/types'
 import { CatalogStorageError, type CatalogRepository } from './CatalogRepository'
 
@@ -12,130 +13,171 @@ interface CatalogRecord {
   id: string
   sourceName: string
   rootId: string
+  createdAt: number
+  updatedAt: number
 }
+
+type LinkShape = 'single' | 'array'
 
 interface ObjectRecord {
   catalogId: string
   id: string
+  /** Preserves CatalogGraph.objects Map iteration order. */
   ordinal: number
   dcatClass: string
+  /** Structured cloning preserves the in-memory properties record's iteration order. */
   properties: Record<string, unknown>
-  singleLinks: string[]
+  /**
+   * Maps each link property to its source JSON shape. Key iteration order preserves
+   * the in-memory links record's order, including links whose child array is empty.
+   */
+  linkShapes: Record<string, LinkShape>
 }
 
 interface ReferenceRecord {
   catalogId: string
   parentId: string
   property: string
-  propertyOrdinal: number
+  /** Preserves child order within this link property's in-memory array. */
   ordinal: number
   childId: string
 }
 
+interface CatalogDatabase extends DBSchema {
+  catalogs: { key: string; value: CatalogRecord }
+  metadataObjects: {
+    key: [string, string]
+    value: ObjectRecord
+    indexes: { catalogId: string }
+  }
+  objectReferences: {
+    key: [string, string, string, number]
+    value: ReferenceRecord
+    indexes: { catalogId: string }
+  }
+}
+
+type WritableObjectStore = IDBPObjectStore<
+  CatalogDatabase,
+  ['catalogs', 'metadataObjects', 'objectReferences'],
+  'metadataObjects',
+  'readwrite'
+>
+type WritableReferenceStore = IDBPObjectStore<
+  CatalogDatabase,
+  ['catalogs', 'metadataObjects', 'objectReferences'],
+  'objectReferences',
+  'readwrite'
+>
+
 /** Stores one record per metadata object and one per ordered graph edge. */
 export class IndexedDbCatalogRepository implements CatalogRepository {
-  private readonly openDatabase: () => Promise<IDBDatabase>
-  private database?: Promise<IDBDatabase>
+  private database?: Promise<IDBPDatabase<CatalogDatabase>>
 
-  constructor(databaseName = DATABASE) {
-    this.openDatabase = () => openCatalogDatabase(databaseName)
-  }
-
-  private databaseConnection(): Promise<IDBDatabase> {
-    return (this.database ??= this.openDatabase())
-  }
+  constructor(private readonly databaseName = DATABASE) {}
 
   async createCatalog(catalog: CatalogWorkspace): Promise<void> {
-    const database = await this.databaseConnection()
-    const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readwrite')
-    const finished = transactionDone(transaction)
-    transaction.objectStore(CATALOGS).add(catalogRecord(catalog))
-    writeWholeGraph(transaction, catalog)
-    await finished
+    await withStorageErrors(async () => {
+      const database = await this.databaseConnection()
+      const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readwrite')
+      const now = Date.now()
+      await transaction.objectStore(CATALOGS).add(catalogRecord(catalog, now, now))
+      await writeWholeGraph(transaction.objectStore(OBJECTS), transaction.objectStore(REFERENCES), catalog)
+      await transaction.done
+    })
   }
 
   async saveCatalog(catalog: CatalogWorkspace): Promise<void> {
-    const database = await this.databaseConnection()
-    const reading = database.transaction([OBJECTS, REFERENCES], 'readonly')
-    const read = transactionDone(reading)
-    const [storedObjects, storedReferences] = await Promise.all([
-      request<ObjectRecord[]>(reading.objectStore(OBJECTS).index(CATALOG_ID).getAll(catalog.id)),
-      request<ReferenceRecord[]>(reading.objectStore(REFERENCES).index(CATALOG_ID).getAll(catalog.id)),
-    ])
-    await read
-
-    const writing = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readwrite')
-    const finished = transactionDone(writing)
-    writing.objectStore(CATALOGS).put(catalogRecord(catalog))
-    const objects = writing.objectStore(OBJECTS)
-    const references = writing.objectStore(REFERENCES)
-    updateObjects(objects, catalog, storedObjects)
-    updateReferences(references, catalog, storedReferences)
-    await finished
+    await withStorageErrors(async () => {
+      const database = await this.databaseConnection()
+      const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readwrite')
+      const catalogs = transaction.objectStore(CATALOGS)
+      const objects = transaction.objectStore(OBJECTS)
+      const references = transaction.objectStore(REFERENCES)
+      const [storedCatalog, storedObjects, storedReferences] = await Promise.all([
+        catalogs.get(catalog.id),
+        objects.index(CATALOG_ID).getAll(catalog.id),
+        references.index(CATALOG_ID).getAll(catalog.id),
+      ])
+      const now = Date.now()
+      await catalogs.put(catalogRecord(catalog, storedCatalog?.createdAt ?? now, now))
+      await Promise.all([
+        updateObjects(objects, catalog, storedObjects),
+        updateReferences(references, catalog, storedReferences),
+      ])
+      await transaction.done
+    })
   }
 
   async loadCatalog(id: string): Promise<CatalogWorkspace | undefined> {
-    const database = await this.databaseConnection()
-    const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readonly')
-    const read = transactionDone(transaction)
-    const [catalog, objects, references] = await Promise.all([
-      request<CatalogRecord | undefined>(transaction.objectStore(CATALOGS).get(id)),
-      request<ObjectRecord[]>(transaction.objectStore(OBJECTS).index(CATALOG_ID).getAll(id)),
-      request<ReferenceRecord[]>(transaction.objectStore(REFERENCES).index(CATALOG_ID).getAll(id)),
-    ])
-    await read
-    if (!catalog) return undefined
+    return withStorageErrors(async () => {
+      const database = await this.databaseConnection()
+      const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readonly')
+      const catalogs = transaction.objectStore(CATALOGS)
+      const objectStore = transaction.objectStore(OBJECTS)
+      const referenceStore = transaction.objectStore(REFERENCES)
+      const [catalog, objects, references] = await Promise.all([
+        catalogs.get(id),
+        objectStore.index(CATALOG_ID).getAll(id),
+        referenceStore.index(CATALOG_ID).getAll(id),
+      ])
+      await transaction.done
+      if (!catalog) return undefined
 
-    const graphObjects = new Map<string, CatalogObject>()
-    for (const object of objects.sort((a, b) => a.ordinal - b.ordinal)) {
-      graphObjects.set(object.id, {
-        id: object.id,
-        dcatClass: object.dcatClass,
-        properties: nullRecord(object.properties),
-        links: Object.create(null),
-        singleLinks: object.singleLinks,
-      })
-    }
-    for (const reference of references.sort(compareReferences)) {
-      const parent = graphObjects.get(reference.parentId)
-      if (!parent) throw new CatalogStorageError('invalid-data', 'The saved catalog contains a reference from a missing object.')
-      if (!graphObjects.has(reference.childId)) {
-        throw new CatalogStorageError('invalid-data', 'The saved catalog contains a reference to a missing object.')
+      const graphObjects = new Map<string, CatalogObject>()
+      for (const object of objects.sort((a, b) => a.ordinal - b.ordinal)) {
+        graphObjects.set(object.id, {
+          id: object.id,
+          dcatClass: object.dcatClass,
+          properties: nullRecord(object.properties),
+          links: nullRecord(Object.fromEntries(Object.keys(object.linkShapes).map((property) => [property, []]))),
+          singleLinks: Object.entries(object.linkShapes)
+            .filter(([, shape]) => shape === 'single')
+            .map(([property]) => property),
+        })
       }
-      ;(parent.links[reference.property] ??= []).push(reference.childId)
-    }
-    if (!graphObjects.has(catalog.rootId)) throw new CatalogStorageError('invalid-data', 'The saved catalog root object is missing.')
-    return { id: catalog.id, sourceName: catalog.sourceName, catalog: { rootId: catalog.rootId, objects: graphObjects } }
+      for (const reference of references.sort(compareReferences)) {
+        const parent = graphObjects.get(reference.parentId)
+        if (!parent) throw invalidData('The saved catalog contains a reference from a missing object.')
+        if (!graphObjects.has(reference.childId)) {
+          throw invalidData('The saved catalog contains a reference to a missing object.')
+        }
+        ;(parent.links[reference.property] ??= []).push(reference.childId)
+      }
+      if (!graphObjects.has(catalog.rootId)) throw invalidData('The saved catalog root object is missing.')
+      return { id: catalog.id, sourceName: catalog.sourceName, catalog: { rootId: catalog.rootId, objects: graphObjects } }
+    })
+  }
+
+  private databaseConnection(): Promise<IDBPDatabase<CatalogDatabase>> {
+    if (!globalThis.indexedDB) throw new CatalogStorageError('unavailable', 'Browser storage is unavailable.')
+    return (this.database ??= openDB<CatalogDatabase>(this.databaseName, VERSION, {
+      upgrade(database) {
+        database.createObjectStore(CATALOGS, { keyPath: 'id' })
+        const objects = database.createObjectStore(OBJECTS, { keyPath: ['catalogId', 'id'] })
+        objects.createIndex(CATALOG_ID, CATALOG_ID)
+        const references = database.createObjectStore(REFERENCES, {
+          keyPath: ['catalogId', 'parentId', 'property', 'ordinal'],
+        })
+        references.createIndex(CATALOG_ID, CATALOG_ID)
+      },
+      blocked() {
+        throw new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.')
+      },
+    }))
   }
 }
 
-async function openCatalogDatabase(name: string): Promise<IDBDatabase> {
-  if (!globalThis.indexedDB) throw new CatalogStorageError('unavailable', 'Browser storage is unavailable.')
-  return new Promise((resolve, reject) => {
-    const opening = indexedDB.open(name, VERSION)
-    opening.onupgradeneeded = () => {
-      const database = opening.result
-      database.createObjectStore(CATALOGS, { keyPath: 'id' })
-      const objects = database.createObjectStore(OBJECTS, { keyPath: ['catalogId', 'id'] })
-      objects.createIndex(CATALOG_ID, CATALOG_ID)
-      const references = database.createObjectStore(REFERENCES, {
-        keyPath: ['catalogId', 'parentId', 'property', 'ordinal'],
-      })
-      references.createIndex(CATALOG_ID, CATALOG_ID)
-    }
-    opening.onsuccess = () => {
-      opening.result.onversionchange = () => opening.result.close()
-      resolve(opening.result)
-    }
-    opening.onerror = () => reject(storageError(opening.error))
-    opening.onblocked = () => reject(new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.'))
-  })
-}
-
-const catalogRecord = ({ id, sourceName, catalog }: CatalogWorkspace): CatalogRecord => ({
+const catalogRecord = (
+  { id, sourceName, catalog }: CatalogWorkspace,
+  createdAt: number,
+  updatedAt: number,
+): CatalogRecord => ({
   id,
   sourceName,
   rootId: catalog.rootId,
+  createdAt,
+  updatedAt,
 })
 
 function objectRecords(catalog: CatalogWorkspace): ObjectRecord[] {
@@ -145,18 +187,17 @@ function objectRecords(catalog: CatalogWorkspace): ObjectRecord[] {
     ordinal,
     dcatClass: object.dcatClass,
     properties: object.properties,
-    singleLinks: object.singleLinks,
+    linkShapes: linkShapes(object),
   }))
 }
 
 function referenceRecords(catalog: CatalogWorkspace): ReferenceRecord[] {
   return Array.from(catalog.catalog.objects.values()).flatMap((object) =>
-    Object.entries(object.links).flatMap(([property, childIds], propertyOrdinal) =>
+    Object.entries(object.links).flatMap(([property, childIds]) =>
       childIds.map((childId, ordinal) => ({
         catalogId: catalog.id,
         parentId: object.id,
         property,
-        propertyOrdinal,
         ordinal,
         childId,
       })),
@@ -164,38 +205,48 @@ function referenceRecords(catalog: CatalogWorkspace): ReferenceRecord[] {
   )
 }
 
-function writeWholeGraph(transaction: IDBTransaction, catalog: CatalogWorkspace): void {
-  const objects = transaction.objectStore(OBJECTS)
-  const references = transaction.objectStore(REFERENCES)
-  for (const object of objectRecords(catalog)) objects.add(object)
-  for (const reference of referenceRecords(catalog)) references.add(reference)
+async function writeWholeGraph(
+  objects: WritableObjectStore,
+  references: WritableReferenceStore,
+  catalog: CatalogWorkspace,
+): Promise<void> {
+  await Promise.all([
+    ...objectRecords(catalog).map((object) => objects.add(object)),
+    ...referenceRecords(catalog).map((reference) => references.add(reference)),
+  ])
 }
 
-function updateObjects(store: IDBObjectStore, catalog: CatalogWorkspace, stored: ObjectRecord[]): void {
+async function updateObjects(store: WritableObjectStore, catalog: CatalogWorkspace, stored: ObjectRecord[]): Promise<void> {
   const next = new Map(objectRecords(catalog).map((object) => [object.id, object]))
+  const writes: Promise<unknown>[] = []
   for (const previous of stored) {
     const current = next.get(previous.id)
-    if (!current) store.delete([catalog.id, previous.id])
+    if (!current) writes.push(store.delete([catalog.id, previous.id]))
     else {
-      if (!recordsEqual(previous, current)) store.put(current)
+      if (!recordsEqual(previous, current)) writes.push(store.put(current))
       next.delete(previous.id)
     }
   }
-  for (const object of next.values()) store.put(object)
+  for (const object of next.values()) writes.push(store.put(object))
+  await Promise.all(writes)
 }
 
-function updateReferences(store: IDBObjectStore, catalog: CatalogWorkspace, stored: ReferenceRecord[]): void {
-  const current = referenceRecords(catalog)
+async function updateReferences(
+  store: WritableReferenceStore,
+  catalog: CatalogWorkspace,
+  stored: ReferenceRecord[],
+): Promise<void> {
   const previousByParent = groupReferences(stored)
-  const currentByParent = groupReferences(current)
-  const changedParents = new Set([...previousByParent.keys(), ...currentByParent.keys()])
-  for (const parentId of changedParents) {
+  const currentByParent = groupReferences(referenceRecords(catalog))
+  const writes: Promise<unknown>[] = []
+  for (const parentId of new Set([...previousByParent.keys(), ...currentByParent.keys()])) {
     const previous = previousByParent.get(parentId) ?? []
-    const next = currentByParent.get(parentId) ?? []
-    if (recordsEqual(previous, next)) continue
-    for (const reference of previous) store.delete(referenceKey(reference))
-    for (const reference of next) store.put(reference)
+    const current = currentByParent.get(parentId) ?? []
+    if (recordsEqual(previous, current)) continue
+    for (const reference of previous) writes.push(store.delete(referenceKey(reference)))
+    for (const reference of current) writes.push(store.put(reference))
   }
+  await Promise.all(writes)
 }
 
 function groupReferences(records: ReferenceRecord[]): Map<string, ReferenceRecord[]> {
@@ -209,30 +260,30 @@ function groupReferences(records: ReferenceRecord[]): Map<string, ReferenceRecor
 }
 
 const compareReferences = (a: ReferenceRecord, b: ReferenceRecord) =>
-  a.parentId.localeCompare(b.parentId) || a.propertyOrdinal - b.propertyOrdinal || a.ordinal - b.ordinal
+  a.parentId.localeCompare(b.parentId) || a.property.localeCompare(b.property) || a.ordinal - b.ordinal
+function linkShapes(object: CatalogObject): Record<string, LinkShape> {
+  const singleLinks = new Set(object.singleLinks)
+  return nullRecord(
+    Object.fromEntries(
+      Object.keys(object.links).map((property) => [property, singleLinks.has(property) ? 'single' : 'array']),
+    ),
+  )
+}
 
-const referenceKey = ({ catalogId, parentId, property, ordinal }: ReferenceRecord): IDBValidKey =>
+const referenceKey = ({ catalogId, parentId, property, ordinal }: ReferenceRecord): [string, string, string, number] =>
   [catalogId, parentId, property, ordinal]
-
 const recordsEqual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const nullRecord = <T>(record: Record<string, T>): Record<string, T> => Object.assign(Object.create(null), record)
+const invalidData = (message: string) => new CatalogStorageError('invalid-data', message)
 
-function request<T>(value: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    value.onsuccess = () => resolve(value.result)
-    value.onerror = () => reject(storageError(value.error))
-  })
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve()
-    transaction.onabort = transaction.onerror = () => reject(storageError(transaction.error))
-  })
-}
-
-function storageError(error: DOMException | null): CatalogStorageError {
-  return error?.name === 'QuotaExceededError'
-    ? new CatalogStorageError('quota', 'Browser storage is full.')
-    : new CatalogStorageError('failed', 'Browser storage failed.')
+async function withStorageErrors<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (error instanceof CatalogStorageError) throw error
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      throw new CatalogStorageError('quota', 'Browser storage is full.')
+    }
+    throw new CatalogStorageError('failed', 'Browser storage failed.')
+  }
 }
