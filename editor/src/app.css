@@ -30,8 +30,12 @@
 /* The last catalog check, beside the catalog's actions: as tall as they are, so wrapping under them on a phone keeps
    the line's height whatever it says. */
 .catalog-check {
+  column-gap: 0.5rem;
+}
+/* Its text centred in a row as tall as the buttons, even when the toggle wraps under it. */
+.catalog-check > .stacked-labels {
   min-height: 2.75rem;
-  column-gap: 1rem;
+  align-items: center;
 }
 /* A 44px touch target, without a button's weight. */
 .catalog-check__toggle {

@@ -1,7 +1,10 @@
-import { Alert, AlertHeading } from '@trussworks/react-uswds'
+import { Accordion, Alert, AlertHeading } from '@trussworks/react-uswds'
 import { classLabel } from '../labels'
 import { count } from '../tree'
 import { ValidationDisclaimer } from './ValidationDisclaimer'
+
+/** Longer lists of objects start folded. */
+const FOLD_OVER = 10
 
 interface ValidationSummaryProps {
   /** The element's id, for the button that hides and shows it. */
@@ -9,18 +12,13 @@ interface ValidationSummaryProps {
   catalogSummary: {
     totalErrors: number
     errorSummary: Record<string, number>
+    timestamp: number
   }
   /** The catalog has changed since this check, so its counts may be out of date. */
   stale: boolean
-  objectResults?: Array<{
-    objectId: string
-    /** The object's title or name, shown before its id so the list says which object it is. */
-    label?: string
-    objectType: string
-    valid: boolean
-    errors: Array<{ field: string; message: string }>
-  }>
-  onNavigateToObject?: (objectId: string) => void
+  /** The objects with errors, each with its title or name and its number of errors. */
+  objectResults: Array<{ objectId: string; label: string; objectType: string; errors: number }>
+  onNavigateToObject: (objectId: string) => void
 }
 
 /**
@@ -28,48 +26,54 @@ interface ValidationSummaryProps {
  * status line beside "Validate catalog" says when the check ran. Worded like the object form's error alert.
  */
 export function ValidationSummary({ id, catalogSummary, stale, objectResults, onNavigateToObject }: ValidationSummaryProps) {
-  const { totalErrors, errorSummary } = catalogSummary
+  const { totalErrors, errorSummary, timestamp } = catalogSummary
+  const classes = Object.entries(errorSummary).filter(([, errors]) => errors > 0)
 
   return (
     <section id={id} aria-labelledby={`${id}-heading`} className="margin-top-2">
       <Alert type="error" className="margin-top-0">
-        <AlertHeading level="h2" id={`${id}-heading`} className="font-sans-md">
-          {totalErrors === 1 ? 'Fix this error' : `Fix these ${count(totalErrors)} errors`}
+        {/* Both headings hold the space, so the list doesn't move when the catalog changes. */}
+        <AlertHeading level="h2" id={`${id}-heading`} className="font-sans-md stacked-labels">
+          <span className={stale ? 'stacked-labels__off' : undefined}>
+            {totalErrors === 1 ? 'Fix this error in the catalog' : `Fix these ${count(totalErrors)} errors in the catalog`}
+          </span>
+          <span className={stale ? undefined : 'stacked-labels__off'}>The catalog has changed since this check</span>
         </AlertHeading>
-        {stale && <p className="text-bold margin-y-1">The catalog has changed since this check.</p>}
-        <ul className="usa-list usa-list--unstyled">
-          {Object.entries(errorSummary).map(([type, errors]) => {
-            if (errors === 0) return null
-            const objectsWithErrors = objectResults?.filter((r) => r.objectType === type && !r.valid)
-
-            return (
-              <li key={type} className="margin-top-1">
-                <span className="text-bold">
-                  {count(errors)} {classLabel(type)} {errors === 1 ? 'error' : 'errors'}
-                </span>
-                {objectsWithErrors && objectsWithErrors.length > 0 && onNavigateToObject && (
-                  <ul className="usa-list usa-list--unstyled">
-                    {objectsWithErrors.map((obj) => (
-                      <li key={obj.objectId}>
-                        <button
-                          type="button"
-                          onClick={() => onNavigateToObject(obj.objectId)}
-                          className="usa-button usa-button--unstyled text-left"
-                        >
-                          {obj.label && <bdi>{obj.label}</bdi>} ({obj.errors.length}{' '}
-                          {obj.errors.length === 1 ? 'error' : 'errors'})
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            )
-          })}
-        </ul>
         {/* In the alert's own ink, not the hint's grey, which is too faint on its background. */}
         <ValidationDisclaimer className="font-sans-2xs margin-top-1 margin-bottom-0" />
       </Alert>
+      {/* Under the alert, not in it, where USWDS's alert body would make it wider than a phone. Keyed by the check, so a
+          new check starts with its own folds. */}
+      <Accordion
+        key={timestamp}
+        bordered
+        multiselectable
+        className="margin-top-1"
+        items={classes.map(([type, errors]) => {
+          const objects = objectResults.filter((r) => r.objectType === type)
+          return {
+            id: `${id}-${type}`,
+            headingLevel: 'h3',
+            expanded: objects.length <= FOLD_OVER,
+            title: `${count(errors)} ${classLabel(type)} ${errors === 1 ? 'error' : 'errors'}`,
+            content: (
+              <ul className="usa-list usa-list--unstyled">
+                {objects.map((obj) => (
+                  <li key={obj.objectId}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToObject(obj.objectId)}
+                      className="usa-button usa-button--unstyled text-left"
+                    >
+                      <bdi>{obj.label}</bdi> ({count(obj.errors)} {obj.errors === 1 ? 'error' : 'errors'})
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ),
+          }
+        })}
+      />
     </section>
   )
 }

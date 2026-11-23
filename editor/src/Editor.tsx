@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import type { CatalogGraph, CatalogObject, CatalogWorkspace } from './catalog/types'
+import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { getFormModel } from './schema'
 import { useCatalog, usePageTitle } from './session'
 import { findParentLinks } from './catalog/edit'
@@ -11,7 +11,6 @@ import { classLabel, fieldLabel } from './labels'
 import { ancestorIds, count, labelOf, parentsOf } from './tree'
 import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
-import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
 import { CatalogCheckStatus } from './validation/CatalogCheckStatus'
 import { useDelayedFlag } from './validation/useDelayedFlag'
@@ -198,13 +197,13 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
-  // The catalog as it was checked: any change (an edit, link, create, copy, delete or undo) makes a new one, so the
-  // result is out of date when this is not the open catalog. Unset until a check in this view finishes.
-  const [checkedCatalog, setCheckedCatalog] = useState<CatalogGraph>()
-  const checkIsStale = checkedCatalog !== open.catalog
-  const [showValidationSummary, setShowValidationSummary] = useState(true)
   const { validateCatalog, catalogSummary, isReady } = useValidation()
-  const validationContext = useValidationContext()
+  // The last check of this catalog. Any change since (an edit, link, create, copy, delete or undo) makes a new graph,
+  // so comparing the two is enough to tell it is out of date.
+  const check = catalogSummary?.catalogId === open.id ? catalogSummary : undefined
+  const checkIsStale = check !== undefined && check.catalog !== open.catalog
+  // Whether a check's errors are listed: the user's choice, kept across checks.
+  const [showValidationSummary, setShowValidationSummary] = useState(true)
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
   // Most checks finish before a person would notice (a 3,000-dataset catalog in about 0.2 s), so the button says
   // "Validating…" only if a check runs past 400 ms, and then for at least 500 ms, so it neither flashes nor blinks.
@@ -219,11 +218,8 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
     if (isValidatingCatalog || showValidating) return
     setIsValidatingCatalog(true)
     setValidationResult('')
-    const catalog = open.catalog
     try {
       const { totalErrors } = await validateCatalog()
-      setCheckedCatalog(catalog)
-      setShowValidationSummary(true)
       setValidationResult(
         `Validation finished: ${totalErrors ? `${count(totalErrors)} ${totalErrors === 1 ? 'error' : 'errors'}` : 'no errors'} found.`,
       )
@@ -236,7 +232,7 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   }
 
   function initiateExport() {
-    if (catalogSummary && !catalogSummary.valid) {
+    if (check && !check.valid) {
       setShowExportWarning(true)
       return
     }
@@ -271,8 +267,8 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
       URL.revokeObjectURL(url)
 
       let message = 'Catalog exported successfully'
-      if (catalogSummary && !catalogSummary.valid) {
-        message += ` (with ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'})`
+      if (check && !check.valid) {
+        message += ` (with ${check.totalErrors} validation ${check.totalErrors === 1 ? 'error' : 'errors'})`
       }
       if (result.sharedObjects.length > 0) {
         message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
@@ -328,10 +324,10 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
             </Button>,
           ]}
         </ButtonGroup>
-        {checkedCatalog && catalogSummary && (
+        {check && (
           <CatalogCheckStatus
-            totalErrors={catalogSummary.totalErrors}
-            timestamp={catalogSummary.timestamp}
+            totalErrors={check.totalErrors}
+            timestamp={check.timestamp}
             stale={checkIsStale}
             resultsShown={showValidationSummary}
             resultsId="validation-results"
@@ -339,40 +335,30 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
           />
         )}
       </div>
-      {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page. */}
+      {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page.
+          An out-of-date result is cleared, which announces nothing, so it is not read later as current. */}
       <p role="status" className="usa-sr-only">
-        {isValidatingCatalog && showValidating ? 'Validating catalog…' : validationResult}
+        {isValidatingCatalog && showValidating ? 'Validating catalog…' : checkIsStale ? '' : validationResult}
       </p>
-      {checkedCatalog && catalogSummary && !catalogSummary.valid && showValidationSummary && (
+      {check && !check.valid && showValidationSummary && (
         <ValidationSummary
           id="validation-results"
-          catalogSummary={catalogSummary}
+          catalogSummary={check}
           stale={checkIsStale}
-          objectResults={Array.from(open.catalog.objects.values())
-            .map((obj) => {
-              const errors = validationContext.getObjectErrors(obj.id)
-              return {
-                objectId: obj.id,
-                label: labelOf(obj),
-                objectType: obj.dcatClass,
-                valid: errors.length === 0,
-                errors,
-              }
-            })
-            .filter((r) => !r.valid)}
+          // Labels as they are now, of the objects that had errors at the check and still exist.
+          objectResults={check.objectsWithErrors.flatMap(({ objectId, objectType, errors }) => {
+            const object = objects.get(objectId)
+            return object ? [{ objectId, objectType, errors, label: labelOf(object) }] : []
+          })}
           onNavigateToObject={(objectId) => {
-            const object = open.catalog.objects.get(objectId)!
-            navigate({
-              to: '/editor/$',
-              params: { _splat: editorPath(open, object) },
-            })
+            navigate({ to: '/editor/$', params: { _splat: editorPath(open, objects.get(objectId)!) } })
           }}
         />
       )}
-      {catalogSummary && (
+      {check && (
         <ExportWarningDialog
           isOpen={showExportWarning}
-          catalogSummary={catalogSummary}
+          catalogSummary={check}
           onCancel={() => setShowExportWarning(false)}
           onExport={performExport}
         />

@@ -54,7 +54,7 @@ test.describe('Validation', () => {
     await enterInvalidIssuedDate(page)
 
     await page.getByRole('button', { name: 'Validate catalog' }).click()
-    await expect(page.getByRole('region', { name: 'Fix this error' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Fix this error in the catalog' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Export catalog' }).click()
 
@@ -236,11 +236,13 @@ test.describe('Validate catalog feedback', () => {
 /** The last catalog check's line beside the catalog's actions, and the text it shows (the other only holds its space). */
 const checkLine = (page: Page) => page.locator('.catalog-check')
 const checkText = (page: Page) => page.locator('.catalog-check > .stacked-labels > :not(.stacked-labels__off)')
+/** The catalog's announcement, made once when a check ends. */
+const announcement = (page: Page) => page.locator('p[role="status"].usa-sr-only')
 const TIME = '\\d{1,2}:\\d{2}\\s?[AP]M'
 
 async function validateCatalog(page: Page, result: string) {
   await page.getByRole('button', { name: 'Validate catalog' }).click()
-  await expect(page.getByRole('status').filter({ hasText: /^Validat/ })).toHaveText(result)
+  await expect(announcement(page)).toHaveText(result)
 }
 
 async function editDescription(page: Page, text = 'Hourly readings, edited') {
@@ -279,12 +281,12 @@ for (const width of [375, 1440]) {
       await expect(checkText(page)).toContainText('✓ No errors found')
 
       await editDescription(page)
-      await expect(checkText(page)).toHaveText(new RegExp(`^Changed since last check at ${TIME}$`))
-      // The change is in the text only: nothing moves, and nothing new is announced.
+      await expect(checkText(page)).toHaveText(new RegExp(`^Changed since last check \\(${TIME}\\)$`))
+      // The change is in the text only: nothing moves, and nothing is announced (the old result is cleared silently).
       expect(await box(page, '.catalog-check')).toEqual(line)
       expect(await box(page, '.editor-nav')).toEqual(tree)
       await expect(page.locator('.catalog-check [role="status"], .catalog-check[aria-live]')).toHaveCount(0)
-      await expect(page.getByRole('status').filter({ hasText: /^Validat/ })).toHaveText('Validation finished: no errors found.')
+      await expect(announcement(page)).toHaveText('')
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       await expectNoAxeViolations(page)
 
@@ -296,20 +298,23 @@ for (const width of [375, 1440]) {
     test('errors: the list stays, says when it is out of date, and hides and shows', async ({ page }) => {
       await enterInvalidIssuedDate(page)
       await validateCatalog(page, 'Validation finished: 1 error found.')
-      const results = page.getByRole('region', { name: 'Fix this error' })
+      const results = page.locator('#validation-results')
+      await expect(page.getByRole('region', { name: 'Fix this error in the catalog' })).toBeVisible()
       await expect(results).toContainText('1 Dataset error')
       await expect(results.getByRole('note')).toContainText('not the official Data.gov validator')
-      await expect(results).not.toContainText('changed since')
-      await expect(checkText(page)).toHaveText(new RegExp(`^✕ 1 error found · checked at ${TIME}$`))
+      await expect(checkText(page)).toHaveText(new RegExp(`^✕ 1 error found · advisory check at ${TIME}$`))
       const toggle = page.getByRole('button', { name: 'Hide results' })
       await expect(toggle).toHaveAttribute('aria-expanded', 'true')
       await expect(toggle).toHaveAttribute('aria-controls', 'validation-results')
       await expectNoAxeViolations(page)
+      const list = await box(page, '#validation-results ul')
 
       await editDescription(page)
-      await expect(results).toContainText('The catalog has changed since this check.')
-      await expect(checkText(page)).toHaveText(new RegExp(`^Changed since last check at ${TIME}$`))
-      await expect(page.getByRole('status').filter({ hasText: /^Validat/ })).toHaveText('Validation finished: 1 error found.')
+      // The list's heading says so, in the same space, so the list doesn't move.
+      await expect(page.getByRole('region', { name: 'The catalog has changed since this check' })).toBeVisible()
+      expect(await box(page, '#validation-results ul')).toEqual(list)
+      await expect(checkText(page)).toHaveText(new RegExp(`^Changed since last check \\(${TIME}, 1 error\\)$`))
+      await expect(announcement(page)).toHaveText('')
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
       await expectNoAxeViolations(page)
 
@@ -324,14 +329,16 @@ for (const width of [375, 1440]) {
       await expectNoAxeViolations(page)
 
       await page.keyboard.press('Enter')
-      await expect(results).toContainText('The catalog has changed since this check.')
+      await expect(results).toContainText('The catalog has changed since this check')
       await expect(page.getByRole('button', { name: 'Hide results' })).toBeFocused()
 
-      // Hidden, then checked again: the new results show, current.
+      // Hidden, then checked again: they stay hidden, as the user left them, and the line has the new result.
       await page.keyboard.press('Enter')
       await validateCatalog(page, 'Validation finished: 1 error found.')
-      await expect(results).toBeVisible()
-      await expect(results).not.toContainText('changed since')
+      await expect(results).toHaveCount(0)
+      await expect(checkText(page)).toContainText('✕ 1 error found')
+      await page.getByRole('button', { name: 'Show results' }).click()
+      await expect(page.getByRole('region', { name: 'Fix this error in the catalog' })).toBeVisible()
     })
   })
 }
@@ -347,5 +354,36 @@ test('any change to the catalog, an undo too, makes the check out of date', asyn
 
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(checkText(page)).toContainText('Changed since last check')
-  await expect(page.getByRole('region', { name: 'Fix this error' })).toContainText('The catalog has changed since this check.')
+  await expect(page.getByRole('region', { name: 'The catalog has changed since this check' })).toBeVisible()
+})
+
+test("the list stays the check's own after an object is fixed and checked on its own", async ({ page }) => {
+  const form = await enterInvalidIssuedDate(page)
+  await validateCatalog(page, 'Validation finished: 1 error found.')
+
+  const issued = form.getByRole('textbox', { name: /^Issued/ })
+  await issued.fill('2024-01-01')
+  await issued.blur()
+  await form.getByRole('button', { name: `Validate ${DATASET}` }).click()
+  await expect(form.locator('.validation-badge--valid')).toBeVisible()
+
+  // The catalog's list still matches its counts, under a heading that says the catalog has changed.
+  const results = page.getByRole('region', { name: 'The catalog has changed since this check' })
+  await expect(results).toContainText('1 Dataset error')
+  await expect(results.getByRole('button', { name: `${DATASET} (1 error)` })).toBeVisible()
+})
+
+test('the check stays with its catalog when the user leaves the editor and comes back', async ({ page }) => {
+  await openDataset(page)
+  await validateCatalog(page, 'Validation finished: no errors found.')
+  await page.getByRole('link', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Back to the editor' }).click()
+  await expect(checkText(page)).toContainText('✓ No errors found')
+
+  // Another catalog starts with no check.
+  await page.goto('/import')
+  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
+  await page.getByRole('button', { name: 'Load sample' }).click()
+  await expect(page.getByRole('tree')).toBeVisible()
+  await expect(checkLine(page)).toHaveCount(0)
 })

@@ -56,6 +56,7 @@ export function useValidation() {
 
   const validateCatalog = useCallback(
     async () => {
+      const catalog = open?.catalog
       const result = await runValidation()
 
       setObjectValidationResults(result.objectResults)
@@ -66,12 +67,17 @@ export function useValidation() {
         errorSummary: result.errorSummary,
         timestamp: result.timestamp,
         schemaVersion: result.schemaVersion,
+        catalogId: open!.id,
+        catalog: catalog!,
+        objectsWithErrors: result.objectResults
+          .filter((r) => !r.valid)
+          .map((r) => ({ objectId: r.objectId, objectType: r.objectType, errors: r.errors.length })),
       })
 
       setValidationState(result.valid ? 'valid' : 'invalid')
       return result
     },
-    [runValidation, setObjectValidationResults, setCatalogSummary, setValidationState]
+    [open, runValidation, setObjectValidationResults, setCatalogSummary, setValidationState]
   )
 
   return {

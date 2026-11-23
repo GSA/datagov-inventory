@@ -26,6 +26,7 @@ export function CatalogCheckStatus({
   onToggleResults,
 }: CatalogCheckStatusProps) {
   const time = new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const errors = `${count(totalErrors)} ${totalErrors === 1 ? 'error' : 'errors'}`
   return (
     <div className="catalog-check display-flex flex-wrap flex-align-center">
       {/* Both texts hold the space, so the line keeps its size when the catalog changes. */}
@@ -43,11 +44,14 @@ export function CatalogCheckStatus({
               <span className="text-error-dark text-bold" aria-hidden="true">
                 ✕
               </span>{' '}
-              {count(totalErrors)} {totalErrors === 1 ? 'error' : 'errors'} found · checked at {time}
+              {errors} found · advisory check at {time}
             </>
           )}
         </span>
-        <span className={stale ? undefined : 'stacked-labels__off'}>Changed since last check at {time}</span>
+        <span className={stale ? undefined : 'stacked-labels__off'}>
+          Changed since last check ({time}
+          {totalErrors > 0 && `, ${errors}`})
+        </span>
       </span>
       {totalErrors > 0 && (
         <Button
