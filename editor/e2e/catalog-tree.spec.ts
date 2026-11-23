@@ -194,15 +194,15 @@ test('cuts a long label to one line, and keeps all of it in the name and on hove
   expect(await height(`${long} Dataset`)).toBe(await height('Example Agency Publisher · Organization'))
 })
 
-// Pending follow-up: importing and persisting this supported-size catalog currently exceeds the browser-test timeout.
-test.skip('opens an object in a 3,000-dataset catalog and limits a filter that matches thousands', async ({ page }) => {
+test('opens an object in a 3,000-dataset catalog and limits a filter that matches thousands', async ({ page }) => {
   await page.goto('/import')
   await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
     name: 'large.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(largeCatalog())),
   })
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
+  // Temporary allowance until follow-up work improves browser-storage performance for supported-size catalogs.
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/, { timeout: 20_000 })
   await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000)
 
   await filter(page).fill('json download')

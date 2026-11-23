@@ -11,22 +11,6 @@ test.beforeEach(async ({ page }) => {
   expect(response?.headers()['content-security-policy']).toContain("connect-src 'none'")
 })
 
-test('reports a valid import when browser storage is unavailable and does not open it', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(globalThis, 'indexedDB', { value: undefined, configurable: true })
-  })
-  await page.reload()
-
-  await page.getByLabel('Sample catalog').selectOption('minimal-catalog.json')
-  await page.getByRole('button', { name: 'Load sample' }).click()
-
-  const alert = page.getByRole('alert')
-  await expect(alert).toContainText('minimal-catalog.json could not be loaded')
-  await expect(alert).toContainText('Browser storage is unavailable.')
-  await expect(page).toHaveURL('/import')
-  await expect(page.getByText(/is open\. Importing another catalog replaces it/)).toHaveCount(0)
-})
-
 /** The catalog tree's rows, as shown. */
 const tree = (page: Page) => page.getByRole('tree', { name: 'Catalog' })
 const treeRows = (page: Page) => tree(page).getByRole('treeitem').allTextContents()
@@ -108,11 +92,6 @@ test('imports a sample and opens each object at its own address', async ({ page 
   await expect(page.getByRole('form', { name: 'Edit Readings as CSV' })).toBeVisible()
   await page.goForward()
   await expect(page).toHaveURL(datasetUrl)
-
-  // The object address restores the same catalog and selected object from browser storage.
-  await page.reload()
-  await expect(page.getByRole('form', { name: 'Edit Air quality readings' })).toBeVisible()
-  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings dataset · Dataset')
 })
 
 test('shows every object above the open one in the breadcrumb, through single links too', async ({ page }) => {
@@ -384,4 +363,40 @@ test('pages long lists and isolates right-to-left text', async ({ page }) => {
 
   // Run accessibility check on the form
   expect((await axe(page).include('form[aria-label*="Edit Big"]').analyze()).violations).toEqual([])
+})
+
+test('saves the imported catalog with UUID ids', async ({ page }) => {
+  await loadSample(page, 'dataset-with-distributions.json')
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
+  const catalogUrl = page.url()
+  const originalTreeRows = await treeRows(page)
+
+  await tree(page).getByRole('treeitem', { name: 'Air quality readings Dataset' }).click()
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/dataset\/[A-Za-z0-9_-]{22}$/)
+  const datasetUrl = page.url()
+
+  await page.reload()
+
+  await expect(page).toHaveURL(datasetUrl)
+  expect(datasetUrl.startsWith(`${catalogUrl}/dataset/`)).toBe(true)
+  await expect(page.getByText('From dataset-with-distributions.json ·')).toBeVisible()
+  await expect(page.getByRole('form', { name: 'Edit Air quality readings' })).toBeVisible()
+  await expect(tree(page).getByRole('treeitem', { selected: true })).toHaveText('Air quality readings Dataset · 5 items')
+  expect(await treeRows(page)).toEqual(originalTreeRows)
+})
+
+test('reports a valid import when browser storage is unavailable and does not open it', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'indexedDB', { value: undefined, configurable: true })
+  })
+  await page.reload()
+
+  await page.getByLabel('Sample catalog').selectOption('minimal-catalog.json')
+  await page.getByRole('button', { name: 'Load sample' }).click()
+
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('minimal-catalog.json could not be loaded')
+  await expect(alert).toContainText('Browser storage is unavailable.')
+  await expect(page).toHaveURL('/import')
+  await expect(page.getByText(/is open\. Importing another catalog replaces it/)).toHaveCount(0)
 })

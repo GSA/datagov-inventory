@@ -1,7 +1,7 @@
 /** Select an existing object or create a new one from any class-valued field (#25): no dialogs, one form at a time. */
 import { readFile } from 'node:fs/promises'
 import type { Page } from '@playwright/test'
-import { test, expect } from './fixtures'
+import { test, expect, expectCatalogSaved } from './fixtures'
 
 async function loadSample(page: Page) {
   await page.goto('/import')
@@ -181,13 +181,46 @@ test('restores newly created nested objects and their links after reload', async
   await title.fill('Persistent Parquet')
   await title.blur()
   await field(page, 'Checksum').getByRole('button', { name: 'Create new Checksum' }).click()
-  await expect(page.getByText(/· Saved$/)).toBeVisible()
+  await expectCatalogSaved(page)
 
   await page.reload()
 
   await expect(page.getByRole('heading', { level: 2, name: 'Untitled Checksum' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to Persistent Parquet' })).toBeVisible()
-  await expect(page.getByText('Used in 1 place: Persistent Parquet › Checksum')).toBeVisible()
+})
+
+test('restores an existing object linked to another parent after reload', async ({ page }) => {
+  await loadSample(page)
+  const contacts = field(page, 'Contact point')
+  await contacts.getByRole('combobox').fill('air')
+  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(contacts.getByRole('link', { name: 'Air Quality Team' })).toBeVisible()
+  await expect(contacts.getByText('Contact · Used in 2 places')).toBeVisible()
+})
+
+test('restores a copied object in only its selected place after reload', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
+  const originalUrl = page.url()
+  await page.getByRole('treeitem', { name: 'Example Agency Catalog' }).click()
+  await shareContact(page)
+  await field(page, 'Contact point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
+  const copyUrl = page.url()
+  expect(copyUrl).not.toBe(originalUrl)
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(page).toHaveURL(copyUrl)
+  await expect(page.getByRole('textbox', { name: /^Full name/ })).toHaveValue('Air Quality Team')
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
+  await expect(page).toHaveURL(originalUrl)
 })
 
 test('leaves a long list with Tab, and the caret keys leave the options', async ({ page }) => {

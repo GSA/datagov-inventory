@@ -1,5 +1,14 @@
 import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
+import type { Page } from '@playwright/test'
+
+async function importSample(page: Page, name: string, replacing = false) {
+  await page.goto('/import')
+  await page.getByLabel('Sample catalog').selectOption(name)
+  await page.getByRole('button', { name: 'Load sample' }).click()
+  if (replacing) await page.getByRole('button', { name: 'Replace', exact: true }).click()
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
+}
 
 test.describe('App page frame', () => {
   test('has title', async ({ page }) => {
@@ -59,6 +68,16 @@ test.describe('App page frame', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Invalid editor address' })).toBeVisible()
     await page.goto('/no-such-page')
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
+  })
+
+  test('redirects the generic editor route to the open catalog address', async ({ page }) => {
+    await importSample(page, 'dataset-with-distributions.json')
+    const catalogUrl = page.url()
+
+    await page.getByRole('link', { name: 'Editor', exact: true }).click()
+
+    await expect(page).toHaveURL(catalogUrl)
+    await expect(page.getByRole('heading', { level: 1, name: 'Example Agency Catalog' })).toBeVisible()
   })
 
   test('should not have automatically detectable accessibility issues', async ({ page }) => {
