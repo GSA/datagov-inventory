@@ -2,7 +2,7 @@
  * Measures the editor on a generated catalog (#29): time to first view, JS heap, and how long each action takes, from
  * the input to the next paint. Used by responsiveness.spec.ts.
  */
-import type { CDPSession, Page } from '@playwright/test'
+import type { CDPSession, Locator, Page } from '@playwright/test'
 import { expect } from './fixtures'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
@@ -76,6 +76,14 @@ async function untilPainted(page: Page, event: string, selector: string, text: s
   })
 }
 
+/** A mouse click on `target`, scrolled into view first, with no locator work left to overlap what is measured. */
+async function rawClick(page: Page, target: Locator) {
+  await target.scrollIntoViewIfNeeded()
+  await idle(page)
+  const box = (await target.boundingBox())!
+  return () => page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+}
+
 async function heapMB(cdp: CDPSession) {
   await cdp.send('HeapProfiler.collectGarbage')
   const { metrics } = await cdp.send('Performance.getMetrics')
@@ -125,7 +133,7 @@ export async function measureCatalog(page: Page, datasets: number): Promise<Meas
 
   const tree = page.getByRole('tree')
   const name = catalog.dataset[datasets >> 1].title
-  const select = await inputToNextPaint(page, () => tree.getByRole('treeitem', { name: `${name} Dataset` }).click())
+  const select = await inputToNextPaint(page, await rawClick(page, tree.getByRole('treeitem', { name: `${name} Dataset` })))
 
   const title = page.getByRole('form', { name: `Edit ${name}` }).getByRole('textbox', { name: /^Title/ })
   await title.fill(`${name} edited`)
@@ -133,17 +141,24 @@ export async function measureCatalog(page: Page, datasets: number): Promise<Meas
 
   const validateButton = page.getByRole('button', { name: 'Validate catalog' })
   await expect(validateButton).toBeEnabled({ timeout: 120_000 })
-  const validate = await untilPainted(page, 'pointerdown', '[role="status"]', 'Validation finished', () =>
-    validateButton.click(),
+  const validate = await untilPainted(
+    page,
+    'pointerdown',
+    '[role="status"]',
+    'Validation finished',
+    await rawClick(page, validateButton),
   )
   await idle(page)
 
-  const exportButton = page.getByRole('button', { name: 'Export catalog' })
   const download = page.waitForEvent('download', { timeout: 120_000 })
-  const exportStarted = Date.now()
-  await exportButton.click()
+  const exported = await untilPainted(
+    page,
+    'pointerdown',
+    '#export-status',
+    'Catalog exported successfully',
+    await rawClick(page, page.getByRole('button', { name: 'Export catalog' })),
+  )
   await download
-  const exported = Date.now() - exportStarted
   await idle(page)
 
   return { firstView, heapAfterLoad, scroll, filterKey, select, edit, validate, export: exported, heapAfterActions: await heapMB(cdp) }
