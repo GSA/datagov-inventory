@@ -7,11 +7,7 @@
   border-radius: 0.25rem;
   font-size: 0.875rem;
   font-weight: 600;
-}
-
-.validation-badge--idle {
-  background-color: #f0f0f0;
-  color: #565c65;
+  margin-right: 0.5rem;
 }
 
 .validation-badge--validating {

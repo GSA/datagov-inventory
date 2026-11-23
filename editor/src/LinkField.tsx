@@ -74,7 +74,7 @@ export function LinkField({
     const id = createObject(object.id, field.name, dcatClass, single)
     markStale(object.id)
     if (id) {
-      const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Everything else is blank. Each field saves when you leave it, and you can come back to this object later.`
+      const notice = `New ${classLabel(dcatClass)}, linked to ${isolate(labelOf(object))} › ${field.label}. Each field saves when you leave it.`
       navigate({ to: '/editor/$', params: { _splat: editorPath(open, { id, dcatClass }) }, state: { from: object.id, notice } })
     }
   }
