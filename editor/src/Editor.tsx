@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import type { CatalogObject, CatalogWorkspace } from './catalog/types'
+import type { CatalogGraph, CatalogObject, CatalogWorkspace } from './catalog/types'
 import { getFormModel } from './schema'
 import { useCatalog, usePageTitle } from './session'
 import { findParentLinks } from './catalog/edit'
@@ -13,6 +13,7 @@ import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
 import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
+import { CatalogCheckStatus } from './validation/CatalogCheckStatus'
 import { useDelayedFlag } from './validation/useDelayedFlag'
 import { ExportWarningDialog } from './validation/ExportWarningDialog'
 
@@ -197,7 +198,11 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const { undoRemoval, canUndo } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
-  const [showValidationSummary, setShowValidationSummary] = useState(false)
+  // The catalog as it was checked: any change (an edit, link, create, copy, delete or undo) makes a new one, so the
+  // result is out of date when this is not the open catalog. Unset until a check in this view finishes.
+  const [checkedCatalog, setCheckedCatalog] = useState<CatalogGraph>()
+  const checkIsStale = checkedCatalog !== open.catalog
+  const [showValidationSummary, setShowValidationSummary] = useState(true)
   const { validateCatalog, catalogSummary, isReady } = useValidation()
   const validationContext = useValidationContext()
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
@@ -213,10 +218,12 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
     // Ignores clicks while busy instead of disabling the button, which would take focus from it.
     if (isValidatingCatalog || showValidating) return
     setIsValidatingCatalog(true)
-    setShowValidationSummary(true)
     setValidationResult('')
+    const catalog = open.catalog
     try {
       const { totalErrors } = await validateCatalog()
+      setCheckedCatalog(catalog)
+      setShowValidationSummary(true)
       setValidationResult(
         `Validation finished: ${totalErrors ? `${count(totalErrors)} ${totalErrors === 1 ? 'error' : 'errors'}` : 'no errors'} found.`,
       )
@@ -290,64 +297,77 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
         From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
         tab only (nothing is uploaded)
       </p>
-      {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
-      {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
-      <ButtonGroup className="catalog-actions flex-row flex-wrap margin-top-105">
-        {[
-          <Button key="export" type="button" onClick={initiateExport}>
-            Export catalog
-          </Button>,
-          ...(isReady
-            ? [
-                <Button
-                  key="validate"
-                  type="button"
-                  onClick={handleValidateCatalog}
-                  aria-disabled={showValidating || undefined}
-                  outline
-                >
-                  {/* Both labels hold the space, so the button keeps its width and Undo stays put. */}
-                  <span className="button-labels">
-                    <span className={showValidating ? 'button-labels__off' : undefined}>Validate catalog</span>
-                    <span className={showValidating ? undefined : 'button-labels__off'}>Validating…</span>
-                  </span>
-                </Button>,
-              ]
-            : []),
-          <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
-            Undo
-          </Button>,
-        ]}
-      </ButtonGroup>
+      {/* The actions, and the last check's status beside them (under them, on a phone). */}
+      <div className="display-flex flex-wrap flex-align-center margin-top-105">
+        {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
+        {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
+        <ButtonGroup className="catalog-actions flex-row flex-wrap margin-right-2">
+          {[
+            <Button key="export" type="button" onClick={initiateExport}>
+              Export catalog
+            </Button>,
+            ...(isReady
+              ? [
+                  <Button
+                    key="validate"
+                    type="button"
+                    onClick={handleValidateCatalog}
+                    aria-disabled={showValidating || undefined}
+                    outline
+                  >
+                    {/* Both labels hold the space, so the button keeps its width and Undo stays put. */}
+                    <span className="stacked-labels">
+                      <span className={showValidating ? 'stacked-labels__off' : undefined}>Validate catalog</span>
+                      <span className={showValidating ? undefined : 'stacked-labels__off'}>Validating…</span>
+                    </span>
+                  </Button>,
+                ]
+              : []),
+            <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+              Undo
+            </Button>,
+          ]}
+        </ButtonGroup>
+        {checkedCatalog && catalogSummary && (
+          <CatalogCheckStatus
+            totalErrors={catalogSummary.totalErrors}
+            timestamp={catalogSummary.timestamp}
+            stale={checkIsStale}
+            resultsShown={showValidationSummary}
+            resultsId="validation-results"
+            onToggleResults={() => setShowValidationSummary((shown) => !shown)}
+          />
+        )}
+      </div>
       {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page. */}
       <p role="status" className="usa-sr-only">
         {isValidatingCatalog && showValidating ? 'Validating catalog…' : validationResult}
       </p>
-      {showValidationSummary && catalogSummary && (
-        <div className="margin-top-2">
-          <ValidationSummary
-            catalogSummary={catalogSummary}
-            objectResults={Array.from(open.catalog.objects.values())
-              .map((obj) => {
-                const errors = validationContext.getObjectErrors(obj.id)
-                return {
-                  objectId: obj.id,
-                  label: labelOf(obj),
-                  objectType: obj.dcatClass,
-                  valid: errors.length === 0,
-                  errors,
-                }
-              })
-              .filter((r) => !r.valid)}
-            onNavigateToObject={(objectId) => {
-              const object = open.catalog.objects.get(objectId)!
-              navigate({
-                to: '/editor/$',
-                params: { _splat: editorPath(open, object) },
-              })
-            }}
-          />
-        </div>
+      {checkedCatalog && catalogSummary && !catalogSummary.valid && showValidationSummary && (
+        <ValidationSummary
+          id="validation-results"
+          catalogSummary={catalogSummary}
+          stale={checkIsStale}
+          objectResults={Array.from(open.catalog.objects.values())
+            .map((obj) => {
+              const errors = validationContext.getObjectErrors(obj.id)
+              return {
+                objectId: obj.id,
+                label: labelOf(obj),
+                objectType: obj.dcatClass,
+                valid: errors.length === 0,
+                errors,
+              }
+            })
+            .filter((r) => !r.valid)}
+          onNavigateToObject={(objectId) => {
+            const object = open.catalog.objects.get(objectId)!
+            navigate({
+              to: '/editor/$',
+              params: { _splat: editorPath(open, object) },
+            })
+          }}
+        />
       )}
       {catalogSummary && (
         <ExportWarningDialog

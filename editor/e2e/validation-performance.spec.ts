@@ -93,7 +93,7 @@ for (const datasets of [undefined, 3_000, 10_000]) {
     const throttle = await open(page, datasets)
     const runs = []
     for (let i = 0; i < 3; i++) runs.push(await validate(page))
-    await expect(page.getByRole('region', { name: 'Validation results' })).toBeVisible()
+    await expect(page.locator('.catalog-check')).toBeVisible()
     const fmt = (key: keyof (typeof runs)[number]) => runs.map((r) => Math.round(r[key])).join(' / ')
     console.log(
       [

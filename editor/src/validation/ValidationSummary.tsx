@@ -1,13 +1,17 @@
+import { Alert, AlertHeading } from '@trussworks/react-uswds'
 import { classLabel } from '../labels'
+import { count } from '../tree'
+import { ValidationDisclaimer } from './ValidationDisclaimer'
 
 interface ValidationSummaryProps {
+  /** The element's id, for the button that hides and shows it. */
+  id: string
   catalogSummary: {
-    valid: boolean
     totalErrors: number
     errorSummary: Record<string, number>
-    timestamp: number
-    schemaVersion: string
-  } | null
+  }
+  /** The catalog has changed since this check, so its counts may be out of date. */
+  stale: boolean
   objectResults?: Array<{
     objectId: string
     /** The object's title or name, shown before its id so the list says which object it is. */
@@ -19,77 +23,53 @@ interface ValidationSummaryProps {
   onNavigateToObject?: (objectId: string) => void
 }
 
-export function ValidationSummary({ catalogSummary, objectResults, onNavigateToObject }: ValidationSummaryProps) {
-  if (!catalogSummary) {
-    return (
-      <div className="validation-summary validation-summary--empty" role="region" aria-label="Validation results">
-        <p>No validation results yet. Click &ldquo;Validate&rdquo; to check the catalog.</p>
-      </div>
-    )
-  }
-
-  const { valid, totalErrors, errorSummary, schemaVersion } = catalogSummary
+/**
+ * A catalog check's errors: what to fix, by class, with a link to each object. Shown only when there are errors; the
+ * status line beside "Validate catalog" says when the check ran. Worded like the object form's error alert.
+ */
+export function ValidationSummary({ id, catalogSummary, stale, objectResults, onNavigateToObject }: ValidationSummaryProps) {
+  const { totalErrors, errorSummary } = catalogSummary
 
   return (
-    <div className="validation-summary" role="region" aria-label="Validation results">
-      <div className="validation-summary__header">
-        <h2>Validation results</h2>
-        <p className="validation-summary__disclaimer" role="note">
-          Advisory check against DCAT-US schema version {schemaVersion}. This is not the official Data.gov validator.
-        </p>
-      </div>
+    <section id={id} aria-labelledby={`${id}-heading`} className="margin-top-2">
+      <Alert type="error" className="margin-top-0">
+        <AlertHeading level="h2" id={`${id}-heading`} className="font-sans-md">
+          {totalErrors === 1 ? 'Fix this error' : `Fix these ${count(totalErrors)} errors`}
+        </AlertHeading>
+        {stale && <p className="text-bold margin-y-1">The catalog has changed since this check.</p>}
+        <ul className="usa-list usa-list--unstyled">
+          {Object.entries(errorSummary).map(([type, errors]) => {
+            if (errors === 0) return null
+            const objectsWithErrors = objectResults?.filter((r) => r.objectType === type && !r.valid)
 
-      {valid ? (
-        <div className="validation-summary__success">
-          <span className="validation-summary__icon" aria-hidden="true">
-            ✓
-          </span>
-          <p>No errors found in the catalog.</p>
-        </div>
-      ) : (
-        <div className="validation-summary__errors">
-          <p className="validation-summary__total">
-            <strong>{totalErrors}</strong> {totalErrors === 1 ? 'error' : 'errors'} found
-          </p>
-
-          <ul className="validation-summary__list">
-            {Object.entries(errorSummary).map(([type, count]) => {
-              if (count === 0) return null
-
-              const objectsWithErrors = objectResults?.filter(
-                (r) => r.objectType === type && !r.valid
-              )
-
-              return (
-                <li key={type} className="validation-summary__item">
-                  <div>
-                    <span className="validation-summary__count" aria-label={`${count} errors in ${classLabel(type)} objects`}>
-                      {count} {classLabel(type)} {count === 1 ? 'error' : 'errors'}
-                    </span>
-                    {objectsWithErrors && objectsWithErrors.length > 0 && onNavigateToObject && (
-                      <ul className="validation-summary__objects margin-top-1">
-                        {objectsWithErrors.map((obj) => (
-                          <li key={obj.objectId}>
-                            <button
-                              type="button"
-                              onClick={() => onNavigateToObject(obj.objectId)}
-                              className="usa-button usa-button--unstyled validation-summary__object-link"
-                            >
-                              {obj.label && <bdi>{obj.label}</bdi>}{' '}
-                              ({obj.errors.length}{' '}
-                              {obj.errors.length === 1 ? 'error' : 'errors'})
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
+            return (
+              <li key={type} className="margin-top-1">
+                <span className="text-bold">
+                  {count(errors)} {classLabel(type)} {errors === 1 ? 'error' : 'errors'}
+                </span>
+                {objectsWithErrors && objectsWithErrors.length > 0 && onNavigateToObject && (
+                  <ul className="usa-list usa-list--unstyled">
+                    {objectsWithErrors.map((obj) => (
+                      <li key={obj.objectId}>
+                        <button
+                          type="button"
+                          onClick={() => onNavigateToObject(obj.objectId)}
+                          className="usa-button usa-button--unstyled text-left"
+                        >
+                          {obj.label && <bdi>{obj.label}</bdi>} ({obj.errors.length}{' '}
+                          {obj.errors.length === 1 ? 'error' : 'errors'})
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+        {/* In the alert's own ink, not the hint's grey, which is too faint on its background. */}
+        <ValidationDisclaimer className="font-sans-2xs margin-top-1 margin-bottom-0" />
+      </Alert>
+    </section>
   )
 }
