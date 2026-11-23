@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, expectCatalogSaved } from './fixtures'
 import type { Page } from '@playwright/test'
 
 async function loadSample(page: Page) {
@@ -33,6 +33,11 @@ test('deletes object', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
   await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).not.toBeVisible()
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).toHaveCount(0)
 })
 
 test('undoes object deletion', async ({ page }) => {
@@ -45,6 +50,24 @@ test('undoes object deletion', async ({ page }) => {
   await page.getByRole('button', { name: 'Undo' }).click()
 
   await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).toBeVisible()
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(page.getByRole('treeitem', { name: /Air quality readings/ })).toBeVisible()
+})
+
+test('persists a removed link after reload', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /Air quality readings/ }).click()
+  const contacts = page.getByRole('group', { name: /^Contact point/ })
+
+  await contacts.getByRole('button', { name: /^Remove Air Quality Team/ }).click()
+  await expectCatalogSaved(page)
+  await page.reload()
+
+  await expect(contacts.getByRole('link', { name: 'Air Quality Team' })).toHaveCount(0)
+  await expect(contacts.getByRole('button', { name: /^Create new Contact/ })).toBeVisible()
 })
 
 test('undo button disabled when no removal to undo', async ({ page }) => {
