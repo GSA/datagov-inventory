@@ -8,6 +8,8 @@ const tree = (page: Page) => page.getByRole('tree', { name: 'Catalog' })
 const item = (page: Page, name: string) =>
   tree(page).getByRole('treeitem', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( · [\\d,]+ items?)?$`) })
 const filter = (page: Page) => page.getByLabel('Filter by title or name')
+/** The sample's catalog and dataset name the same publisher, so it merged into one object on import (ADR 0008). */
+const PUBLISHER = 'Example Agency Publisher · Organization Shared · 2 places'
 
 async function loadSample(page: Page) {
   await page.goto('/import')
@@ -25,7 +27,7 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
   // The catalog is open, and lists its own objects; the dataset is closed.
   await expect(tree(page).getByRole('treeitem')).toHaveText([
     'Example Agency Catalog',
-    'Example Agency Publisher · Organization',
+    PUBLISHER,
     'Air quality readings Dataset · 5 items',
   ])
   await expect(catalog).toHaveAttribute('aria-level', '1')
@@ -83,7 +85,7 @@ test('browses the catalog tree with the mouse and the keyboard', async ({ page }
   await dataset.locator('.catalog-tree__toggle').click()
   await expect(dataset).toHaveAttribute('aria-expanded', 'false')
   await expect(csv).toHaveCount(0)
-  await item(page, 'Example Agency Publisher · Organization').click()
+  await item(page, PUBLISHER).click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/organization\/[A-Za-z0-9_-]{22}$/)
 
   // Issue #24: Object reference links in forms are out of scope (blocked by #25).
@@ -113,10 +115,10 @@ test('filters the tree by title or name', async ({ page }) => {
   // As before filtering, but with the dataset of the object opened while filtering open too.
   await expect(tree(page).getByRole('treeitem')).toHaveText([
     'Example Agency Catalog',
-    'Example Agency Publisher · Organization',
+    PUBLISHER,
     'Air quality readings Dataset',
     'Air Quality Team Contact point · Contact',
-    'Example Agency Publisher · Organization',
+    PUBLISHER,
     'Untitled Period of Time Temporal · Period of Time',
     'Readings as CSV Distribution · 1 item',
     'Readings API Distribution',
@@ -134,7 +136,8 @@ test('marks the place a shared object was opened in, and outlines its other plac
   const [inDataset, inCatalog] = [places.first(), places.last()]
   await expect(inDataset).toHaveAttribute('aria-level', '3')
   await expect(inCatalog).toHaveAttribute('aria-level', '2')
-  await expect(tree(page).locator('.catalog-tree__shared')).toHaveCount(2)
+  // The contact's two places, and the publisher's, merged on import.
+  await expect(tree(page).locator('.catalog-tree__shared')).toHaveCount(4)
 
   // A click selects that row only; the other place is outlined as the same object, and is not selected.
   await inCatalog.click()
@@ -171,7 +174,7 @@ test('counts the items in a closed row, and lines up each level', async ({ page 
 
   // Leaves keep the arrow's place, so their labels start where their expandable siblings' do.
   const left = (name: string) => item(page, name).first().locator('bdi').evaluate((bdi) => bdi.getBoundingClientRect().left)
-  expect(await left('Example Agency Publisher · Organization')).toBe(await left('Air quality readings Dataset'))
+  expect(await left(PUBLISHER)).toBe(await left('Air quality readings Dataset'))
   expect(await left('Readings API Distribution')).toBe(await left('Readings as CSV Distribution'))
   expect(await left('Air Quality Team Contact point · Contact')).toBeGreaterThan(await left('Air quality readings Dataset'))
 })
@@ -190,8 +193,8 @@ test('cuts a long label to one line, and keeps all of it in the name and on hove
   await expect(label).toHaveCSS('text-overflow', 'ellipsis')
   expect(await label.evaluate((bdi) => bdi.scrollWidth > bdi.clientWidth)).toBe(true)
   // One line: as tall as a short row.
-  const height = (name: string) => item(page, name).evaluate((li) => li.getBoundingClientRect().height)
-  expect(await height(`${long} Dataset`)).toBe(await height('Example Agency Publisher · Organization'))
+  const height = (name: string, first = false) => (first ? item(page, name).first() : item(page, name)).evaluate((li) => li.getBoundingClientRect().height)
+  expect(await height(`${long} Dataset`)).toBe(await height(PUBLISHER, true))
 })
 
 test('opens an object in a 3,000-dataset catalog and limits a filter that matches thousands', async ({ page }) => {

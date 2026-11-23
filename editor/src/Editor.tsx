@@ -287,8 +287,9 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
         <bdi>{labelOf(root)}</bdi>
       </h1>
       <p className="margin-top-1 text-base-dark">
-        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
-        tab only (nothing is uploaded)
+        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} ·{' '}
+        {open.merged ? `${count(open.merged)} identical ${open.merged === 1 ? 'copy' : 'copies'} merged · ` : ''}Open in
+        this tab only (nothing is uploaded)
       </p>
       {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
       {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}

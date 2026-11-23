@@ -72,8 +72,8 @@ test('offers only objects of the field\'s classes, and none already in it', asyn
   const creators = field(page, 'Creator')
   await creators.getByRole('combobox').fill('example')
   await expect(page.getByRole('listbox', { name: 'Add an existing Agent or Organization' }).getByRole('option')).toHaveText([
-    'Example AgencyOrganization · used in Example Agency Catalog',
-    'Example AgencyOrganization · used in Air quality readings',
+    // The catalog's and the dataset's publisher, merged on import (ADR 0008).
+    'Example AgencyOrganization · used in 2 places',
   ])
   await creators.getByRole('combobox').fill('air')
   await expect(creators.getByText('No matches.')).toBeVisible()
@@ -90,6 +90,8 @@ test('offers only objects of the field\'s classes, and none already in it', asyn
 
 test('picks with the keyboard alone', async ({ page }) => {
   await loadSample(page)
+  // The catalog and dataset share one publisher (merged on import); give the catalog a copy, so there are two to pick.
+  await field(page, 'Publisher').getByRole('button', { name: /^Edit a copy for this one/ }).click()
   await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
   const picker = field(page, 'Creator').getByRole('combobox')
   await picker.focus()
@@ -330,7 +332,8 @@ test('counts only places still in the catalog, and keeps focus in a field emptie
   await field(page, 'Creator').getByRole('combobox').fill('example')
   await page.getByRole('option').first().click()
   await field(page, 'Creator').getByRole('link', { name: 'Example Agency' }).click()
-  await expect(page.getByRole('group', { name: 'Used in 2 places' })).toBeVisible()
+  // The catalog's and the dataset's publisher (merged on import), and now the dataset's creator.
+  await expect(page.getByRole('group', { name: 'Used in 3 places' })).toBeVisible()
 
   // Removing the dataset from the catalog leaves the agency used by the catalog alone.
   await page.getByRole('button', { name: 'Places and copy options' }).click()
@@ -338,7 +341,7 @@ test('counts only places still in the catalog, and keeps focus in a field emptie
   await field(page, 'Dataset').getByRole('button', { name: 'Remove Air quality readings from Dataset' }).click()
   await expect(field(page, 'Dataset').getByRole('button', { name: /^Create new Dataset/ })).toBeFocused()
   await expect(field(page, 'Dataset').getByRole('status')).toHaveText(`Removed ${iso('Air quality readings')} from Dataset.`)
-  await expect(field(page, 'Publisher').getByText('Organization · Used in 2 places')).toHaveCount(0)
+  await expect(field(page, 'Publisher').getByText(/^Organization · Used in/)).toHaveCount(0)
   await expect(field(page, 'Publisher').getByText('Organization', { exact: true })).toBeVisible()
   await expect(field(page, 'Publisher').getByRole('button', { name: /^Edit a copy/ })).toHaveCount(0)
 })

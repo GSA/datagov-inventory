@@ -29,7 +29,14 @@ App runs at http://localhost:5173
 [ADR 0005](../docs/decisions/0005-object-graph-data-model-for-dcat-us-3.md): a `Map` of
 objects (id, DCAT class, own scalar properties) whose class-valued properties are ordered
 lists of child ids. Which properties hold classes, and so each object's class, comes from
-the schema (`getClassProperties` in `src/schema`). Decomposition may use source-location
+the schema (`getClassProperties` in `src/schema`). Completely identical objects become one
+shared object linked from every place they appeared, as
+[ADR 0008](../docs/decisions/0008-onboard-via-data-json-reimport.md#convergence-of-identical-objects) says
+(`mergeKey` in `decompose.ts`). Matching is exact: the same class, and every value the same, with key order ignored and
+array order kept, and an `@id` compared like any other property. Children are compared first, so parents whose children
+merged can match too. Datasets, catalogs and dataset series are never merged. The merged object keeps the first copy's
+id and key order, and the editor's summary line says how many copies were merged ("· 1 identical copy merged"). Export
+(`assemble.ts`) writes a shared object in full at each place, since DCAT-US 3.0 has no reference form. Decomposition may use source-location
 keys, but accepting a graph into a `Catalog` working copy replaces every object id and reference with
 a browser-generated UUID. Newly created and copied objects receive UUIDs immediately.
 Input is bounded by `DEFAULT_LIMITS` (25 MB, 64
@@ -66,7 +73,7 @@ label, then its field and, when it says more, its class ("Publisher · Organizat
 `fieldLabel` and `classLabel` in `src/labels.ts`, which the form, validation messages and the model generator use too. A closed row says how
 many items it holds, and an object used in several places says "Shared · N places"; the place it was opened in is
 selected, and its other places are outlined. It renders every row without
-virtualization: with 3,000 datasets (18,001 objects) each action paints in about 100 ms or less (measured in the pull request for #23;
+virtualization: with 3,000 datasets (18,001 objects before #6546 merged their shared publisher, 15,002 now) each action paints in about 100 ms or less (measured in the pull request for #23;
 `PERF=1 npx playwright test tree-performance` measures again). Three things keep it fast: memoized rows, so an action
 re-renders only the rows it changes; a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
 a float before the tree made each change lay out every row again; and `content-visibility: auto` on the rows, which all

@@ -4,6 +4,9 @@
  * (`metadata_object`); each class-valued property is an ordered list of child ids
  * (`object_reference`, where the ordinal is the list index).
  *
+ * Completely identical objects become one shared object, linked from every place they appeared, as ADR 0008's
+ * "Convergence of identical objects" says (GSA/data.gov#6546): see {@link mergeKey}.
+ *
  * Pure TypeScript with no React or DOM imports, so it runs in a worker and in tests.
  * The input is untrusted: its size, depth and object count are bounded (SI-10), and
  * property names are copied into null-prototype records so `__proto__` cannot pollute.
@@ -68,8 +71,20 @@ const tooLarge = (maxBytes: number, bytes?: number) =>
  */
 const MAX_UTF8_BYTES_PER_UNIT = 3
 
+/** A decomposed document, and how many identical copies were merged into objects read before them. */
+export interface DecomposedCatalog extends CatalogGraph {
+  /** Objects read minus objects kept: each copy that became a link to an identical object read earlier. */
+  merged: number
+}
+
+/**
+ * Classes never merged (ADR 0008): datasets carry their own identifiers, and catalogs and dataset series are kinds of
+ * dataset that hold datasets.
+ */
+export const NEVER_MERGED: ReadonlySet<string> = new Set(['Dataset', 'Catalog', 'DatasetSeries'])
+
 /** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
-export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): CatalogGraph {
+export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
   const { maxBytes, maxDepth, maxContainers } = { ...DEFAULT_LIMITS, ...limits }
   // The length alone refuses text that is surely too large, and accepts text that surely fits, without
   // encoding it; only text in between is encoded to count its bytes exactly.
@@ -100,6 +115,10 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
   }
 
   const objects = new Map<string, CatalogObject>()
+  /** The first object read for each merge key. */
+  const firstWithKey = new Map<string, string>()
+  let merged = 0
+  /** Adds `node` and the objects inside it, and returns the id it is linked by: its own, or an identical object's. */
   const add = (node: Record<string, unknown>, dcatClass: string, id: string): string => {
     const object: CatalogObject = {
       id,
@@ -124,9 +143,41 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
       )
       if (!Array.isArray(value)) object.singleLinks.push(key)
     }
-    return id
+    // Its children are merged by now, so it can match an earlier object whose children were the same (leaves up).
+    // A merged copy's children are all merged too (or it would not match), so deleting it leaves none behind.
+    if (NEVER_MERGED.has(dcatClass)) return id
+    const key = mergeKey(object)
+    const first = firstWithKey.get(key)
+    if (first === undefined) {
+      firstWithKey.set(key, id)
+      return id
+    }
+    objects.delete(id)
+    merged++
+    return first
   }
-  return { rootId: add(root, rootClass, '#'), objects }
+  return { rootId: add(root, rootClass, '#'), objects, merged }
+}
+
+/**
+ * Equal for two objects exactly when ADR 0008 merges them: the same class, and the same properties and links, values
+ * taken as-is (no trimming or case-folding), JSON key order ignored and array order kept. A link written as one object
+ * differs from a list of one. An `@id` is a property like any other. The links hold children's ids after their own
+ * merge, so parents whose children merged can match. The merged object keeps the first copy's key order.
+ */
+export const mergeKey = ({ dcatClass, properties, links, singleLinks }: CatalogObject) =>
+  `[${JSON.stringify(dcatClass)},${canonical(properties)},${canonical(links)},${canonical([...singleLinks].sort())}]`
+
+/** JSON with every object's keys sorted, so key order does not matter; arrays keep their order. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (isObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>

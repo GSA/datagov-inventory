@@ -85,13 +85,6 @@ describe('decompose: shape rules', () => {
     expect(objects.get('#/dataset/0')!.properties.keyword).toEqual(['z', 'a', 'm'])
   })
 
-  it('keeps identical objects separate, even with the same @id', () => {
-    const twin = dataset('Twin', { '@id': 'https://example.gov/same', publisher: { name: 'Agency' } })
-    const { objects } = decompose(catalogOf([twin, twin]))
-    expect(countByClass({ rootId: '#', objects })).toEqual({ Catalog: 1, Dataset: 2, Organization: 2 })
-    expect(objects.get('#')!.links.dataset).toEqual(['#/dataset/0', '#/dataset/1'])
-  })
-
   it('keeps unknown properties unchanged, including nested objects, and does not decompose them', () => {
     const unknown = { nested: [1, { '@type': 'Dataset', title: 'not a link' }], flag: true }
     const { objects } = decompose(catalogOf([dataset('A', { 'x-agency': unknown, rank: 3 })], { 'x-extra': 'kept' }))
@@ -158,6 +151,126 @@ describe('decompose: shape rules', () => {
   it('ignores a UTF-8 byte order mark and keeps unicode as written', () => {
     const { objects } = decompose(`\uFEFF${catalogOf([dataset('Qualité 🌫️ \u202Etxt.exe')])}`)
     expect(objects.get('#/dataset/0')!.properties.title).toBe('Qualité 🌫️ \u202Etxt.exe')
+  })
+})
+
+// ADR 0008, "Convergence of identical objects" (GSA/data.gov#6546). Replaces #20's "nothing is merged".
+describe('decompose: merging identical objects', () => {
+  const catalogOf = (datasets: unknown[], extra: object = {}) => json({ '@type': 'Catalog', ...extra, dataset: datasets })
+  const dataset = (title: string, extra: object = {}) => ({ '@type': 'Dataset', title, ...extra })
+  const ssa = { '@type': 'Organization', name: 'Social Security Administration' }
+  /** Each dataset's links for `property`. */
+  const linksOf = (catalog: CatalogGraph, property: string) =>
+    catalog.objects.get('#')!.links.dataset.map((id) => catalog.objects.get(id)!.links[property])
+
+  it('makes identical publishers, the catalog one included, one shared object linked from every place', () => {
+    const catalog = decompose(catalogOf([dataset('A', { publisher: ssa }), dataset('B', { publisher: ssa })], { publisher: ssa }))
+    expect(countByClass(catalog)).toEqual({ Catalog: 1, Dataset: 2, Organization: 1 })
+    expect(catalog.objects.get('#')!.links.publisher).toEqual(['#/publisher'])
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/publisher'], ['#/publisher']])
+    expect(catalog.merged).toBe(2)
+  })
+
+  it('never merges datasets, catalogs or dataset series, even with the same @id, but merges what is inside them', () => {
+    const twin = dataset('Twin', { '@id': 'https://example.gov/same', publisher: { name: 'Agency' } })
+    const catalog = decompose(
+      catalogOf([twin, twin], {
+        catalog: [{ '@type': 'Catalog', title: 'Sub' }, { '@type': 'Catalog', title: 'Sub' }],
+        datasetSeries: [{ '@type': 'DatasetSeries', title: 'S' }, { '@type': 'DatasetSeries', title: 'S' }],
+      }),
+    )
+    expect(countByClass(catalog)).toEqual({ Catalog: 3, DatasetSeries: 2, Dataset: 2, Organization: 1 })
+    expect(catalog.objects.get('#')!.links.dataset).toEqual(['#/dataset/0', '#/dataset/1'])
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/dataset/0/publisher'], ['#/dataset/0/publisher']])
+    expect(catalog.merged).toBe(1)
+  })
+
+  it('ignores key order, keeping the first copy, its key order and its id', () => {
+    const first = { '@type': 'Kind', fn: 'Data Team', hasEmail: 'mailto:data@example.gov', 'x-note': { a: 1, b: [1, 2] } }
+    const reordered = { 'x-note': { b: [1, 2], a: 1 }, hasEmail: 'mailto:data@example.gov', fn: 'Data Team', '@type': 'Kind' }
+    const catalog = decompose(catalogOf([dataset('A', { contactPoint: [first] }), dataset('B', { contactPoint: [reordered] })]))
+    expect(linksOf(catalog, 'contactPoint')).toEqual([['#/dataset/0/contactPoint/0'], ['#/dataset/0/contactPoint/0']])
+    expect(Object.keys(catalog.objects.get('#/dataset/0/contactPoint/0')!.properties)).toEqual(Object.keys(first))
+    expect(catalog.objects.has('#/dataset/1/contactPoint/0')).toBe(false)
+  })
+
+  it.each([
+    ['trailing space', { name: 'Agency ' }],
+    ['case', { name: 'agency' }],
+    ['array order', { name: 'Agency', altLabel: ['b', 'a'] }],
+    ['an extra property', { name: 'Agency', altLabel: ['a', 'b'], mbox: 'mailto:a@example.gov' }],
+    ['a missing property', { name: 'Agency' }],
+    ['a number for a string', { name: 'Agency', altLabel: ['a', 'b'], notation: 1 }],
+    ['a different @id', { '@id': 'https://example.gov/other', name: 'Agency', altLabel: ['a', 'b'] }],
+    ['an @id where the other has none', { '@id': 'https://example.gov/agency', name: 'Agency', altLabel: ['a', 'b'] }],
+  ])('keeps objects that differ by %s separate: equality is exact, with no normalization', (_case, other) => {
+    const agency = { '@type': 'Organization', name: 'Agency', altLabel: ['a', 'b'], notation: '1' }
+    const catalog = decompose(
+      catalogOf([dataset('A', { publisher: agency }), dataset('B', { publisher: { '@type': 'Organization', ...other } })]),
+    )
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/dataset/0/publisher'], ['#/dataset/1/publisher']])
+    expect(catalog.merged).toBe(0)
+  })
+
+  it('merges objects with the same @id and the same content', () => {
+    const agency = { '@id': 'https://example.gov/agency', name: 'Agency' }
+    const catalog = decompose(catalogOf([dataset('A', { publisher: agency }), dataset('B', { publisher: { ...agency } })]))
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/dataset/0/publisher'], ['#/dataset/0/publisher']])
+  })
+
+  it('keeps identical JSON of different classes separate', () => {
+    const catalog = decompose(catalogOf([dataset('A', { contactPoint: [{}], publisher: {} })]))
+    expect(countByClass(catalog)).toEqual({ Catalog: 1, Dataset: 1, Kind: 1, Organization: 1 })
+    // A catalog's publisher may be any Agent, a dataset's must be an Organization: with no @type they differ.
+    const agency = { name: 'Agency' }
+    const untyped = decompose(catalogOf([dataset('A', { publisher: agency })], { publisher: agency }))
+    expect(countByClass(untyped)).toEqual({ Catalog: 1, Dataset: 1, Agent: 1, Organization: 1 })
+  })
+
+  it('compares from the leaves up: parents merge once their children have, and not if any child differs', () => {
+    const parent = { '@type': 'Organization', name: 'Social Security Administration' }
+    const office = (child: object) => ({ '@type': 'Organization', name: 'Office of Data', subOrganizationOf: [child] })
+    const catalog = decompose(
+      catalogOf([
+        dataset('A', { publisher: office(parent) }),
+        dataset('B', { publisher: office({ ...parent }) }),
+        dataset('C', { publisher: office({ ...parent, name: 'Other' }) }),
+      ]),
+    )
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/dataset/0/publisher'], ['#/dataset/0/publisher'], ['#/dataset/2/publisher']])
+    expect(catalog.objects.get('#/dataset/0/publisher')!.links.subOrganizationOf).toEqual(['#/dataset/0/publisher/subOrganizationOf/0'])
+    expect(countByClass(catalog)).toEqual({ Catalog: 1, Dataset: 3, Organization: 4 })
+    expect(catalog.merged).toBe(2) // B's office and its parent
+  })
+
+  it('merges a child but not its parents when one writes the link as one object and the other as a list of one', () => {
+    const parent = { name: 'Parent' }
+    const office = (subOrganizationOf: unknown) => ({ '@type': 'Organization', name: 'Office', subOrganizationOf })
+    const catalog = decompose(
+      catalogOf([dataset('A', { publisher: office(parent) }), dataset('B', { publisher: office([parent]) })]),
+    )
+    expect(linksOf(catalog, 'publisher')).toEqual([['#/dataset/0/publisher'], ['#/dataset/1/publisher']])
+    expect(catalog.objects.get('#/dataset/1/publisher')!.links.subOrganizationOf).toEqual(['#/dataset/0/publisher/subOrganizationOf'])
+    expect(catalog.merged).toBe(1)
+  })
+
+  it('merges identical distributions, and links a merged object twice if one parent lists it twice', () => {
+    const csv = { '@type': 'Distribution', title: 'CSV', downloadURL: 'https://example.gov/data.csv' }
+    const catalog = decompose(catalogOf([dataset('A', { distribution: [csv, csv] }), dataset('B', { distribution: [csv] })]))
+    const id = '#/dataset/0/distribution/0'
+    expect(linksOf(catalog, 'distribution')).toEqual([[id, id], [id]])
+    expect(catalog.merged).toBe(2)
+  })
+
+  it('keeps each object after the first object that links to it', () => {
+    const catalog = decompose(catalogOf([dataset('A', { publisher: ssa }), dataset('B', { publisher: ssa })]))
+    expect([...catalog.objects.keys()]).toEqual(['#', '#/dataset/0', '#/dataset/0/publisher', '#/dataset/1'])
+  })
+
+  it('merges the 3,000 copies of the generated catalog\'s publisher into one', () => {
+    const catalog = decompose(json(largeCatalog()))
+    expect(catalog.merged).toBe(2_999)
+    expect(countByClass(catalog)).toEqual({ Catalog: 1, Dataset: 3_000, Kind: 3_000, Organization: 1, Distribution: 9_000 })
   })
 })
 
@@ -255,6 +368,7 @@ describe('decompose: limits', () => {
   })
 
   it('fits 3,000 rich datasets within the default limits', () => {
-    expect(decompose(json(largeCatalog())).objects.size).toBe(1 + 3_000 * 6)
+    // 6 objects per dataset, less the 2,999 copies of the publisher that merge.
+    expect(decompose(json(largeCatalog())).objects.size).toBe(1 + 3_000 * 6 - 2_999)
   })
 })
