@@ -161,7 +161,8 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
   }
 
   /**
-   * Rejects as soon as another connection blocks the upgrade. The request stays queued, so the upgrade still runs once
+   * Closes this connection when another tab upgrades, so it doesn't block it; the next operation then fails as
+   * `outdated`. Rejects as soon as another connection blocks the upgrade. The request stays queued, so the upgrade still runs once
    * that connection closes; that late connection is closed, and the next operation opens a fresh one.
    */
   private open(): Promise<IDBPDatabase<CatalogDatabase>> {
@@ -184,6 +185,10 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
           blocked = true
           reject(new CatalogStorageError('blocked', BLOCKED))
         },
+        blocking: (_currentVersion, _blockedVersion, event) => {
+          ;(event.target as IDBDatabase).close()
+          this.database = undefined
+        },
       }).then(
         (database) => (blocked ? database.close() : resolve(database)),
         (error: unknown) => reject(migrationFailed ? new CatalogStorageError('upgrade-failed', UPGRADE_FAILED) : error),
@@ -195,6 +200,9 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
 const BLOCKED =
   'Another tab with the Inventory editor open is blocking an update to browser storage. Close or reload that tab, ' +
   'then reload this page. Your saved catalogs have not been changed.'
+const OUTDATED =
+  'Browser storage was updated by a newer version of the editor, perhaps in another tab. Export any open catalog to ' +
+  'keep your latest changes, then reload this page.'
 const UPGRADE_FAILED =
   "The catalogs saved in this browser could not be upgraded for this version of the editor. They have not been " +
   "changed or deleted. Reload the page to try again. If it still fails, don't clear this site's data, which deletes " +
@@ -325,6 +333,7 @@ async function withStorageErrors<T>(operation: () => Promise<T>): Promise<T> {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       throw new CatalogStorageError('quota', 'Browser storage is full.')
     }
+    if (error instanceof DOMException && error.name === 'VersionError') throw new CatalogStorageError('outdated', OUTDATED)
     throw new CatalogStorageError('failed', 'Browser storage failed.')
   }
 }
