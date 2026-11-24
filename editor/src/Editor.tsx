@@ -15,7 +15,7 @@ import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
 import { useDelayedFlag } from './validation/useDelayedFlag'
 import { ExportWarningDialog } from './validation/ExportWarningDialog'
-import { storageErrorGuidance } from './storageErrorGuidance'
+import { storageErrorHelp, type StorageErrorHelp } from './storageErrorHelp'
 
 /** A link to an object. */
 function ObjectLink({
@@ -294,7 +294,7 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
       {saveError && (
         <Alert type="error" slim role="alert" className="margin-top-2">
           <AlertText>
-            Your latest changes could not be saved in this browser. {storageErrorGuidance(saveError) ?? saveError.message}
+            Your latest changes could not be saved in this browser. {storageErrorHelp(saveError)?.guidance ?? saveError.message}
           </AlertText>
         </Alert>
       )}
@@ -442,12 +442,17 @@ function CatalogNotFound() {
   )
 }
 
+const STORAGE_UNAVAILABLE: StorageErrorHelp = {
+  heading: 'Browser storage unavailable',
+  guidance: 'Reload the page or import a recovery copy.',
+}
+
 function CatalogStorageUnavailable({ error }: { error: unknown }) {
-  usePageTitle('Browser storage unavailable')
-  const guidance = storageErrorGuidance(error) ?? 'Reload the page or import a recovery copy.'
+  const { heading, guidance } = storageErrorHelp(error) ?? STORAGE_UNAVAILABLE
+  usePageTitle(heading)
   return (
     <>
-      <h1 tabIndex={-1}>Browser storage unavailable</h1>
+      <h1 tabIndex={-1}>{heading}</h1>
       <p>The editor could not read this catalog from browser storage. {guidance}</p>
       <Link to="/import" className="usa-button">
         Import a catalog

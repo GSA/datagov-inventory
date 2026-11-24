@@ -417,7 +417,7 @@ test('explains why a saved catalog cannot be restored, and keeps it', async ({ p
   await page.reload()
 
   await expect(page).toHaveURL(catalogUrl)
-  await expect(page.getByRole('heading', { level: 1, name: 'Browser storage unavailable' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Reload to use the newer editor' })).toBeVisible()
   await expect(page.getByText(/updated by a newer version of the editor/)).toBeVisible()
   const storedCatalogs = await page.evaluate(
     () =>
