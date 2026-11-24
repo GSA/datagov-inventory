@@ -1,9 +1,9 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore } from 'idb'
 import type { CatalogObject, CatalogWorkspace } from '../catalog/types'
 import { CatalogStorageError, type CatalogRepository } from './CatalogRepository'
+import { MIGRATIONS, type Migration } from './migrations'
 
 const DATABASE = 'datagov-inventory-editor'
-const VERSION = 1
 const CATALOGS = 'catalogs'
 const OBJECTS = 'metadataObjects'
 const REFERENCES = 'objectReferences'
@@ -74,7 +74,10 @@ type WritableReferenceStore = IDBPObjectStore<
 export class IndexedDbCatalogRepository implements CatalogRepository {
   private database?: Promise<IDBPDatabase<CatalogDatabase>>
 
-  constructor(private readonly databaseName = DATABASE) {}
+  constructor(
+    private readonly databaseName = DATABASE,
+    private readonly migrations: readonly Migration[] = MIGRATIONS,
+  ) {}
 
   async createCatalog(catalog: CatalogWorkspace): Promise<void> {
     await withStorageErrors(async () => {
@@ -151,15 +154,12 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
 
   private databaseConnection(): Promise<IDBPDatabase<CatalogDatabase>> {
     if (!globalThis.indexedDB) throw new CatalogStorageError('unavailable', 'Browser storage is unavailable.')
-    return (this.database ??= openDB<CatalogDatabase>(this.databaseName, VERSION, {
-      upgrade(database) {
-        database.createObjectStore(CATALOGS, { keyPath: 'id' })
-        const objects = database.createObjectStore(OBJECTS, { keyPath: ['catalogId', 'id'] })
-        objects.createIndex(CATALOG_ID, CATALOG_ID)
-        const references = database.createObjectStore(REFERENCES, {
-          keyPath: ['catalogId', 'parentId', 'property', 'ordinal'],
-        })
-        references.createIndex(CATALOG_ID, CATALOG_ID)
+    const migrations = this.migrations
+    return (this.database ??= openDB<CatalogDatabase>(this.databaseName, migrations.length, {
+      async upgrade(database, oldVersion, _newVersion, transaction) {
+        for (const migrate of migrations.slice(oldVersion)) {
+          await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
+        }
       },
       blocked() {
         throw new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.')
