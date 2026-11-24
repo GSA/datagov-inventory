@@ -6,35 +6,45 @@ import { useValidationContext } from './validation/ValidationContext'
 import { count, isolate, labelOf } from './tree'
 import { editorPath } from './objectRoute'
 
+export type SaveStatus = 'saved' | 'saving' | 'not-saved'
+export type RestoreResult = 'opened' | 'not-found'
+
 export interface CatalogContextValue {
+  /** The working copy open in this tab, if any. */
   open?: CatalogWorkspace
-  setOpen: (catalog: CatalogWorkspace | undefined) => void
+  /** Persists a newly accepted workspace, then opens it only after the write succeeds. */
+  createAndOpen: (catalog: CatalogWorkspace) => Promise<void>
+  /** Loads and opens a workspace by stable id, or reports that browser storage has no match. */
+  restoreAndOpen: (id: string) => Promise<RestoreResult>
+  /** Updates an existing object and queues the changed workspace for autosave. */
   updateObject: (id: string, updates: Partial<CatalogObject>) => void
+  /** Removes one object reference, records it for Undo, and queues autosave. */
   removeLink: (parentId: string, property: string, childId: string) => void
+  /** Deletes an object as graph rules allow, records it for Undo, and queues autosave. */
   deleteObject: (id: string) => void
+  /** Restores the most recent removal or deletion and queues autosave. */
   undoRemoval: () => void
+  /** Whether one removal or deletion is currently available to undo. */
   canUndo: boolean
-  /** Adds an existing object to a field (#25). `single`: the field holds one object, not a list. */
+  /** Adds an existing object to a field and queues autosave. `single` means the field holds one object, not a list. */
   linkObject: (parentId: string, property: string, childId: string, single: boolean) => void
-  /** Creates a blank object of `dcatClass` in a field, and returns its id. */
+  /** Creates and links a UUID-identified object, returns its id, and queues autosave. */
   createObject: (parentId: string, property: string, dcatClass: string, single: boolean) => string | undefined
-  /** Puts a copy of a shared object in its place in one field, and returns the copy's id. */
+  /** Copies a shared object for one parent, returns the copy's id, and queues autosave. */
   copyObject: (parentId: string, property: string, targetId: string) => string | undefined
+  /** Current persistence state of the latest in-memory working copy. */
+  saveStatus: SaveStatus
+  /** Failure from the latest autosave attempt, when `saveStatus` is `not-saved`. */
+  saveError?: Error
 }
 
-export const CatalogContext = createContext<CatalogContextValue>({
-  setOpen: () => {},
-  updateObject: () => {},
-  removeLink: () => {},
-  deleteObject: () => {},
-  undoRemoval: () => {},
-  canUndo: false,
-  linkObject: () => {},
-  createObject: () => undefined,
-  copyObject: () => undefined,
-})
+export const CatalogContext = createContext<CatalogContextValue | undefined>(undefined)
 
-export const useCatalog = () => useContext(CatalogContext)
+export function useCatalog(): CatalogContextValue {
+  const catalog = useContext(CatalogContext)
+  if (!catalog) throw new Error('useCatalog must be used within CatalogContext.Provider.')
+  return catalog
+}
 
 /** Names the page in the browser tab and history, as each route changes (#30). */
 export function usePageTitle(title: string) {

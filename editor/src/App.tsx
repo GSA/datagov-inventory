@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { GovBanner, Header, NavMenuButton, PrimaryNav, Title } from '@trussworks/react-uswds'
 import {
   createRootRoute,
@@ -9,8 +9,9 @@ import {
   RouterProvider,
   useRouter,
 } from '@tanstack/react-router'
-import { CatalogContext } from './session'
-import type { CatalogObject, CatalogGraph, CatalogWorkspace } from './catalog/types'
+import { CatalogContext, RestoreResult, SaveStatus } from './session'
+import { AutosaveQueue } from './storage/AutosaveQueue'
+import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { keepIndex } from './catalog/uses'
 import {
   copyFor,
@@ -26,6 +27,9 @@ import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
+import { IndexedDbCatalogRepository } from './storage/IndexedDbCatalogRepository'
+
+const catalogStorage = new IndexedDbCatalogRepository()
 
 /**
  * The page frame. When the path changes, focus moves to the new page's main heading, or within the editor to the
@@ -146,8 +150,71 @@ declare module '@tanstack/react-router' {
 }
 
 export default function App() {
-  const [open, setOpen] = useState<CatalogWorkspace | undefined>()
-  const [removalHistory, setRemovalHistory] = useState<RemovalRecord | undefined>()
+  const [open, setOpen] = useState<CatalogWorkspace>()
+  const [removalHistory, setRemovalHistory] = useState<RemovalRecord>()
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
+  const [saveError, setSaveError] = useState<Error>()
+  const autosaveQueue = useRef(new AutosaveQueue<CatalogWorkspace>((catalog) => catalogStorage.saveCatalog(catalog)))
+  const catalogGeneration = useRef(0)
+
+  const installDurableCatalog = useCallback((catalog: CatalogWorkspace) => {
+    catalogGeneration.current++
+    setOpen(catalog)
+    setRemovalHistory(undefined)
+    setSaveError(undefined)
+    setSaveStatus('saved')
+  }, [])
+
+  /**
+   * Waits until the current catalog's latest snapshot is durable before switching catalogs.
+   * A failed final save rejects the switch so the in-memory unsaved catalog is not discarded.
+   */
+  const flushAutosave = useCallback(() => autosaveQueue.current.flush(), [])
+
+  const createAndOpen = useCallback(async (catalog: CatalogWorkspace) => {
+    await flushAutosave()
+    await catalogStorage.createCatalog(catalog)
+    installDurableCatalog(catalog)
+  }, [flushAutosave, installDurableCatalog])
+
+  const restoreAndOpen = useCallback(async (id: string): Promise<RestoreResult> => {
+    await flushAutosave()
+    const catalog = await catalogStorage.loadCatalog(id)
+    if (!catalog) return 'not-found'
+    installDurableCatalog(catalog)
+    return 'opened'
+  }, [flushAutosave, installDurableCatalog])
+
+  const autosave = useCallback((catalog: CatalogWorkspace) => {
+    const generation = catalogGeneration.current
+    setSaveStatus('saving')
+    setSaveError(undefined)
+    autosaveQueue.current.enqueue(catalog)
+    void autosaveQueue.current.flush().then(
+      () => {
+        if (catalogGeneration.current === generation) setSaveStatus('saved')
+      },
+      (error) => {
+        if (catalogGeneration.current === generation) {
+          setSaveError(error instanceof Error ? error : new Error(String(error)))
+          setSaveStatus('not-saved')
+        }
+      },
+    )
+  }, [])
+
+  /**
+   * All in-memory edits must use this path so the changed workspace is queued for autosave.
+   * Property edits preserve Undo; remove/delete replace it; undo and add/link/copy explicitly clear it.
+   */
+  const installEdit = useCallback((
+    catalog: CatalogWorkspace,
+    history: RemovalRecord | 'preserve' | 'clear' = 'preserve',
+  ) => {
+    setOpen(catalog)
+    if (history !== 'preserve') setRemovalHistory(history === 'clear' ? undefined : history)
+    autosave(catalog)
+  }, [autosave])
 
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
     if (!open) return
@@ -156,11 +223,8 @@ export default function App() {
     if (catalog === open.catalog) return
     // Saving a field's text leaves every link as it was, so the usage index stays valid.
     if (!updates.links) keepIndex(open.catalog.objects, catalog.objects)
-    setOpen({
-      ...open,
-      catalog,
-    })
-  }, [open])
+    installEdit({ ...open, catalog })
+  }, [installEdit, open])
 
   const handleRemoveLink = useCallback((parentId: string, property: string, childId: string) => {
     if (!open) return
@@ -172,12 +236,13 @@ export default function App() {
       childId
     )
 
-    setOpen({
+    installEdit({
       ...open,
-      catalog: updatedCatalog,
-    })
-    setRemovalHistory(undoRecord)
-  }, [open])
+      catalog: updatedCatalog
+      },
+      undoRecord
+    )
+  }, [installEdit, open])
 
   const handleDeleteObject = useCallback((id: string) => {
     if (!open) return
@@ -186,71 +251,56 @@ export default function App() {
       open.catalog,
       id
     )
-
-    setOpen({
+    installEdit({
       ...open,
-      catalog: updatedCatalog,
-    })
-    setRemovalHistory(undoRecord)
-  }, [open])
+      catalog: updatedCatalog
+      },
+      undoRecord
+    )
+  }, [installEdit, open])
 
   const handleUndoRemoval = useCallback(() => {
     if (!open || !removalHistory) return
+    const catalog = undoRemoval(open.catalog, removalHistory)
+    installEdit({ ...open, catalog }, 'clear')
+  }, [installEdit, open, removalHistory])
 
-    const updatedCatalog = undoRemoval(open.catalog, removalHistory)
+  const handleLinkObject = useCallback((parentId: string, property: string, childId: string, single: boolean) => {
+    if (!open) return
+    const catalog = linkObject(open.catalog, parentId, property, childId, single)
+    installEdit({ ...open, catalog }, 'clear')
+  }, [installEdit, open])
 
-    setOpen({
-      ...open,
-      catalog: updatedCatalog,
-    })
-    setRemovalHistory(undefined)
-  }, [open, removalHistory])
+  const handleCreateObject = useCallback((parentId: string, property: string, dcatClass: string, single: boolean) => {
+    if (!open) return undefined
+    const { catalog, id } = createLinked(open.catalog, parentId, property, dcatClass, single)
+    installEdit({ ...open, catalog }, 'clear')
+    return id
+  }, [installEdit, open])
 
-  /**
-   * Applies a change that returns the new catalog graph and an id, and returns the id. It ends the last removal's undo:
-   * undoing a removal after a pick, create or copy could restore an id that is in use again.
-   */
-  const change = useCallback(
-    (apply: (catalog: CatalogGraph) => { catalog: CatalogGraph; id: string }) => {
-      if (!open) return undefined
-      const { catalog, id } = apply(open.catalog)
-      setOpen({ ...open, catalog })
-      setRemovalHistory(undefined)
-      return id
-    },
-    [open],
-  )
-  const handleLinkObject = useCallback(
-    (parentId: string, property: string, childId: string, single: boolean) =>
-      void change((catalog) => ({ catalog: linkObject(catalog, parentId, property, childId, single), id: childId })),
-    [change],
-  )
-  const handleCreateObject = useCallback(
-    (parentId: string, property: string, dcatClass: string, single: boolean) =>
-      change((catalog) => createLinked(catalog, parentId, property, dcatClass, single)),
-    [change],
-  )
-  const handleCopyObject = useCallback(
-    (parentId: string, property: string, targetId: string) =>
-      change((catalog) => copyFor(catalog, parentId, property, targetId)),
-    [change],
-  )
+  const handleCopyObject = useCallback((parentId: string, property: string, targetId: string) => {
+    if (!open) return undefined
+    const { catalog, id } = copyFor(open.catalog, parentId, property, targetId)
+    installEdit({ ...open, catalog }, 'clear')
+    return id
+  }, [installEdit, open])
 
   return (
-    <CatalogContext.Provider
-      value={{
-        open,
-        setOpen,
-        updateObject,
-        removeLink: handleRemoveLink,
-        deleteObject: handleDeleteObject,
-        undoRemoval: handleUndoRemoval,
-        canUndo: removalHistory !== undefined,
-        linkObject: handleLinkObject,
-        createObject: handleCreateObject,
-        copyObject: handleCopyObject,
-      }}
-    >
+    <CatalogContext.Provider value={{
+      open,
+      createAndOpen,
+      restoreAndOpen,
+      updateObject,
+      removeLink: handleRemoveLink,
+      deleteObject: handleDeleteObject,
+      undoRemoval: handleUndoRemoval,
+      canUndo: removalHistory !== undefined,
+      linkObject: handleLinkObject,
+      createObject: handleCreateObject,
+      copyObject: handleCopyObject,
+      saveStatus,
+      saveError,
+    }}>
       <ValidationProvider>
         <RouterProvider router={router} />
       </ValidationProvider>

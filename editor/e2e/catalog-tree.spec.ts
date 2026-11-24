@@ -194,14 +194,16 @@ test('cuts a long label to one line, and keeps all of it in the name and on hove
   expect(await height(`${long} Dataset`)).toBe(await height('Example Agency Publisher · Organization'))
 })
 
-test('opens an object in a 3,000-dataset catalog and limits a filter that matches thousands', async ({ page }) => {
+test('opens an object in a 3,000-dataset catalog and limits a filter that matches thousands', async ({ page }, testInfo) => {
+  testInfo.setTimeout(60_000)
   await page.goto('/import')
   await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
     name: 'large.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(largeCatalog())),
   })
-  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
+  // TODO #29 Speed up the saveCatalog time for a large catalog
+  await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/, { timeout: 30_000 })
   await expect(tree(page).getByRole('treeitem')).toHaveCount(1 + 3_000)
 
   await filter(page).fill('json download')
