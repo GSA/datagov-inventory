@@ -28,6 +28,7 @@ import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
 import { IndexedDbCatalogRepository } from './storage/IndexedDbCatalogRepository'
+import { useUnsavedChangesWarning } from './useUnsavedChangesWarning'
 
 const catalogStorage = new IndexedDbCatalogRepository()
 
@@ -155,10 +156,13 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const [saveError, setSaveError] = useState<Error>()
   const autosaveQueue = useRef(new AutosaveQueue<CatalogWorkspace>((catalog) => catalogStorage.saveCatalog(catalog)))
+  const hasUnsavedChangesRef = useRef(false)
   const catalogGeneration = useRef(0)
+  useUnsavedChangesWarning(hasUnsavedChangesRef)
 
   const installDurableCatalog = useCallback((catalog: CatalogWorkspace) => {
     catalogGeneration.current++
+    hasUnsavedChangesRef.current = false
     setOpen(catalog)
     setRemovalHistory(undefined)
     setSaveError(undefined)
@@ -187,12 +191,16 @@ export default function App() {
 
   const autosave = useCallback((catalog: CatalogWorkspace) => {
     const generation = catalogGeneration.current
+    hasUnsavedChangesRef.current = true
     setSaveStatus('saving')
     setSaveError(undefined)
     autosaveQueue.current.enqueue(catalog)
     void autosaveQueue.current.flush().then(
       () => {
-        if (catalogGeneration.current === generation) setSaveStatus('saved')
+        if (catalogGeneration.current === generation) {
+          hasUnsavedChangesRef.current = false
+          setSaveStatus('saved')
+        }
       },
       (error) => {
         if (catalogGeneration.current === generation) {
@@ -219,6 +227,8 @@ export default function App() {
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
     if (!open) return
     const catalog = updateCatalogObject(open.catalog, id, updates)
+    // Nothing changed, so the catalog keeps its identity, and a catalog check stays current.
+    if (catalog === open.catalog) return
     // Saving a field's text leaves every link as it was, so the usage index stays valid.
     if (!updates.links) keepIndex(open.catalog.objects, catalog.objects)
     installEdit({ ...open, catalog })

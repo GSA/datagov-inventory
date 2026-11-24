@@ -11,8 +11,8 @@ import { classLabel, fieldLabel } from './labels'
 import { ancestorIds, count, labelOf, parentsOf } from './tree'
 import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
-import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
+import { CatalogCheckStatus } from './validation/CatalogCheckStatus'
 import { useDelayedFlag } from './validation/useDelayedFlag'
 import { ExportWarningDialog } from './validation/ExportWarningDialog'
 import { storageErrorHelp, type StorageErrorHelp } from './storageErrorHelp'
@@ -198,9 +198,13 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const { undoRemoval, canUndo, saveStatus, saveError } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
-  const [showValidationSummary, setShowValidationSummary] = useState(false)
   const { validateCatalog, catalogSummary, isReady } = useValidation()
-  const validationContext = useValidationContext()
+  // The last check of this catalog. Any change since (an edit, link, create, copy, delete or undo) makes a new graph,
+  // so comparing the two is enough to tell it is out of date.
+  const check = catalogSummary?.catalogId === open.id ? catalogSummary : undefined
+  const checkIsStale = check !== undefined && check.catalog !== open.catalog
+  // Whether a check's errors are listed: the user's choice, kept across checks.
+  const [showValidationSummary, setShowValidationSummary] = useState(true)
   const [isValidatingCatalog, setIsValidatingCatalog] = useState(false)
   // Most checks finish before a person would notice (a 3,000-dataset catalog in about 0.2 s), so the button says
   // "Validating…" only if a check runs past 400 ms, and then for at least 500 ms, so it neither flashes nor blinks.
@@ -214,7 +218,6 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
     // Ignores clicks while busy instead of disabling the button, which would take focus from it.
     if (isValidatingCatalog || showValidating) return
     setIsValidatingCatalog(true)
-    setShowValidationSummary(true)
     setValidationResult('')
     try {
       const { totalErrors } = await validateCatalog()
@@ -230,7 +233,7 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   }
 
   function initiateExport() {
-    if (catalogSummary && !catalogSummary.valid) {
+    if (check && !check.valid) {
       setShowExportWarning(true)
       return
     }
@@ -265,8 +268,8 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
       URL.revokeObjectURL(url)
 
       let message = 'Catalog exported successfully'
-      if (catalogSummary && !catalogSummary.valid) {
-        message += ` (with ${catalogSummary.totalErrors} validation ${catalogSummary.totalErrors === 1 ? 'error' : 'errors'})`
+      if (check && !check.valid) {
+        message += ` (with ${check.totalErrors} validation ${check.totalErrors === 1 ? 'error' : 'errors'})`
       }
       if (result.sharedObjects.length > 0) {
         message += `. Note: ${result.sharedObjects.length} shared ${result.sharedObjects.length === 1 ? 'object was' : 'objects were'} duplicated at each reference point (DCAT-US 3.0 has no reference format).`
@@ -288,8 +291,18 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
         <bdi>{labelOf(root)}</bdi>
       </h1>
       <p className="margin-top-1 text-base-dark">
-        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
-        browser only (nothing is uploaded) · {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Not saved'}
+        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} ·{' '}
+        {/* Kept on one line, so a phone never splits the count from what it counts. */}
+        {open.merged ? (
+          <>
+            <span className="text-no-wrap">
+              {count(open.merged)} identical {open.merged === 1 ? 'copy' : 'copies'} merged
+            </span>{' '}
+            ·{' '}
+          </>
+        ) : null}
+        Open in this browser only (nothing is uploaded) ·{' '}
+        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Not saved'}
       </p>
       {saveError && (
         <Alert type="error" slim role="alert" className="margin-top-2">
@@ -298,69 +311,72 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
           </AlertText>
         </Alert>
       )}
-      {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
-      {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
-      <ButtonGroup className="catalog-actions flex-row flex-wrap margin-top-105">
-        {[
-          <Button key="export" type="button" onClick={initiateExport}>
-            Export catalog
-          </Button>,
-          ...(isReady
-            ? [
-                <Button
-                  key="validate"
-                  type="button"
-                  onClick={handleValidateCatalog}
-                  aria-disabled={showValidating || undefined}
-                  outline
-                >
-                  {/* Both labels hold the space, so the button keeps its width and Undo stays put. */}
-                  <span className="button-labels">
-                    <span className={showValidating ? 'button-labels__off' : undefined}>Validate catalog</span>
-                    <span className={showValidating ? undefined : 'button-labels__off'}>Validating…</span>
-                  </span>
-                </Button>,
-              ]
-            : []),
-          <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
-            Undo
-          </Button>,
-        ]}
-      </ButtonGroup>
-      {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page. */}
-      <p role="status" className="usa-sr-only">
-        {isValidatingCatalog && showValidating ? 'Validating catalog…' : validationResult}
-      </p>
-      {showValidationSummary && catalogSummary && (
-        <div className="margin-top-2">
-          <ValidationSummary
-            catalogSummary={catalogSummary}
-            objectResults={Array.from(open.catalog.objects.values())
-              .map((obj) => {
-                const errors = validationContext.getObjectErrors(obj.id)
-                return {
-                  objectId: obj.id,
-                  label: labelOf(obj),
-                  objectType: obj.dcatClass,
-                  valid: errors.length === 0,
-                  errors,
-                }
-              })
-              .filter((r) => !r.valid)}
-            onNavigateToObject={(objectId) => {
-              const object = open.catalog.objects.get(objectId)!
-              navigate({
-                to: '/editor/$',
-                params: { _splat: editorPath(open, object) },
-              })
-            }}
+      {/* The actions, and the last check's status beside them (under them, on a phone). */}
+      <div className="display-flex flex-wrap flex-align-center margin-top-105">
+        {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
+        {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
+        <ButtonGroup className="catalog-actions flex-row flex-wrap margin-right-2">
+          {[
+            <Button key="export" type="button" onClick={initiateExport}>
+              Export catalog
+            </Button>,
+            ...(isReady
+              ? [
+                  <Button
+                    key="validate"
+                    type="button"
+                    onClick={handleValidateCatalog}
+                    aria-disabled={showValidating || undefined}
+                    outline
+                  >
+                    {/* Both labels hold the space, so the button keeps its width and Undo stays put. */}
+                    <span className="stacked-labels">
+                      <span className={showValidating ? 'stacked-labels__off' : undefined}>Validate catalog</span>
+                      <span className={showValidating ? undefined : 'stacked-labels__off'}>Validating…</span>
+                    </span>
+                  </Button>,
+                ]
+              : []),
+            <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+              Undo
+            </Button>,
+          ]}
+        </ButtonGroup>
+        {check && (
+          <CatalogCheckStatus
+            totalErrors={check.totalErrors}
+            timestamp={check.timestamp}
+            stale={checkIsStale}
+            resultsShown={showValidationSummary}
+            resultsId="validation-results"
+            onToggleResults={() => setShowValidationSummary((shown) => !shown)}
           />
-        </div>
+        )}
+      </div>
+      {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page.
+          An out-of-date result is cleared, which announces nothing, so it is not read later as current. */}
+      <p role="status" className="usa-sr-only">
+        {isValidatingCatalog && showValidating ? 'Validating catalog…' : checkIsStale ? '' : validationResult}
+      </p>
+      {check && !check.valid && showValidationSummary && (
+        <ValidationSummary
+          id="validation-results"
+          catalogSummary={check}
+          stale={checkIsStale}
+          // Labels as they are now, of the objects that had errors at the check and still exist.
+          objectResults={check.objectsWithErrors.flatMap(({ objectId, objectType, errors }) => {
+            const object = objects.get(objectId)
+            return object ? [{ objectId, objectType, errors, label: labelOf(object) }] : []
+          })}
+          onNavigateToObject={(objectId) => {
+            navigate({ to: '/editor/$', params: { _splat: editorPath(open, objects.get(objectId)!) } })
+          }}
+        />
       )}
-      {catalogSummary && (
+      {check && (
         <ExportWarningDialog
           isOpen={showExportWarning}
-          catalogSummary={catalogSummary}
+          catalogSummary={check}
           onCancel={() => setShowExportWarning(false)}
           onExport={performExport}
         />

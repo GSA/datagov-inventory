@@ -30,6 +30,11 @@ export type RemovalRecord = LinkRemovalRecord | ObjectRemovalRecord
 export function updateObject(graph: CatalogGraph, id: string, updates: Partial<CatalogObject>): CatalogGraph {
   const object = graph.objects.get(id)
   if (!object) throw new Error(`Object ${id} not found`)
+  // Saving the values already there (leaving a field without typing) returns the same graph: nothing changed.
+  const { properties = {}, ...rest } = updates
+  if (Object.keys(rest).length === 0 && Object.entries(properties).every(([key, value]) => Object.is(object.properties[key], value))) {
+    return graph
+  }
   const objects = new Map(graph.objects)
   objects.set(id, {
     ...object,

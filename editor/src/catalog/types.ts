@@ -18,7 +18,7 @@ export interface CatalogObject {
 
 export interface CatalogGraph {
     rootId: string
-    /** Every object by id, in document order (each parent before its children). */
+    /** Every object by id, in document order: each object comes after the first object that links to it. */
     objects: Map<string, CatalogObject>
 }
 
@@ -28,6 +28,8 @@ export interface CatalogWorkspace {
     id: string
     /** The file name, sample name, "Pasted JSON" or "Blank catalog". */
     sourceName: string
+    /** How many identical copies were merged into shared objects when it was imported (ADR 0008); absent if none. */
+    merged?: number
     /** Every object and link uses an application-generated UUID, never a source-location id. */
     catalog: CatalogGraph
 }

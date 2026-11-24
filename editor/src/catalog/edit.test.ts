@@ -36,6 +36,13 @@ describe('updateObject', () => {
     expect(result.objects.get('catalog-root')?.properties).toEqual({ title: 'After', description: 'Kept' })
     expect(catalog.objects.get('catalog-root')?.properties.title).toBe('Before')
   })
+
+  it('returns the same graph when the values are already there', () => {
+    const catalog = createCatalog([createObject('catalog-root', 'Catalog', { title: 'Same' })])
+
+    expect(updateObject(catalog, 'catalog-root', { properties: { title: 'Same' } })).toBe(catalog)
+    expect(updateObject(catalog, 'catalog-root', { properties: { title: 'Other' } })).not.toBe(catalog)
+  })
 })
 
 describe('removeLink', () => {
