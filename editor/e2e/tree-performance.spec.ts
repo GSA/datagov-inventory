@@ -1,6 +1,6 @@
 /**
- * Measures how long the catalog tree, and picking or creating objects in a field (#25), take to respond on a generated catalog of 3,000 datasets (18,001 objects),
- * as INP does: from each input to the next paint, with the Event Timing API. Target (#23): 100 ms, the limit for a
+ * Measures how long the catalog tree, and picking or creating objects in a field (#25), take to respond on a generated catalog of 3,000 datasets
+ * (18,001 objects as written, 15,002 once its shared publisher merges on import, #6546), as INP does: from each input to the next paint, with the Event Timing API. Target (#23): 100 ms, the limit for a
  * response to feel immediate (https://web.dev/articles/rail). Opt-in, since timings vary by machine:
  *
  *   PERF=1 npx playwright test tree-performance          # CPU_THROTTLE=4 to emulate a slower laptop
@@ -22,6 +22,8 @@ function observe() {
     }
   }).observe({ type: 'event', durationThreshold: 16, buffered: false } as PerformanceObserverInit)
   addEventListener('input', () => (w.inputAt = performance.now()), true)
+  // The file input's change starts a load (read, parse and decompose in the worker, then the tree's first paint).
+  addEventListener('change', () => ((w as unknown as { loadAt: number }).loadAt = performance.now()), true)
   // About when the last change to the page was painted: the next frame after it.
   new MutationObserver(() => requestAnimationFrame(() => setTimeout(() => (w.treeChanged = performance.now())))).observe(document, { subtree: true, childList: true, characterData: true })
 }
@@ -46,9 +48,20 @@ async function openLargeCatalog(page: Page) {
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(largeCatalog())),
   })
-  await page.getByRole('tree').getByRole('treeitem').nth(3000).waitFor()
+  // Waits in-page, not with a locator, which would slow the page it is timing.
+  const loaded = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const done = () => document.querySelectorAll('[role="treeitem"]').length > 3_000
+        const finish = () => requestAnimationFrame(() => setTimeout(() => resolve(performance.now() - (window as unknown as { loadAt: number }).loadAt)))
+        if (done()) return finish()
+        const observer = new MutationObserver(() => done() && (observer.disconnect(), finish()))
+        observer.observe(document.body, { subtree: true, childList: true })
+      }),
+  )
   const results: Record<string, number[]> = {}
   const record = (name: string, ms: number) => (results[name] ??= []).push(ms)
+  record('load: choose the file to the tree painted', loaded)
   const report = () => {
     const summary = Object.entries(results).map(
       ([name, ms]) => `${name.padEnd(56)} max ${Math.round(Math.max(...ms))} ms, median ${Math.round(ms.sort((a, b) => a - b)[ms.length >> 1])} ms (n=${ms.length})`,

@@ -256,12 +256,17 @@ cache for the current working set rather than a complete mirror. Stable IDs,
 graph semantics, and edit operations are the cross-phase compatibility contract;
 complete browser materialization is not.
 
-Phase 1 preserves distinct input object instances, even when their scalar
-properties are identical, so a load/export round trip does not merge data the
-user did not choose to share. ADR 0008's convergence of identical objects begins
-with authoritative phase 2 onboarding. Phase 1 also preserves the graph shape
-without exposing `draft`/`live`, publish, or unpublish workflow; the `state` model
-described below starts in phase 2.
+Phase 1 applies ADR 0008's convergence of identical objects on import
+([GSA/data.gov#6546](https://github.com/GSA/data.gov/issues/6546)): completely
+identical objects other than datasets, catalogs and dataset series become one
+shared object, so an edit to it shows in every place it is used. Matching is
+exact: the same class, and every value the same, with JSON key order ignored, array
+order kept, and an `@id` compared like any other property. Children are compared
+before parents, so a parent can match once its children have merged. The editor
+says how many copies were merged. Export still writes a shared object in full at
+each place it is used, so an unedited load/export round trip gives the same JSON,
+apart from key order. Phase 1 does not expose `draft`/`live`, publish, or
+unpublish workflow; the `state` model described below starts in phase 2.
 
 ### Phase 1 persistence contract
 
@@ -785,8 +790,8 @@ outside this system (CM-3).
 
 ### 5.7 Import DCAT-US 3.0 catalog
 
-This is the authoritative phase 2 import flow. Phase 1 local ingestion preserves
-distinct input instances and does not introduce `draft`/`live` workflow.
+This is the authoritative phase 2 import flow. Phase 1 local ingestion merges
+completely identical objects in the same way but does not introduce `draft`/`live` workflow.
 
 ```mermaid
 flowchart LR

@@ -14,7 +14,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router'
 import { loadCatalog } from './loadCatalog'
 import { useCatalog, usePageTitle } from './session'
-import type { CatalogGraph } from './catalog/types'
+import type { DecomposedCatalog } from './catalog/decompose'
 import { identifyGraph } from './catalog/identify'
 import { createUuid } from './catalog/id'
 import { catalogPath } from './objectRoute'
@@ -32,7 +32,7 @@ let attempts = 0
 
 interface LoadedCatalog {
   sourceName: string
-  catalog: CatalogGraph
+  catalog: DecomposedCatalog
 }
 
 export default function ImportPage() {
@@ -58,7 +58,8 @@ export default function ImportPage() {
   async function show(loaded: LoadedCatalog) {
     const catalog = identifyGraph(loaded.catalog)
     const catalogId = createUuid()
-    const opened = { id: catalogId, sourceName: loaded.sourceName, catalog }
+    const { merged } = loaded.catalog
+    const opened = { id: catalogId, sourceName: loaded.sourceName, catalog, ...(merged > 0 && { merged }) }
     await createAndOpen(opened)
     // Open the accepted catalog at its canonical root.
     void navigate({ href: `/editor/${catalogPath(catalogId)}` })

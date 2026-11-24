@@ -12,6 +12,8 @@ const CATALOG_ID = 'catalogId'
 interface CatalogRecord {
   id: string
   sourceName: string
+  /** Identical copies merged on import (ADR 0008), so the summary still says so after a reload; absent if none. */
+  merged?: number
   rootId: string
   createdAt: number
   updatedAt: number
@@ -145,7 +147,12 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
         ;(parent.links[reference.property] ??= []).push(reference.childId)
       }
       if (!graphObjects.has(catalog.rootId)) throw invalidData('The saved catalog root object is missing.')
-      return { id: catalog.id, sourceName: catalog.sourceName, catalog: { rootId: catalog.rootId, objects: graphObjects } }
+      return {
+        id: catalog.id,
+        sourceName: catalog.sourceName,
+        ...(catalog.merged && { merged: catalog.merged }),
+        catalog: { rootId: catalog.rootId, objects: graphObjects },
+      }
     })
   }
 
@@ -169,12 +176,13 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
 }
 
 const catalogRecord = (
-  { id, sourceName, catalog }: CatalogWorkspace,
+  { id, sourceName, merged, catalog }: CatalogWorkspace,
   createdAt: number,
   updatedAt: number,
 ): CatalogRecord => ({
   id,
   sourceName,
+  ...(merged && { merged }),
   rootId: catalog.rootId,
   createdAt,
   updatedAt,

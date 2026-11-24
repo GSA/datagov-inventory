@@ -46,6 +46,13 @@ describe('loadCatalog', () => {
     expect(FakeWorker.created[0].terminated).toBe(true)
   })
 
+  it('says how many identical copies were merged (ADR 0008)', async () => {
+    const agency = { '@type': 'Organization', name: 'Agency' }
+    const catalog = await load(JSON.stringify({ '@type': 'Catalog', publisher: agency, dataset: [{ publisher: agency }] }))
+    expect(catalog.merged).toBe(1)
+    expect(catalog.objects.get('#/dataset/0')!.links.publisher).toEqual(['#/publisher'])
+  })
+
   it('takes a big catalog in batches, in document order', async () => {
     const datasets = Array.from({ length: 2 * BATCH_SIZE }, (_, i) => ({ title: `D${i}` }))
     const text = JSON.stringify({ '@type': 'Catalog', dataset: datasets })
@@ -53,7 +60,7 @@ describe('loadCatalog', () => {
       BATCH_SIZE,
       BATCH_SIZE,
       1,
-      { rootId: '#' },
+      { rootId: '#', merged: 0 },
     ])
     const catalog = await load(text)
     expect(catalog.rootId).toBe('#')

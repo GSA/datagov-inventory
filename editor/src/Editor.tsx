@@ -290,8 +290,18 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
         <bdi>{labelOf(root)}</bdi>
       </h1>
       <p className="margin-top-1 text-base-dark">
-        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} · Open in this
-        browser only (nothing is uploaded) · {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Not saved'}
+        From <bdi>{open.sourceName}</bdi> · {count(objects.size)} {objects.size === 1 ? 'object' : 'objects'} ·{' '}
+        {/* Kept on one line, so a phone never splits the count from what it counts. */}
+        {open.merged ? (
+          <>
+            <span className="text-no-wrap">
+              {count(open.merged)} identical {open.merged === 1 ? 'copy' : 'copies'} merged
+            </span>{' '}
+            ·{' '}
+          </>
+        ) : null}
+        Open in this browser only (nothing is uploaded) ·{' '}
+        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Not saved'}
       </p>
       {saveError && (
         <Alert type="error" slim role="alert" className="margin-top-2">
