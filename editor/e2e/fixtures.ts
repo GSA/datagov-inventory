@@ -28,6 +28,11 @@ export const test = base.extend<{ cspViolations: string[] }>({
 
 export { expect }
 
+/** Waits until the current catalog's latest edit has committed to browser storage. */
+export async function expectCatalogSaved(page: Page) {
+  await expect(page.getByText(/· Saved$/)).toBeVisible()
+}
+
 /** WCAG 2.1 A and AA (ADR 0002), the rules #30 makes blocking. */
 export const wcag21aa = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 

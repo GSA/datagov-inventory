@@ -7,7 +7,7 @@ test('merges an identical publisher on import, and an edit to it shows in every 
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
   await page.getByRole('button', { name: 'Load sample' }).click()
   await expect(page.getByText('From dataset-with-distributions.json ·')).toHaveText(
-    /· 8 objects · 1 identical copy merged · Open in this tab only/,
+    /· 8 objects · 1 identical copy merged · Open in this browser only/,
   )
 
   const tree = page.getByRole('tree', { name: 'Catalog' })
@@ -22,4 +22,12 @@ test('merges an identical publisher on import, and an edit to it shows in every 
   await tree.getByRole('treeitem', { name: /^Air quality readings Dataset/ }).press('ArrowRight')
   await expect(tree.getByRole('treeitem', { name: /^Social Security Administration Publisher/ })).toHaveCount(2)
   await expect(tree.getByRole('treeitem', { name: /^Example Agency Publisher/ })).toHaveCount(0)
+
+  // Restored from browser storage (#74), it is still one shared object, and the line still says what merged.
+  await expect(page.getByText('From dataset-with-distributions.json ·')).toContainText('Saved')
+  await page.reload()
+  await expect(page.getByText('From dataset-with-distributions.json ·')).toHaveText(/· 8 objects · 1 identical copy merged ·/)
+  await expect(
+    page.getByRole('tree', { name: 'Catalog' }).getByRole('treeitem', { name: /^Social Security Administration Publisher.*Shared · 2 places/ }),
+  ).not.toHaveCount(0)
 })

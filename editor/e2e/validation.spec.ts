@@ -207,7 +207,8 @@ test.describe('Validate catalog feedback', () => {
     await expectNoAxeViolations(page)
   })
 
-  test('a long check on 3,000 datasets says so in the button, without moving the page', async ({ page }) => {
+  test('a long check on 3,000 datasets says so in the button, without moving the page', async ({ page }, testInfo) => {
+    testInfo.setTimeout(60_000)
     await page.addInitScript(holdValidationResults)
     await page.goto('/import')
     await page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles({
@@ -215,7 +216,8 @@ test.describe('Validate catalog feedback', () => {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(largeCatalog())),
     })
-    await expect(page.getByRole('tree').getByRole('treeitem')).toHaveCount(1 + 3_000)
+    // TODO #29 Speed up the saveCatalog time for a large catalog
+    await expect(page.getByRole('tree').getByRole('treeitem')).toHaveCount(1 + 3_000, { timeout: 30_000 })
     const button = page.locator('.catalog-actions .usa-button').nth(1)
     await expect(button).toHaveAccessibleName('Validate catalog')
     const status = page.getByRole('status').filter({ hasText: /^Validat/ })

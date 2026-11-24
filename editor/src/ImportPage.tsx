@@ -36,7 +36,7 @@ interface LoadedCatalog {
 }
 
 export default function ImportPage() {
-  const { open, setOpen } = useCatalog()
+  const { open, createAndOpen } = useCatalog()
   const navigate = useNavigate()
   usePageTitle('Import a catalog')
   /** A catalog that loaded while another was open, waiting for the user to confirm it replaces that one. */
@@ -55,14 +55,28 @@ export default function ImportPage() {
     if (pending) document.getElementById('replace-heading')?.focus()
   }, [pending])
 
-  function show(loaded: LoadedCatalog) {
+  async function show(loaded: LoadedCatalog) {
     const catalog = identifyGraph(loaded.catalog)
     const catalogId = createUuid()
     const { merged } = loaded.catalog
     const opened = { id: catalogId, sourceName: loaded.sourceName, catalog, ...(merged > 0 && { merged }) }
-    setOpen(opened)
+    await createAndOpen(opened)
     // Open the accepted catalog at its canonical root.
     void navigate({ href: `/editor/${catalogPath(catalogId)}` })
+  }
+
+  async function replace(loaded: LoadedCatalog) {
+    setError(undefined)
+    setLoading(loaded.sourceName)
+    try {
+      await show(loaded)
+      setPending(undefined)
+    } catch (e) {
+      const attempt = ++attempts
+      setError({ name: loaded.sourceName, message: e instanceof Error ? e.message : String(e), attempt })
+    } finally {
+      stopLoading()
+    }
   }
 
   /**
@@ -83,7 +97,7 @@ export default function ImportPage() {
       if (controller.signal.aborted) return
       const loaded = { sourceName: name, catalog }
       if (openNow.current) setPending(loaded)
-      else show(loaded)
+      else await show(loaded)
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt })
@@ -181,7 +195,7 @@ export default function ImportPage() {
             <bdi>{open.sourceName}</bdi> open.
           </AlertText>
           <ButtonGroup>
-            <Button type="button" onClick={() => show(pending)}>
+            <Button type="button" disabled={loading !== undefined} onClick={() => void replace(pending)}>
               Replace
             </Button>
             <Button type="button" outline onClick={() => setPending(undefined)}>

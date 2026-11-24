@@ -194,7 +194,7 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const root = objects.get(rootId)!
   const object = objects.get(id)
   const parents = useMemo(() => parentsOf(open.catalog), [open.catalog])
-  const { undoRemoval, canUndo } = useCatalog()
+  const { undoRemoval, canUndo, saveStatus, saveError } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
   const [showValidationSummary, setShowValidationSummary] = useState(false)
@@ -297,8 +297,14 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
             ·{' '}
           </>
         ) : null}
-        Open in this tab only (nothing is uploaded)
+        Open in this browser only (nothing is uploaded) ·{' '}
+        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Not saved'}
       </p>
+      {saveError && (
+        <Alert type="error" slim role="alert" className="margin-top-2">
+          <AlertText>Your latest changes could not be saved in this browser. {saveError.message}</AlertText>
+        </Alert>
+      )}
       {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
       {/* In a row that wraps, even on phones, where USWDS would stack three full-width buttons above the tree. */}
       <ButtonGroup className="catalog-actions flex-row flex-wrap margin-top-105">
@@ -426,7 +432,7 @@ function NoCatalog() {
   )
 }
 
-/** A well-formed catalog address that this browser cannot currently restore. */
+/** A well-formed catalog address with no matching catalog in this browser's storage. */
 function CatalogNotFound() {
   usePageTitle('Catalog not found')
   return (
@@ -441,6 +447,40 @@ function CatalogNotFound() {
       </Link>
     </>
   )
+}
+
+function CatalogStorageUnavailable() {
+  usePageTitle('Browser storage unavailable')
+  return (
+    <>
+      <h1 tabIndex={-1}>Browser storage unavailable</h1>
+      <p>The editor could not read this catalog from browser storage. Reload the page or import a recovery copy.</p>
+      <Link to="/import" className="usa-button">
+        Import a catalog
+      </Link>
+    </>
+  )
+}
+
+function RestoreCatalog({ catalogId }: { catalogId: string }) {
+  const { restoreAndOpen } = useCatalog()
+  const [state, setState] = useState<'loading' | 'missing' | 'error'>('loading')
+  useEffect(() => {
+    let active = true
+    restoreAndOpen(catalogId).then(
+      (result) => {
+        if (!active) return
+        if (result === 'not-found') setState('missing')
+      },
+      () => active && setState('error'),
+    )
+    return () => {
+      active = false
+    }
+  }, [catalogId, restoreAndOpen])
+  if (state === 'loading') return <p role="status">Loading catalog…</p>
+  if (state === 'error') return <CatalogStorageUnavailable />
+  return <CatalogNotFound />
 }
 
 /** An `/editor/...` path that does not contain a valid catalog/object identity. */
@@ -475,10 +515,9 @@ export default function Editor() {
   const address = editorAddress(_splat)
   if (!address) return <InvalidEditorAddress />
 
-  // Until browser persistence exists, this tab can open only its in-memory catalog. Once #28 adds persistence, a
-  // valid `/editor/<catalog-token>...` route should first restore that exact catalog by id (or report not found /
-  // storage unavailable), then resolve the optional object id within it; it must not display a different open catalog.
-  if (!open || address.catalogId !== open.id) return <CatalogNotFound />
+  // The catalog token in the URL is authoritative. If it differs from the in-memory catalog, restore the requested
+  // catalog instead of rendering the current one; then resolve the optional object id within that restored catalog.
+  if (!open || address.catalogId !== open.id) return <RestoreCatalog catalogId={address.catalogId} />
 
   const object = address.objectId ? open.catalog.objects.get(address.objectId) : undefined
   if (object && address.objectType !== object.dcatClass.toLowerCase()) return <InvalidEditorAddress />

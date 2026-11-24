@@ -1,7 +1,7 @@
 /** Select an existing object or create a new one from any class-valued field (#25): no dialogs, one form at a time. */
 import { readFile } from 'node:fs/promises'
 import type { Page } from '@playwright/test'
-import { test, expect } from './fixtures'
+import { test, expect, expectCatalogSaved } from './fixtures'
 
 async function loadSample(page: Page) {
   await page.goto('/import')
@@ -173,6 +173,56 @@ test('creates a new object in place of the form, three levels deep, and comes ba
   // The browser's Back works too, and the new object has its own address.
   await page.goBack()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}\/distribution\/[A-Za-z0-9_-]{22}$/)
+})
+
+test('restores newly created nested objects and their links after reload', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Distribution').getByRole('button', { name: 'Create new Distribution' }).click()
+  const title = page.getByRole('textbox', { name: /^Title/ })
+  await title.fill('Persistent Parquet')
+  await title.blur()
+  await field(page, 'Checksum').getByRole('button', { name: 'Create new Checksum' }).click()
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(page.getByRole('heading', { level: 2, name: 'Untitled Checksum' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Back to Persistent Parquet' })).toBeVisible()
+})
+
+test('restores an existing object linked to another parent after reload', async ({ page }) => {
+  await loadSample(page)
+  const contacts = field(page, 'Contact point')
+  await contacts.getByRole('combobox').fill('air')
+  await page.getByRole('option', { name: /Air Quality Team/ }).click()
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(contacts.getByRole('link', { name: 'Air Quality Team' })).toBeVisible()
+  await expect(contacts.getByText('Contact · Used in 2 places')).toBeVisible()
+})
+
+test('restores a copied object in only its selected place after reload', async ({ page }) => {
+  await loadSample(page)
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
+  const originalUrl = page.url()
+  await page.getByRole('treeitem', { name: 'Example Agency Catalog' }).click()
+  await shareContact(page)
+  await field(page, 'Contact point').getByRole('button', { name: 'Edit a copy for this one: Air Quality Team' }).click()
+  const copyUrl = page.url()
+  expect(copyUrl).not.toBe(originalUrl)
+  await expectCatalogSaved(page)
+
+  await page.reload()
+
+  await expect(page).toHaveURL(copyUrl)
+  await expect(page.getByRole('textbox', { name: /^Full name/ })).toHaveValue('Air Quality Team')
+  await page.getByRole('treeitem', { name: /^Air quality readings/ }).click()
+  await field(page, 'Contact point').getByRole('link', { name: 'Air Quality Team' }).click()
+  await expect(page).toHaveURL(originalUrl)
 })
 
 test('leaves a long list with Tab, and the caret keys leave the options', async ({ page }) => {
