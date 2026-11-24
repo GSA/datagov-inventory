@@ -173,6 +173,15 @@ test('IndexedDbCatalogRepository aborts an upgrade that cannot migrate a saved r
   expect(logs.join('\n')).not.toContain(saved.sourceName)
 })
 
+test('IndexedDbCatalogRepository reports an upgrade that fails after its transaction committed', async ({ page }) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  await upgradeTo(page, ['awaitTimerBeforeRequest'])
+
+  expect(await page.evaluate((id) => catalogRepository.loadError(id), saved.id)).toMatchObject({ code: 'upgrade-failed' })
+})
+
 test('IndexedDbCatalogRepository reports an upgrade blocked by another tab, and upgrades once that tab closes', async ({
   page,
   context,

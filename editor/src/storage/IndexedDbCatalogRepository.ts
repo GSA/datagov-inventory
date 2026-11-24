@@ -167,19 +167,23 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
    */
   private open(): Promise<IDBPDatabase<CatalogDatabase>> {
     const migrations = this.migrations
-    let migrationFailed = false
+    let migrated = Promise.resolve(true)
     let blocked = false
+    const upgradeFailed = () => new CatalogStorageError('upgrade-failed', UPGRADE_FAILED)
     return new Promise((resolve, reject) => {
       openDB<CatalogDatabase>(this.databaseName, migrations.length, {
-        async upgrade(database, oldVersion, _newVersion, transaction) {
-          try {
-            for (const migrate of migrations.slice(oldVersion)) {
-              await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
+        upgrade(database, oldVersion, _newVersion, transaction) {
+          migrated = (async () => {
+            try {
+              for (const migrate of migrations.slice(oldVersion)) {
+                await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
+              }
+              return true
+            } catch {
+              abortQuietly(transaction)
+              return false
             }
-          } catch {
-            migrationFailed = true
-            abortQuietly(transaction)
-          }
+          })()
         },
         blocked() {
           blocked = true
@@ -190,8 +194,13 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
           this.database = undefined
         },
       }).then(
-        (database) => (blocked ? database.close() : resolve(database)),
-        (error: unknown) => reject(migrationFailed ? new CatalogStorageError('upgrade-failed', UPGRADE_FAILED) : error),
+        async (database) => {
+          const succeeded = await migrated
+          if (succeeded && !blocked) return resolve(database)
+          database.close()
+          if (!succeeded) reject(upgradeFailed())
+        },
+        async (error: unknown) => reject((await migrated) ? error : upgradeFailed()),
       )
     })
   }

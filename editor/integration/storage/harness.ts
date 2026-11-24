@@ -36,6 +36,10 @@ const testMigrations: Record<string, Migration> = {
       await cursor.update({ ...(cursor.value as object), rootIdChecked: true })
     }
   },
+  awaitTimerBeforeRequest: async (_database, transaction) => {
+    await new Promise((resolve) => setTimeout(resolve))
+    await transaction.objectStore('catalogs').count()
+  },
 }
 
 const logged =
