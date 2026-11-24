@@ -170,6 +170,7 @@ test('IndexedDbCatalogRepository aborts an upgrade that cannot migrate a saved r
   })
   expect(await page.evaluate(() => catalogRepository.databaseSchema())).toEqual({ version: 1, objectIndexes: ['catalogId'] })
   expect(await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)).toEqual(corrupt)
+  expect(logs).toContain('Browser storage upgrade to version 3 failed: Error')
   expect(logs.join('\n')).not.toContain(saved.sourceName)
 })
 

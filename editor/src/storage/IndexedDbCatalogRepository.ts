@@ -174,12 +174,15 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
       openDB<CatalogDatabase>(this.databaseName, migrations.length, {
         upgrade(database, oldVersion, _newVersion, transaction) {
           migrated = (async () => {
+            let version = oldVersion
             try {
               for (const migrate of migrations.slice(oldVersion)) {
                 await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
+                version++
               }
               return true
-            } catch {
+            } catch (error) {
+              console.error(`Browser storage upgrade to version ${version + 1} failed: ${errorName(error)}`)
               abortQuietly(transaction)
               return false
             }
@@ -216,6 +219,9 @@ const UPGRADE_FAILED =
   "The catalogs saved in this browser could not be upgraded for this version of the editor. They have not been " +
   "changed or deleted. Reload the page to try again. If it still fails, don't clear this site's data, which deletes " +
   'them, and work from your last exported catalog file.'
+
+/** Only the error's name, since its message may quote saved catalog data. */
+const errorName = (error: unknown) => (error instanceof Error ? error.name : typeof error)
 
 /** Aborts an upgrade unless a failed request already has. */
 function abortQuietly(transaction: { abort(): void }) {
