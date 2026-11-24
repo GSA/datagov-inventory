@@ -15,7 +15,7 @@ import { useValidationContext } from './validation/ValidationContext'
 import { ValidationSummary } from './validation/ValidationSummary'
 import { useDelayedFlag } from './validation/useDelayedFlag'
 import { ExportWarningDialog } from './validation/ExportWarningDialog'
-import { CatalogStorageError, type CatalogStorageErrorCode } from './storage/CatalogRepository'
+import { storageErrorGuidance } from './storageErrorGuidance'
 
 /** A link to an object. */
 function ObjectLink({
@@ -293,7 +293,9 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
       </p>
       {saveError && (
         <Alert type="error" slim role="alert" className="margin-top-2">
-          <AlertText>Your latest changes could not be saved in this browser. {saveError.message}</AlertText>
+          <AlertText>
+            Your latest changes could not be saved in this browser. {storageErrorGuidance(saveError) ?? saveError.message}
+          </AlertText>
         </Alert>
       )}
       {/* ButtonGroup wraps each child in an item, so the optional button is left out of the list rather than rendered as false. */}
@@ -440,15 +442,9 @@ function CatalogNotFound() {
   )
 }
 
-/** Storage errors whose message already tells the user what to do. */
-const GUIDED_STORAGE_ERRORS: ReadonlySet<CatalogStorageErrorCode> = new Set(['blocked', 'upgrade-failed', 'outdated'])
-
 function CatalogStorageUnavailable({ error }: { error: unknown }) {
   usePageTitle('Browser storage unavailable')
-  const guidance =
-    error instanceof CatalogStorageError && GUIDED_STORAGE_ERRORS.has(error.code)
-      ? error.message
-      : 'Reload the page or import a recovery copy.'
+  const guidance = storageErrorGuidance(error) ?? 'Reload the page or import a recovery copy.'
   return (
     <>
       <h1 tabIndex={-1}>Browser storage unavailable</h1>
