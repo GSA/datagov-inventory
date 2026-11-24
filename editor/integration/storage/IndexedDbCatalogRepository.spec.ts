@@ -195,3 +195,22 @@ test('IndexedDbCatalogRepository reports an upgrade blocked by another tab, and 
   await page.close()
   expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
 })
+
+test('IndexedDbCatalogRepository closes an older connection for an upgrade, then refuses to save over the upgraded database', async ({
+  page,
+  context,
+}) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  const newer = await context.newPage()
+  await upgradeTo(newer, ['indexObjectsByClass'])
+  expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+
+  const edited = { ...saved, sourceName: 'edited in the older tab' }
+  expect(await page.evaluate((value) => catalogRepository.saveError(value), edited)).toEqual({
+    code: 'outdated',
+    message: expect.stringMatching(/newer version.*another tab.*export/is),
+  })
+  expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})

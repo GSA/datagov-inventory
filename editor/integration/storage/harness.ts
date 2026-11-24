@@ -99,6 +99,7 @@ globalThis.catalogRepository = {
   },
   save: (catalog) => storage.saveCatalog(fromSerializable(catalog)),
   loadError: (id) => storage.loadCatalog(id).then(() => undefined, storageError),
+  saveError: (catalog) => storage.saveCatalog(fromSerializable(catalog)).then(() => undefined, storageError),
   migrationLog,
   databaseSchema: () =>
     readDatabase((database) => ({
@@ -122,6 +123,7 @@ declare global {
     save(catalog: SerializableCatalogWorkspace): Promise<void>
     /** Why `load` rejects, as plain data that survives `page.evaluate`; `undefined` if it resolves. */
     loadError(id: string): Promise<StorageErrorData | undefined>
+    saveError(catalog: SerializableCatalogWorkspace): Promise<StorageErrorData | undefined>
     /** The test migrations run by this page, in the order they ran. */
     migrationLog: string[]
     databaseSchema(): Promise<{ version: number; objectIndexes: string[] }>
