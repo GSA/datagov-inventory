@@ -18,6 +18,8 @@ const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
   page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
 /** Goes back to the import page the way a user would, keeping the open catalog (a reload would close it). */
+const DATABASE = 'datagov-inventory-editor'
+
 const toImport = (page: Page) => page.getByRole('link', { name: 'Import', exact: true }).click()
 
 /** The editor has opened `name`, with focus on the catalog's heading. */
@@ -399,4 +401,57 @@ test('reports a valid import when browser storage is unavailable and does not op
   await expect(alert).toContainText('Browser storage is unavailable.')
   await expect(page).toHaveURL('/import')
   await expect(page.getByText(/is open\. Importing another catalog replaces it/)).toHaveCount(0)
+})
+
+test('explains why a saved catalog cannot be restored, and keeps it', async ({ page }) => {
+  await loadSample(page, 'minimal-catalog.json')
+  const catalogUrl = page.url()
+  // As after a rollback to an older build: the stored database is a newer version than any release.
+  await page.evaluate(
+    (database) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(database, Number.MAX_SAFE_INTEGER)
+        request.onsuccess = () => resolve(request.result.close())
+        request.onerror = () => reject(request.error)
+      }),
+    DATABASE,
+  )
+
+  await page.reload()
+
+  await expect(page).toHaveURL(catalogUrl)
+  await expect(page.getByRole('heading', { level: 1, name: 'Reload to use the newer editor' })).toBeVisible()
+  await expect(page.getByText(/updated by a newer version of the editor/)).toBeVisible()
+  const storedCatalogs = await page.evaluate(
+    (database) =>
+      new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open(database)
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const count = request.result.transaction('catalogs').objectStore('catalogs').count()
+          count.onsuccess = () => {
+            request.result.close()
+            resolve(count.result)
+          }
+        }
+      }),
+    DATABASE,
+  )
+  expect(storedCatalogs).toBe(1)
+  expect((await axe(page).analyze()).violations).toEqual([])
+})
+
+test('restores a catalog with schema errors, reports them, and exports it', async ({ page }) => {
+  await chooseFile(page, fixture('dataset-missing-title.json', 'invalid'))
+  await expectOpened(page, 'dataset-missing-title.json')
+
+  await page.reload()
+
+  await expect(tree(page).getByRole('treeitem', { name: 'Untitled Dataset Dataset' })).toBeVisible()
+  await page.getByRole('button', { name: 'Validate catalog' }).click()
+  await expect(page.getByText(/Validation finished: \d+ errors? found/)).toBeVisible()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export catalog' }).click()
+  await page.getByRole('button', { name: 'Download Anyway' }).click()
+  expect((await download).suggestedFilename()).toMatch(/\.json$/)
 })

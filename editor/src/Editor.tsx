@@ -15,6 +15,7 @@ import { ValidationSummary } from './validation/ValidationSummary'
 import { CatalogCheckStatus } from './validation/CatalogCheckStatus'
 import { useDelayedFlag } from './validation/useDelayedFlag'
 import { ExportWarningDialog } from './validation/ExportWarningDialog'
+import { storageErrorHelp, type StorageErrorHelp } from './storageErrorHelp'
 
 /** A link to an object. */
 function ObjectLink({
@@ -305,7 +306,9 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
       </p>
       {saveError && (
         <Alert type="error" slim role="alert" className="margin-top-2">
-          <AlertText>Your latest changes could not be saved in this browser. {saveError.message}</AlertText>
+          <AlertText>
+            Your latest changes could not be saved in this browser. {storageErrorHelp(saveError)?.guidance ?? saveError.message}
+          </AlertText>
         </Alert>
       )}
       {/* The actions, and the last check's status beside them (under them, on a phone). */}
@@ -455,12 +458,18 @@ function CatalogNotFound() {
   )
 }
 
-function CatalogStorageUnavailable() {
-  usePageTitle('Browser storage unavailable')
+const STORAGE_UNAVAILABLE: StorageErrorHelp = {
+  heading: 'Browser storage unavailable',
+  guidance: 'Reload the page or import a recovery copy.',
+}
+
+function CatalogStorageUnavailable({ error }: { error: unknown }) {
+  const { heading, guidance } = storageErrorHelp(error) ?? STORAGE_UNAVAILABLE
+  usePageTitle(heading)
   return (
     <>
-      <h1 tabIndex={-1}>Browser storage unavailable</h1>
-      <p>The editor could not read this catalog from browser storage. Reload the page or import a recovery copy.</p>
+      <h1 tabIndex={-1}>{heading}</h1>
+      <p>The editor could not read this catalog from browser storage. {guidance}</p>
       <Link to="/import" className="usa-button">
         Import a catalog
       </Link>
@@ -470,7 +479,7 @@ function CatalogStorageUnavailable() {
 
 function RestoreCatalog({ catalogId }: { catalogId: string }) {
   const { restoreAndOpen } = useCatalog()
-  const [state, setState] = useState<'loading' | 'missing' | 'error'>('loading')
+  const [state, setState] = useState<'loading' | 'missing' | { error: unknown }>('loading')
   useEffect(() => {
     let active = true
     restoreAndOpen(catalogId).then(
@@ -478,15 +487,15 @@ function RestoreCatalog({ catalogId }: { catalogId: string }) {
         if (!active) return
         if (result === 'not-found') setState('missing')
       },
-      () => active && setState('error'),
+      (error: unknown) => active && setState({ error }),
     )
     return () => {
       active = false
     }
   }, [catalogId, restoreAndOpen])
   if (state === 'loading') return <p role="status">Loading catalog…</p>
-  if (state === 'error') return <CatalogStorageUnavailable />
-  return <CatalogNotFound />
+  if (state === 'missing') return <CatalogNotFound />
+  return <CatalogStorageUnavailable error={state.error} />
 }
 
 /** An `/editor/...` path that does not contain a valid catalog/object identity. */

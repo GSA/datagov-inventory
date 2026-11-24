@@ -1,9 +1,9 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore } from 'idb'
 import type { CatalogObject, CatalogWorkspace } from '../catalog/types'
 import { CatalogStorageError, type CatalogRepository } from './CatalogRepository'
+import { MIGRATIONS, type Migration, type MigrationDatabase, type MigrationTransaction } from './migrations'
 
 const DATABASE = 'datagov-inventory-editor'
-const VERSION = 1
 const CATALOGS = 'catalogs'
 const OBJECTS = 'metadataObjects'
 const REFERENCES = 'objectReferences'
@@ -76,7 +76,10 @@ type WritableReferenceStore = IDBPObjectStore<
 export class IndexedDbCatalogRepository implements CatalogRepository {
   private database?: Promise<IDBPDatabase<CatalogDatabase>>
 
-  constructor(private readonly databaseName = DATABASE) {}
+  constructor(
+    private readonly databaseName = DATABASE,
+    private readonly migrations: readonly Migration[] = MIGRATIONS,
+  ) {}
 
   async createCatalog(catalog: CatalogWorkspace): Promise<void> {
     await withStorageErrors(async () => {
@@ -158,20 +161,73 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
 
   private databaseConnection(): Promise<IDBPDatabase<CatalogDatabase>> {
     if (!globalThis.indexedDB) throw new CatalogStorageError('unavailable', 'Browser storage is unavailable.')
-    return (this.database ??= openDB<CatalogDatabase>(this.databaseName, VERSION, {
-      upgrade(database) {
-        database.createObjectStore(CATALOGS, { keyPath: 'id' })
-        const objects = database.createObjectStore(OBJECTS, { keyPath: ['catalogId', 'id'] })
-        objects.createIndex(CATALOG_ID, CATALOG_ID)
-        const references = database.createObjectStore(REFERENCES, {
-          keyPath: ['catalogId', 'parentId', 'property', 'ordinal'],
-        })
-        references.createIndex(CATALOG_ID, CATALOG_ID)
-      },
-      blocked() {
-        throw new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.')
-      },
+    return (this.database ??= this.open().catch((error: unknown) => {
+      this.database = undefined
+      throw error
     }))
+  }
+
+  /**
+   * Opens the database, running any migrations newer than the saved version.
+   * - `blocking`: another tab is upgrading, so close this connection; the next operation fails as `outdated`.
+   * - `blocked`: another connection holds the upgrade, so reject now. The request stays queued and the upgrade runs
+   *   once that connection closes; the late connection is then closed, and the next operation opens a fresh one.
+   */
+  private open(): Promise<IDBPDatabase<CatalogDatabase>> {
+    const migrations = this.migrations
+    let migrated = Promise.resolve(true)
+    let blocked = false
+    const upgradeFailed = () => new CatalogStorageError('upgrade-failed', 'Browser storage could not be upgraded.')
+    return new Promise((resolve, reject) => {
+      openDB<CatalogDatabase>(this.databaseName, migrations.length, {
+        upgrade(database, oldVersion, _newVersion, transaction) {
+          const untypedDatabase = database as unknown as MigrationDatabase
+          const untypedTransaction = transaction as unknown as MigrationTransaction
+          migrated = (async () => {
+            let version = oldVersion
+            try {
+              for (const migrate of migrations.slice(oldVersion)) {
+                await migrate(untypedDatabase, untypedTransaction)
+                version++
+              }
+              return true
+            } catch (error) {
+              console.error(`Browser storage upgrade to version ${version + 1} failed: ${errorName(error)}`)
+              abortQuietly(transaction)
+              return false
+            }
+          })()
+        },
+        blocked() {
+          blocked = true
+          reject(new CatalogStorageError('blocked', 'Another connection is blocking the browser storage upgrade.'))
+        },
+        blocking: (_currentVersion, _blockedVersion, event) => {
+          ;(event.target as IDBDatabase).close()
+          this.database = undefined
+        },
+      }).then(
+        async (database) => {
+          const succeeded = await migrated
+          if (succeeded && !blocked) return resolve(database)
+          database.close()
+          if (!succeeded) reject(upgradeFailed())
+        },
+        async (error: unknown) => reject((await migrated) ? error : upgradeFailed()),
+      )
+    })
+  }
+}
+
+/** Only the error's name, since its message may quote saved catalog data. */
+const errorName = (error: unknown) => (error instanceof Error ? error.name : typeof error)
+
+/** Aborts an upgrade unless a failed request already has. */
+function abortQuietly(transaction: { abort(): void }) {
+  try {
+    transaction.abort()
+  } catch {
+    // Already aborted: InvalidStateError.
   }
 }
 
@@ -291,6 +347,9 @@ async function withStorageErrors<T>(operation: () => Promise<T>): Promise<T> {
     if (error instanceof CatalogStorageError) throw error
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       throw new CatalogStorageError('quota', 'Browser storage is full.')
+    }
+    if (error instanceof DOMException && error.name === 'VersionError') {
+      throw new CatalogStorageError('outdated', 'Browser storage is a newer version than this editor.')
     }
     throw new CatalogStorageError('failed', 'Browser storage failed.')
   }

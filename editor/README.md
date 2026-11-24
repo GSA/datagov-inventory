@@ -109,6 +109,11 @@ loading", stops the read or the worker.
 ordered object references in separate records. Create and autosave writes commit atomically across those stores;
 autosave updates only records or reference sets that changed.
 
+Each IndexedDB schema version is a migration in `src/storage/migrations.ts`, run in order inside the upgrade
+transaction; the database version is the number of migrations and is independent of the DCAT-US schema. To change a
+store, key, index or record shape, append a migration that checks each record before transforming it. Never edit a
+released one.
+
 ## npm Scripts
 
 | Script | Description |

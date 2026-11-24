@@ -1,7 +1,22 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import type { SerializableCatalogWorkspace } from './harness'
 
 const harnessPort = Number(process.env.STORAGE_TEST_PORT ?? 4174)
 const harness = `http://127.0.0.1:${harnessPort}/integration/storage/index.html`
+
+/** Reopens the harness with the app's migrations plus these test ones, closing this page's older connection. */
+const upgradeTo = (page: Page, migrations: string[]) => page.goto(`${harness}?migrations=${migrations.join(',')}`)
+
+/** The same graph, with objects, property keys, link keys and single links in the same order. */
+function expectSameGraph(actual: SerializableCatalogWorkspace | undefined, expected: SerializableCatalogWorkspace) {
+  expect(actual).toEqual(expected)
+  expect(actual!.objects.map((object) => object.id)).toEqual(expected.objects.map((object) => object.id))
+  for (const [index, object] of expected.objects.entries()) {
+    expect(Object.keys(actual!.objects[index].properties)).toEqual(Object.keys(object.properties))
+    expect(Object.keys(actual!.objects[index].links)).toEqual(Object.keys(object.links))
+    expect(actual!.objects[index].singleLinks).toEqual(object.singleLinks)
+  }
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto(harness)
@@ -13,14 +28,7 @@ test('IndexedDbCatalogRepository creates and loads the same catalog using real I
   await page.evaluate((value) => catalogRepository.create(value), expected)
   const loaded = await page.evaluate((id) => catalogRepository.load(id), expected.id)
 
-  expect(loaded).toEqual(expected)
-  // Check ordering was preserved
-  expect(loaded!.objects.map((object) => object.id)).toEqual(expected.objects.map((object) => object.id))
-  for (const [index, object] of expected.objects.entries()) {
-    expect(Object.keys(loaded!.objects[index].properties)).toEqual(Object.keys(object.properties))
-    expect(Object.keys(loaded!.objects[index].links)).toEqual(Object.keys(object.links))
-    expect(loaded!.objects[index].singleLinks).toEqual(object.singleLinks)
-  }
+  expectSameGraph(loaded, expected)
 })
 
 test('IndexedDbCatalogRepository saves edits and loads the edited catalog using real IndexedDB', async ({ page }) => {
@@ -98,4 +106,142 @@ test('IndexedDbCatalogRepository deletes objects and references during save', as
   expect(restored).toEqual(loaded)
   expect(restored!.objects.some((object) => object.id === csv.id || object.id === checksumId)).toBe(false)
   expect(restored!.objects.find((object) => object.id === dataset.id)!.links.distribution).toHaveLength(1)
+})
+
+test('IndexedDbCatalogRepository upgrades a catalog saved under an older schema, running each migration in order', async ({ page }) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  await upgradeTo(page, ['indexObjectsByClass', 'stampCatalogs'])
+  const loaded = await page.evaluate((id) => catalogRepository.load(id), saved.id)
+
+  expect(await page.evaluate(() => catalogRepository.migrationLog)).toEqual(['indexObjectsByClass', 'stampCatalogs'])
+  expect(await page.evaluate(() => catalogRepository.databaseSchema())).toEqual({
+    version: 3,
+    objectIndexes: ['catalogId', 'dcatClass'],
+  })
+  expect(await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)).toMatchObject({ migrated: true })
+  expectSameGraph(loaded, saved)
+})
+
+test('IndexedDbCatalogRepository runs only the migrations newer than the saved schema', async ({ page }) => {
+  await upgradeTo(page, ['indexObjectsByClass'])
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  await upgradeTo(page, ['indexObjectsByClass', 'stampCatalogs'])
+  await page.evaluate((id) => catalogRepository.load(id), saved.id)
+
+  expect(await page.evaluate(() => catalogRepository.migrationLog)).toEqual(['stampCatalogs'])
+})
+
+test('IndexedDbCatalogRepository saves edits to a catalog after upgrading it', async ({ page }) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+  await upgradeTo(page, ['indexObjectsByClass', 'stampCatalogs'])
+  const loaded = (await page.evaluate((id) => catalogRepository.load(id), saved.id))!
+
+  const dataset = loaded.objects.find((object) => object.properties.title === 'Air quality readings')!
+  dataset.properties.title = 'Edited after upgrade'
+  dataset.links.distribution.reverse()
+  await page.evaluate((value) => catalogRepository.save(value), loaded)
+  await page.reload()
+
+  expectSameGraph(await page.evaluate((id) => catalogRepository.load(id), saved.id), loaded)
+})
+
+test('IndexedDbCatalogRepository aborts an upgrade that cannot migrate a saved record, keeping the database as it was', async ({
+  page,
+}) => {
+  const logs: string[] = []
+  page.on('console', (message) => logs.push(message.text()))
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+  const stored = await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)
+  const corrupt = { ...(stored as object), rootId: 42 }
+  await page.evaluate((record) => catalogRepository.putStoredCatalogRecord(record), corrupt)
+
+  await upgradeTo(page, ['indexObjectsByClass', 'requireRootIds'])
+  const error = await page.evaluate((id) => catalogRepository.loadError(id), saved.id)
+
+  expect(error).toMatchObject({ code: 'upgrade-failed' })
+  expect(await page.evaluate(() => catalogRepository.databaseSchema())).toEqual({ version: 1, objectIndexes: ['catalogId'] })
+  expect(await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)).toEqual(corrupt)
+  expect(logs).toContain('Browser storage upgrade to version 3 failed: Error')
+  expect(logs.join('\n')).not.toContain(saved.sourceName)
+})
+
+test('IndexedDbCatalogRepository aborts an upgrade whose IndexedDB request fails, keeping the database as it was', async ({
+  page,
+}) => {
+  const logs: string[] = []
+  page.on('console', (message) => logs.push(message.text()))
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  await upgradeTo(page, ['indexObjectsByClass', 'duplicateObjectIndex'])
+
+  expect(await page.evaluate((id) => catalogRepository.loadError(id), saved.id)).toMatchObject({ code: 'upgrade-failed' })
+  expect(await page.evaluate(() => catalogRepository.databaseSchema())).toEqual({ version: 1, objectIndexes: ['catalogId'] })
+  expect(logs).toContain('Browser storage upgrade to version 3 failed: ConstraintError')
+  await page.goto(harness)
+  expectSameGraph(await page.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})
+
+test('IndexedDbCatalogRepository reports an upgrade that fails after its transaction committed', async ({ page }) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  await upgradeTo(page, ['awaitTimerBeforeRequest'])
+
+  expect(await page.evaluate((id) => catalogRepository.loadError(id), saved.id)).toMatchObject({ code: 'upgrade-failed' })
+})
+
+test('IndexedDbCatalogRepository reports an upgrade blocked by another tab, and upgrades once that tab closes', async ({
+  page,
+  context,
+}) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+  await page.evaluate(() => catalogRepository.holdOlderConnection())
+  const stored = await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)
+
+  const newer = await context.newPage()
+  await upgradeTo(newer, ['indexObjectsByClass'])
+  const error = await newer.evaluate((id) => catalogRepository.loadError(id), saved.id)
+
+  expect(error).toMatchObject({ code: 'blocked' })
+  expect(await page.evaluate((id) => catalogRepository.readOlderConnection(id), saved.id)).toEqual({
+    version: 1,
+    catalog: stored,
+  })
+
+  await page.close()
+  expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})
+
+test('IndexedDbCatalogRepository closes an older connection for an upgrade, then refuses to save over the upgraded database', async ({
+  page,
+  context,
+}) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  const newer = await context.newPage()
+  await upgradeTo(newer, ['indexObjectsByClass'])
+  expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+
+  const edited = { ...saved, sourceName: 'edited in the older tab' }
+  expect(await page.evaluate((value) => catalogRepository.saveError(value), edited)).toMatchObject({ code: 'outdated' })
+  expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})
+
+test('IndexedDbCatalogRepository stores metadata the current DCAT-US schema does not accept, unchanged', async ({ page }) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  const dataset = saved.objects.find((object) => object.properties.title === 'Air quality readings')!
+  dataset.properties.issued = 'not a date'
+  dataset.properties.retiredProperty = { kept: ['as', 'saved'] }
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  expectSameGraph(await page.evaluate((id) => catalogRepository.load(id), saved.id), saved)
 })

@@ -31,8 +31,17 @@ export interface CatalogRepository {
  * - `quota`: the browser rejected a write because storage is full.
  * - `failed`: an otherwise unclassified IndexedDB request or transaction failed.
  * - `invalid-data`: stored records do not form a complete, valid catalog graph.
+ * - `upgrade-failed`: a migration could not upgrade the saved records, so the upgrade was rolled back.
+ * - `outdated`: browser storage is a newer version than this code, upgraded by another tab or a later release.
  */
-export type CatalogStorageErrorCode = 'unavailable' | 'blocked' | 'quota' | 'failed' | 'invalid-data'
+export type CatalogStorageErrorCode =
+  | 'unavailable'
+  | 'blocked'
+  | 'quota'
+  | 'failed'
+  | 'invalid-data'
+  | 'upgrade-failed'
+  | 'outdated'
 
 export class CatalogStorageError extends Error {
   name = 'CatalogStorageError'
