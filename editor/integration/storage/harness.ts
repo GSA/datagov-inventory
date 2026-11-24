@@ -60,24 +60,27 @@ const testMigrations = new Map<string, Migration>([
   ],
 ])
 
-/** The named test migration, recording each run in `migrationLog`. */
-function testMigration(name: string): Migration {
-  const migrate = testMigrations.get(name)
-  if (!migrate) throw new Error(`Unknown test migration: ${name}`)
-  return (database, transaction) => {
+/** Records each run of the migration in `migrationLog`. */
+const logged =
+  ([name, migrate]: [string, Migration]): Migration =>
+  (database, transaction) => {
     migrationLog.push(name)
     return migrate(database, transaction)
   }
-}
 
-/** `?migrations=a,b` opens the database at the app's version plus these test versions, in order. */
-const laterMigrations =
+/**
+ * `?migrations=a,b` opens the database at the app's version plus these test versions, in order.
+ * Names are matched against `testMigrations` rather than used as keys, so only known migrations can run.
+ */
+const requestedNames =
   new URLSearchParams(location.search)
     .get('migrations')
     ?.split(',')
-    .map((name) => name.trim())
-    .filter((name) => name.length > 0 && testMigrations.has(name)) ?? []
-const storage = new IndexedDbCatalogRepository(DATABASE, [...MIGRATIONS, ...laterMigrations.map(testMigration)])
+    .map((name) => name.trim()) ?? []
+const laterMigrations = requestedNames.flatMap((requested) =>
+  [...testMigrations].filter(([known]) => known === requested),
+)
+const storage = new IndexedDbCatalogRepository(DATABASE, [...MIGRATIONS, ...laterMigrations.map(logged)])
 
 const identifiedFixture = (): CatalogWorkspace => {
   let next = 0
