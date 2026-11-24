@@ -214,3 +214,13 @@ test('IndexedDbCatalogRepository closes an older connection for an upgrade, then
   })
   expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
 })
+
+test('IndexedDbCatalogRepository stores metadata the current DCAT-US schema does not accept, unchanged', async ({ page }) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  const dataset = saved.objects.find((object) => object.properties.title === 'Air quality readings')!
+  dataset.properties.issued = 'not a date'
+  dataset.properties.retiredProperty = { kept: ['as', 'saved'] }
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  expectSameGraph(await page.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})

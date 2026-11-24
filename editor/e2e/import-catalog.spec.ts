@@ -436,3 +436,18 @@ test('explains why a saved catalog cannot be restored, and keeps it', async ({ p
   expect(storedCatalogs).toBe(1)
   expect((await axe(page).analyze()).violations).toEqual([])
 })
+
+test('restores a catalog with schema errors, reports them, and exports it', async ({ page }) => {
+  await chooseFile(page, fixture('dataset-missing-title.json', 'invalid'))
+  await expectOpened(page, 'dataset-missing-title.json')
+
+  await page.reload()
+
+  await expect(tree(page).getByRole('treeitem', { name: 'Untitled Dataset Dataset' })).toBeVisible()
+  await page.getByRole('button', { name: 'Validate catalog' }).click()
+  await expect(page.getByText(/Validation finished: \d+ errors? found/)).toBeVisible()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export catalog' }).click()
+  await page.getByRole('button', { name: 'Download Anyway' }).click()
+  expect((await download).suggestedFilename()).toMatch(/\.json$/)
+})
