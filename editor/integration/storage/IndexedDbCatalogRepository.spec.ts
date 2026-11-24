@@ -171,6 +171,23 @@ test('IndexedDbCatalogRepository aborts an upgrade that cannot migrate a saved r
   expect(logs.join('\n')).not.toContain(saved.sourceName)
 })
 
+test('IndexedDbCatalogRepository aborts an upgrade whose IndexedDB request fails, keeping the database as it was', async ({
+  page,
+}) => {
+  const logs: string[] = []
+  page.on('console', (message) => logs.push(message.text()))
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+
+  await upgradeTo(page, ['indexObjectsByClass', 'duplicateObjectIndex'])
+
+  expect(await page.evaluate((id) => catalogRepository.loadError(id), saved.id)).toMatchObject({ code: 'upgrade-failed' })
+  expect(await page.evaluate(() => catalogRepository.databaseSchema())).toEqual({ version: 1, objectIndexes: ['catalogId'] })
+  expect(logs).toContain('Browser storage upgrade to version 3 failed: ConstraintError')
+  await page.goto(harness)
+  expectSameGraph(await page.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})
+
 test('IndexedDbCatalogRepository reports an upgrade that fails after its transaction committed', async ({ page }) => {
   const saved = await page.evaluate(() => catalogRepository.fixture())
   await page.evaluate((value) => catalogRepository.create(value), saved)

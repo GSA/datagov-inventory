@@ -36,6 +36,9 @@ const testMigrations: Record<string, Migration> = {
       await cursor.update({ ...(cursor.value as object), rootIdChecked: true })
     }
   },
+  duplicateObjectIndex: (_database, transaction) => {
+    transaction.objectStore('metadataObjects').createIndex('catalogId', 'catalogId')
+  },
   awaitTimerBeforeRequest: async (_database, transaction) => {
     await new Promise((resolve) => setTimeout(resolve))
     await transaction.objectStore('catalogs').count()
