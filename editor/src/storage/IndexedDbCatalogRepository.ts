@@ -154,17 +154,49 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
 
   private databaseConnection(): Promise<IDBPDatabase<CatalogDatabase>> {
     if (!globalThis.indexedDB) throw new CatalogStorageError('unavailable', 'Browser storage is unavailable.')
-    const migrations = this.migrations
-    return (this.database ??= openDB<CatalogDatabase>(this.databaseName, migrations.length, {
-      async upgrade(database, oldVersion, _newVersion, transaction) {
-        for (const migrate of migrations.slice(oldVersion)) {
-          await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
-        }
-      },
-      blocked() {
-        throw new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.')
-      },
+    return (this.database ??= this.open().catch((error: unknown) => {
+      this.database = undefined
+      throw error
     }))
+  }
+
+  private async open(): Promise<IDBPDatabase<CatalogDatabase>> {
+    const migrations = this.migrations
+    let migrationFailed = false
+    try {
+      return await openDB<CatalogDatabase>(this.databaseName, migrations.length, {
+        async upgrade(database, oldVersion, _newVersion, transaction) {
+          try {
+            for (const migrate of migrations.slice(oldVersion)) {
+              await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
+            }
+          } catch {
+            migrationFailed = true
+            abortQuietly(transaction)
+          }
+        },
+        blocked() {
+          throw new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.')
+        },
+      })
+    } catch (error) {
+      if (migrationFailed) throw new CatalogStorageError('upgrade-failed', UPGRADE_FAILED)
+      throw error
+    }
+  }
+}
+
+const UPGRADE_FAILED =
+  "The catalogs saved in this browser could not be upgraded for this version of the editor. They have not been " +
+  "changed or deleted. Reload the page to try again. If it still fails, don't clear this site's data, which deletes " +
+  'them, and work from your last exported catalog file.'
+
+/** Aborts an upgrade unless a failed request already has. */
+function abortQuietly(transaction: { abort(): void }) {
+  try {
+    transaction.abort()
+  } catch {
+    // Already aborted: InvalidStateError.
   }
 }
 
