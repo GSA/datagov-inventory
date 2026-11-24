@@ -53,7 +53,8 @@ const handleValidateCatalog = async () => {
 ## Components
 
 - `ValidationStatusBadge` - Shows validation state (idle/validating/valid/invalid/stale)
-- `ValidationSummary` - Displays error summary grouped by class
+- `CatalogCheckStatus` - The last catalog check in one line beside "Validate catalog": its result and time, or "Changed since last check" once the catalog changes
+- `ValidationSummary` - A catalog check's errors grouped by class, with a link to each object (shown only when there are errors)
 
 ## Architecture
 
@@ -67,6 +68,7 @@ validation/
 ├── ValidationContext.tsx  # React Context for validation state
 ├── useValidation.ts      # Main validation hook
 ├── ValidationStatusBadge.tsx
+├── CatalogCheckStatus.tsx
 ├── ValidationSummary.tsx
 └── validation.css        # Component styles
 ```

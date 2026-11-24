@@ -219,6 +219,8 @@ export default function App() {
   const updateObject = useCallback((id: string, updates: Partial<CatalogObject>) => {
     if (!open) return
     const catalog = updateCatalogObject(open.catalog, id, updates)
+    // Nothing changed, so the catalog keeps its identity, and a catalog check stays current.
+    if (catalog === open.catalog) return
     // Saving a field's text leaves every link as it was, so the usage index stays valid.
     if (!updates.links) keepIndex(open.catalog.objects, catalog.objects)
     installEdit({ ...open, catalog })
