@@ -400,3 +400,39 @@ test('reports a valid import when browser storage is unavailable and does not op
   await expect(page).toHaveURL('/import')
   await expect(page.getByText(/is open\. Importing another catalog replaces it/)).toHaveCount(0)
 })
+
+test('explains why a saved catalog cannot be restored, and keeps it', async ({ page }) => {
+  await loadSample(page, 'minimal-catalog.json')
+  const catalogUrl = page.url()
+  // As after a rollback to an older build: the stored database is a newer version than this one.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open('datagov-inventory-editor', 2)
+        request.onsuccess = () => resolve(request.result.close())
+        request.onerror = () => reject(request.error)
+      }),
+  )
+
+  await page.reload()
+
+  await expect(page).toHaveURL(catalogUrl)
+  await expect(page.getByRole('heading', { level: 1, name: 'Browser storage unavailable' })).toBeVisible()
+  await expect(page.getByText(/updated by a newer version of the editor/)).toBeVisible()
+  const storedCatalogs = await page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open('datagov-inventory-editor')
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const count = request.result.transaction('catalogs').objectStore('catalogs').count()
+          count.onsuccess = () => {
+            request.result.close()
+            resolve(count.result)
+          }
+        }
+      }),
+  )
+  expect(storedCatalogs).toBe(1)
+  expect((await axe(page).analyze()).violations).toEqual([])
+})
