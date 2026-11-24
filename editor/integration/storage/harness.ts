@@ -112,7 +112,6 @@ globalThis.catalogRepository = {
     version: olderConnection!.version,
     catalog: await olderConnection!.get('catalogs', id),
   }),
-  releaseOlderConnection: () => olderConnection?.close(),
 }
 
 declare global {
@@ -132,6 +131,5 @@ declare global {
     holdOlderConnection(): Promise<void>
     /** Reads through the held connection, which doesn't wait behind a pending upgrade as a new one would. */
     readOlderConnection(id: string): Promise<{ version: number; catalog: unknown }>
-    releaseOlderConnection(): void
   }
 }

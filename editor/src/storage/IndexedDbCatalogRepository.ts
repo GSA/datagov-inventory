@@ -160,11 +160,16 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
     }))
   }
 
-  private async open(): Promise<IDBPDatabase<CatalogDatabase>> {
+  /**
+   * Rejects as soon as another connection blocks the upgrade. The request stays queued, so the upgrade still runs once
+   * that connection closes; that late connection is closed, and the next operation opens a fresh one.
+   */
+  private open(): Promise<IDBPDatabase<CatalogDatabase>> {
     const migrations = this.migrations
     let migrationFailed = false
-    try {
-      return await openDB<CatalogDatabase>(this.databaseName, migrations.length, {
+    let blocked = false
+    return new Promise((resolve, reject) => {
+      openDB<CatalogDatabase>(this.databaseName, migrations.length, {
         async upgrade(database, oldVersion, _newVersion, transaction) {
           try {
             for (const migrate of migrations.slice(oldVersion)) {
@@ -176,16 +181,20 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
           }
         },
         blocked() {
-          throw new CatalogStorageError('blocked', 'Browser storage is blocked by another open page.')
+          blocked = true
+          reject(new CatalogStorageError('blocked', BLOCKED))
         },
-      })
-    } catch (error) {
-      if (migrationFailed) throw new CatalogStorageError('upgrade-failed', UPGRADE_FAILED)
-      throw error
-    }
+      }).then(
+        (database) => (blocked ? database.close() : resolve(database)),
+        (error: unknown) => reject(migrationFailed ? new CatalogStorageError('upgrade-failed', UPGRADE_FAILED) : error),
+      )
+    })
   }
 }
 
+const BLOCKED =
+  'Another tab with the Inventory editor open is blocking an update to browser storage. Close or reload that tab, ' +
+  'then reload this page. Your saved catalogs have not been changed.'
 const UPGRADE_FAILED =
   "The catalogs saved in this browser could not be upgraded for this version of the editor. They have not been " +
   "changed or deleted. Reload the page to try again. If it still fails, don't clear this site's data, which deletes " +

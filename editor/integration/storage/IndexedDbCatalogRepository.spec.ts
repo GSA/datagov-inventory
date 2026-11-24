@@ -192,6 +192,6 @@ test('IndexedDbCatalogRepository reports an upgrade blocked by another tab, and 
     catalog: stored,
   })
 
-  await page.evaluate(() => catalogRepository.releaseOlderConnection())
+  await page.close()
   expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
 })
