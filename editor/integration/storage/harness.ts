@@ -20,54 +20,59 @@ const DATABASE = 'catalog-repository-test'
 const migrationLog: string[] = []
 
 /** Schema versions after the app's, so a test can upgrade a database the app saved. */
-const testMigrations: Record<string, Migration> = {
-  indexObjectsByClass: (_database, transaction) => {
-    transaction.objectStore('metadataObjects').createIndex('dcatClass', 'dcatClass')
-  },
-  stampCatalogs: async (_database, transaction) => {
-    for (let cursor = await transaction.objectStore('catalogs').openCursor(); cursor; cursor = await cursor.continue()) {
-      await cursor.update({ ...(cursor.value as object), migrated: true })
-    }
-  },
-  requireRootIds: async (_database, transaction) => {
-    for (let cursor = await transaction.objectStore('catalogs').openCursor(); cursor; cursor = await cursor.continue()) {
-      const { rootId } = cursor.value as { rootId: unknown }
-      if (typeof rootId !== 'string' || rootId.length > 36) throw new Error('Invalid catalog record')
-      await cursor.update({ ...(cursor.value as object), rootIdChecked: true })
-    }
-  },
-  duplicateObjectIndex: (_database, transaction) => {
-    transaction.objectStore('metadataObjects').createIndex('catalogId', 'catalogId')
-  },
-  awaitTimerBeforeRequest: async (_database, transaction) => {
-    await new Promise((resolve) => setTimeout(resolve))
-    await transaction.objectStore('catalogs').count()
-  },
+const testMigrations = new Map<string, Migration>([
+  [
+    'indexObjectsByClass',
+    (_database, transaction) => {
+      transaction.objectStore('metadataObjects').createIndex('dcatClass', 'dcatClass')
+    },
+  ],
+  [
+    'stampCatalogs',
+    async (_database, transaction) => {
+      for (let cursor = await transaction.objectStore('catalogs').openCursor(); cursor; cursor = await cursor.continue()) {
+        await cursor.update({ ...(cursor.value as object), migrated: true })
+      }
+    },
+  ],
+  [
+    'requireRootIds',
+    async (_database, transaction) => {
+      for (let cursor = await transaction.objectStore('catalogs').openCursor(); cursor; cursor = await cursor.continue()) {
+        const { rootId } = cursor.value as { rootId: unknown }
+        if (typeof rootId !== 'string' || rootId.length > 36) throw new Error('Invalid catalog record')
+        await cursor.update({ ...(cursor.value as object), rootIdChecked: true })
+      }
+    },
+  ],
+  [
+    'duplicateObjectIndex',
+    (_database, transaction) => {
+      transaction.objectStore('metadataObjects').createIndex('catalogId', 'catalogId')
+    },
+  ],
+  [
+    'awaitTimerBeforeRequest',
+    async (_database, transaction) => {
+      await new Promise((resolve) => setTimeout(resolve))
+      await transaction.objectStore('catalogs').count()
+    },
+  ],
+])
+
+/** The named test migration, recording each run in `migrationLog`. */
+function testMigration(name: string): Migration {
+  const migrate = testMigrations.get(name)
+  if (!migrate) throw new Error(`Unknown test migration: ${name}`)
+  return (database, transaction) => {
+    migrationLog.push(name)
+    return migrate(database, transaction)
+  }
 }
 
-const logged =
-  (name: string): Migration =>
-  (database, transaction) => {
-    migrationLog.push(name)
-    if (!Object.prototype.hasOwnProperty.call(testMigrations, name)) {
-      throw new Error(`Unknown test migration: ${name}`)
-    }
-    const migration = testMigrations[name]
-    if (typeof migration !== 'function') {
-      throw new Error(`Invalid test migration: ${name}`)
-    }
-    return migration(database, transaction)
-  }
-
 /** `?migrations=a,b` opens the database at the app's version plus these test versions, in order. */
-const allowedTestMigrationNames = new Set(Object.keys(testMigrations))
-const laterMigrations =
-  new URLSearchParams(location.search)
-    .get('migrations')
-    ?.split(',')
-    .map((name) => name.trim())
-    .filter((name) => name.length > 0 && allowedTestMigrationNames.has(name)) ?? []
-const storage = new IndexedDbCatalogRepository(DATABASE, [...MIGRATIONS, ...laterMigrations.map(logged)])
+const laterMigrations = new URLSearchParams(location.search).get('migrations')?.split(',') ?? []
+const storage = new IndexedDbCatalogRepository(DATABASE, [...MIGRATIONS, ...laterMigrations.map(testMigration)])
 
 const identifiedFixture = (): CatalogWorkspace => {
   let next = 0
