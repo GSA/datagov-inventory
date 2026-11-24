@@ -161,9 +161,10 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
   }
 
   /**
-   * Closes this connection when another tab upgrades, so it doesn't block it; the next operation then fails as
-   * `outdated`. Rejects as soon as another connection blocks the upgrade. The request stays queued, so the upgrade still runs once
-   * that connection closes; that late connection is closed, and the next operation opens a fresh one.
+   * Opens the database, running any migrations newer than the saved version.
+   * - `blocking`: another tab is upgrading, so close this connection; the next operation fails as `outdated`.
+   * - `blocked`: another connection holds the upgrade, so reject now. The request stays queued and the upgrade runs
+   *   once that connection closes; the late connection is then closed, and the next operation opens a fresh one.
    */
   private open(): Promise<IDBPDatabase<CatalogDatabase>> {
     const migrations = this.migrations
