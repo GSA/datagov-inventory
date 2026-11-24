@@ -1,7 +1,8 @@
 /**
  * Measures "Validate catalog" (#27) on the sample catalog and on generated catalogs of 3,000 and 10,000 datasets
- * (18,001 and 60,001 objects): from the click until the button is back, the main thread's long tasks in that time
- * (the check itself runs in a worker), and the click's input-to-next-paint. Opt-in, since timings vary by machine:
+ * (15,002 and 50,002 objects once their shared publisher merges on import): from the click until the button is back,
+ * the main thread's long tasks in that time (the check itself runs in a worker), and the click's input-to-next-paint.
+ * Opt-in, since timings vary by machine:
  *
  *   PERF=1 npx playwright test validation-performance   # CPU_THROTTLE=4 to emulate a slower laptop
  */
@@ -93,7 +94,7 @@ for (const datasets of [undefined, 3_000, 10_000]) {
     const throttle = await open(page, datasets)
     const runs = []
     for (let i = 0; i < 3; i++) runs.push(await validate(page))
-    await expect(page.getByRole('region', { name: 'Validation results' })).toBeVisible()
+    await expect(page.locator('.catalog-check')).toBeVisible()
     const fmt = (key: keyof (typeof runs)[number]) => runs.map((r) => Math.round(r[key])).join(' / ')
     console.log(
       [

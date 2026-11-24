@@ -4,6 +4,9 @@
  * (`metadata_object`); each class-valued property is an ordered list of child ids
  * (`object_reference`, where the ordinal is the list index).
  *
+ * Completely identical objects become one shared object, linked from every place they appeared, as ADR 0008's
+ * "Convergence of identical objects" says (GSA/data.gov#6546): see {@link mergeKey}.
+ *
  * Pure TypeScript with no React or DOM imports, so it runs in a worker and in tests.
  * The input is untrusted: its size, depth and object count are bounded (SI-10), and
  * property names are copied into null-prototype records so `__proto__` cannot pollute.
@@ -68,8 +71,20 @@ const tooLarge = (maxBytes: number, bytes?: number) =>
  */
 const MAX_UTF8_BYTES_PER_UNIT = 3
 
+/** A decomposed document, and how many identical copies were merged into objects read before them. */
+export interface DecomposedCatalog extends CatalogGraph {
+  /** Objects read minus objects kept: each copy that became a link to an identical object read earlier. */
+  merged: number
+}
+
+/**
+ * Classes never merged (ADR 0008): datasets carry their own identifiers, and catalogs and dataset series are kinds of
+ * dataset that hold datasets.
+ */
+export const NEVER_MERGED: ReadonlySet<string> = new Set(['Dataset', 'Catalog', 'DatasetSeries'])
+
 /** Parses and decomposes a DCAT-US 3.0 JSON document. Throws a {@link DecomposeError}; schema errors alone do not. */
-export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): CatalogGraph {
+export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): DecomposedCatalog {
   const { maxBytes, maxDepth, maxContainers } = { ...DEFAULT_LIMITS, ...limits }
   // The length alone refuses text that is surely too large, and accepts text that surely fits, without
   // encoding it; only text in between is encoded to count its bytes exactly.
@@ -100,7 +115,17 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
   }
 
   const objects = new Map<string, CatalogObject>()
-  const add = (node: Record<string, unknown>, dcatClass: string, id: string): string => {
+  /** The objects kept for each merge key, in document order: usually one, more if a list repeats an object. */
+  const keptWithKey = new Map<string, string[]>()
+  let merged = 0
+  /**
+   * Adds `node` and the objects inside it, and returns the id it is linked by: its own, or an identical object's. A
+   * field never lists one object twice (`linkObject` refuses it, and the tree and forms key rows by id), so the k-th
+   * copy of an object in one list merges into the k-th object kept with its key, or is kept if there are fewer. So a
+   * list that repeats an object keeps the repeats, and two lists that repeat it alike still end up the same. `inList`
+   * counts the copies of each key in the list so far; constant time per object, however long a crafted list is.
+   */
+  const add = (node: Record<string, unknown>, dcatClass: string, id: string, inList?: Map<string, number>): string => {
     const object: CatalogObject = {
       id,
       dcatClass,
@@ -119,14 +144,50 @@ export function decompose(text: string, limits: Partial<DecomposeLimits> = {}): 
         continue
       }
       const base = `${id}/${key}` // a schema property name: no "/" or "~" to escape
+      const inThisList = new Map<string, number>()
       object.links[key] = children.map((child, i) =>
-        add(child, classIn(child, allowed), Array.isArray(value) ? `${base}/${i}` : base),
+        add(child, classIn(child, allowed), Array.isArray(value) ? `${base}/${i}` : base, inThisList),
       )
       if (!Array.isArray(value)) object.singleLinks.push(key)
     }
+    // Its children are merged by now, so it can match an earlier object whose children were the same (leaves up).
+    // A merged copy's children are all merged too (or it would not match), so deleting it leaves none behind.
+    if (NEVER_MERGED.has(dcatClass)) return id
+    const key = mergeKey(object)
+    const copy = inList?.get(key) ?? 0
+    inList?.set(key, copy + 1)
+    const kept = keptWithKey.get(key)
+    if (!kept) keptWithKey.set(key, [id])
+    else if (copy >= kept.length) kept.push(id)
+    else {
+      objects.delete(id)
+      merged++
+      return kept[copy]
+    }
     return id
   }
-  return { rootId: add(root, rootClass, '#'), objects }
+  return { rootId: add(root, rootClass, '#'), objects, merged }
+}
+
+/**
+ * Equal for two objects exactly when ADR 0008 merges them: the same class, and the same properties and links, values
+ * taken as-is (no trimming or case-folding), JSON key order ignored and array order kept. A link written as one object
+ * differs from a list of one. An `@id` is a property like any other. The links hold children's ids after their own
+ * merge, so parents whose children merged can match. The merged object keeps the first copy's key order.
+ */
+export const mergeKey = ({ dcatClass, properties, links, singleLinks }: CatalogObject) =>
+  `[${JSON.stringify(dcatClass)},${canonical(properties)},${canonical(links)},${canonical([...singleLinks].sort())}]`
+
+/** JSON with every object's keys sorted, so key order does not matter; arrays keep their order. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (isObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>

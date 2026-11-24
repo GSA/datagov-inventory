@@ -1,31 +1,32 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import type { ValidationResult, ValidationState } from './types'
+import type { CatalogGraph } from '../catalog/types'
+
+/** The last catalog check. */
+export interface CatalogSummary {
+  valid: boolean
+  totalErrors: number
+  errorSummary: Record<string, number>
+  timestamp: number
+  schemaVersion: string
+  /** The workspace checked, and its catalog as it was: any change makes a new graph, so the check is out of date. */
+  catalogId: string
+  catalog: CatalogGraph
+  /** The objects with errors at the check, so its list matches its counts whatever is checked later. */
+  objectsWithErrors: Array<{ objectId: string; objectType: string; errors: number }>
+}
 
 interface ValidationContextValue {
   validationState: ValidationState
   objectValidations: Map<string, ValidationResult>
   staleObjects: Set<string>
-  catalogSummary: {
-    valid: boolean
-    totalErrors: number
-    errorSummary: Record<string, number>
-    timestamp: number
-    schemaVersion: string
-  } | null
+  catalogSummary: CatalogSummary | null
   setValidationState: (state: ValidationState) => void
   setObjectValidation: (objectId: string, result: ValidationResult) => void
   /** Stores many results in one update: calling `setObjectValidation` per object copies the map each time, O(n²). */
   setObjectValidationResults: (results: Array<ValidationResult & { objectId: string }>) => void
   markStale: (objectId: string) => void
-  setCatalogSummary: (
-    summary: {
-      valid: boolean
-      totalErrors: number
-      errorSummary: Record<string, number>
-      timestamp: number
-      schemaVersion: string
-    } | null
-  ) => void
+  setCatalogSummary: (summary: CatalogSummary | null) => void
   getObjectState: (objectId: string) => ValidationState
   getObjectErrors: (objectId: string) => ValidationResult['errors']
   clearAll: () => void

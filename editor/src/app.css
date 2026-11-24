@@ -15,16 +15,31 @@
   width: auto;
 }
 
-/* A button's labels, stacked in one cell: it is as wide as the longest, so changing label moves nothing. The hidden
-   one is out of the accessible name too. */
-.button-labels {
+/* Labels stacked in one cell (a button's, a status line's): it is as big as the biggest, so changing label moves
+   nothing. The hidden one is out of the accessible name and text too. */
+.stacked-labels {
   display: inline-grid;
 }
-.button-labels > * {
+.stacked-labels > * {
   grid-area: 1 / 1;
 }
-.button-labels__off {
+.stacked-labels__off {
   visibility: hidden;
+}
+
+/* The last catalog check, beside the catalog's actions: as tall as they are, so wrapping under them on a phone keeps
+   the line's height whatever it says. */
+.catalog-check {
+  column-gap: 0.5rem;
+}
+/* Its text centred in a row as tall as the buttons, even when the toggle wraps under it. */
+.catalog-check > .stacked-labels {
+  min-height: 2.75rem;
+  align-items: center;
+}
+/* A 44px touch target, without a button's weight. */
+.catalog-check__toggle {
+  min-height: 2.75rem;
 }
 
 /* The catalog's actions keep their own width on phones (USWDS makes grouped buttons full width there). */
