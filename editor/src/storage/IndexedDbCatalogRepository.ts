@@ -1,7 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore } from 'idb'
 import type { CatalogObject, CatalogWorkspace } from '../catalog/types'
 import { CatalogStorageError, type CatalogRepository } from './CatalogRepository'
-import { MIGRATIONS, type Migration } from './migrations'
+import { MIGRATIONS, type Migration, type MigrationDatabase, type MigrationTransaction } from './migrations'
 
 const DATABASE = 'datagov-inventory-editor'
 const CATALOGS = 'catalogs'
@@ -173,11 +173,13 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
     return new Promise((resolve, reject) => {
       openDB<CatalogDatabase>(this.databaseName, migrations.length, {
         upgrade(database, oldVersion, _newVersion, transaction) {
+          const untypedDatabase = database as unknown as MigrationDatabase
+          const untypedTransaction = transaction as unknown as MigrationTransaction
           migrated = (async () => {
             let version = oldVersion
             try {
               for (const migrate of migrations.slice(oldVersion)) {
-                await migrate(database as unknown as Parameters<Migration>[0], transaction as unknown as Parameters<Migration>[1])
+                await migrate(untypedDatabase, untypedTransaction)
                 version++
               }
               return true
