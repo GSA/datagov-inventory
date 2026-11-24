@@ -149,3 +149,26 @@ test('IndexedDbCatalogRepository saves edits to a catalog after upgrading it', a
 
   expectSameGraph(await page.evaluate((id) => catalogRepository.load(id), saved.id), loaded)
 })
+
+test('IndexedDbCatalogRepository aborts an upgrade that cannot migrate a saved record, keeping the database as it was', async ({
+  page,
+}) => {
+  const logs: string[] = []
+  page.on('console', (message) => logs.push(message.text()))
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+  const stored = await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)
+  const corrupt = { ...(stored as object), rootId: 42 }
+  await page.evaluate((record) => catalogRepository.putStoredCatalogRecord(record), corrupt)
+
+  await upgradeTo(page, ['indexObjectsByClass', 'requireRootIds'])
+  const error = await page.evaluate((id) => catalogRepository.loadError(id), saved.id)
+
+  expect(error).toEqual({
+    code: 'upgrade-failed',
+    message: expect.stringMatching(/could not be upgraded.*not been changed or deleted/s),
+  })
+  expect(await page.evaluate(() => catalogRepository.databaseSchema())).toEqual({ version: 1, objectIndexes: ['catalogId'] })
+  expect(await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)).toEqual(corrupt)
+  expect(logs.join('\n')).not.toContain(saved.sourceName)
+})
