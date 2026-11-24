@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
 
+import { openDB } from 'idb'
 import type { CatalogObject, CatalogWorkspace } from '../../src/catalog/types'
 import { decompose } from '../../src/catalog/decompose'
 import { identifyGraph } from '../../src/catalog/identify'
 import { IndexedDbCatalogRepository } from '../../src/storage/IndexedDbCatalogRepository'
+import { MIGRATIONS, type Migration } from '../../src/storage/migrations'
 import fixture from '../../fixtures/catalogs/valid/dataset-with-distributions.json?raw'
 
 export interface SerializableCatalogWorkspace {
@@ -13,7 +15,32 @@ export interface SerializableCatalogWorkspace {
   objects: CatalogObject[]
 }
 
-const storage = new IndexedDbCatalogRepository()
+const DATABASE = 'catalog-repository-test'
+const migrationLog: string[] = []
+
+/** Schema versions after the app's, so a test can upgrade a database the app saved. */
+const testMigrations: Record<string, Migration> = {
+  indexObjectsByClass: (_database, transaction) => {
+    transaction.objectStore('metadataObjects').createIndex('dcatClass', 'dcatClass')
+  },
+  stampCatalogs: async (_database, transaction) => {
+    for (let cursor = await transaction.objectStore('catalogs').openCursor(); cursor; cursor = await cursor.continue()) {
+      await cursor.update({ ...(cursor.value as object), migrated: true })
+    }
+  },
+}
+
+const logged =
+  (name: string): Migration =>
+  (database, transaction) => {
+    migrationLog.push(name)
+    return testMigrations[name](database, transaction)
+  }
+
+/** `?migrations=a,b` opens the database at the app's version plus these test versions, in order. */
+const laterMigrations = new URLSearchParams(location.search).get('migrations')?.split(',') ?? []
+const storage = new IndexedDbCatalogRepository(DATABASE, [...MIGRATIONS, ...laterMigrations.map(logged)])
+
 const identifiedFixture = (): CatalogWorkspace => {
   let next = 0
   const catalog = identifyGraph(
@@ -34,6 +61,16 @@ const toSerializable = ({ id, sourceName, catalog }: CatalogWorkspace): Serializ
   objects: Array.from(catalog.objects.values()),
 })
 
+/** Opens the stored database as it is, without the repository or an upgrade. */
+async function readDatabase<T>(read: (database: Awaited<ReturnType<typeof openDB>>) => Promise<T> | T): Promise<T> {
+  const database = await openDB(DATABASE)
+  try {
+    return await read(database)
+  } finally {
+    database.close()
+  }
+}
+
 globalThis.catalogRepository = {
   fixture: () => toSerializable(identifiedFixture()),
   create: (catalog) => storage.createCatalog(fromSerializable(catalog)),
@@ -42,6 +79,13 @@ globalThis.catalogRepository = {
     return catalog ? toSerializable(catalog) : undefined
   },
   save: (catalog) => storage.saveCatalog(fromSerializable(catalog)),
+  migrationLog,
+  databaseSchema: () =>
+    readDatabase((database) => ({
+      version: database.version,
+      objectIndexes: [...database.transaction('metadataObjects').store.indexNames],
+    })),
+  storedCatalogRecord: (id) => readDatabase((database) => database.get('catalogs', id)),
 }
 
 declare global {
@@ -50,5 +94,9 @@ declare global {
     create(catalog: SerializableCatalogWorkspace): Promise<void>
     load(id: string): Promise<SerializableCatalogWorkspace | undefined>
     save(catalog: SerializableCatalogWorkspace): Promise<void>
+    /** The test migrations run by this page, in the order they ran. */
+    migrationLog: string[]
+    databaseSchema(): Promise<{ version: number; objectIndexes: string[] }>
+    storedCatalogRecord(id: string): Promise<unknown>
   }
 }
