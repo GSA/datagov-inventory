@@ -4,7 +4,7 @@ import type { CatalogObject, CatalogGraph } from './catalog/types'
 import { FILTER_LIMIT, ancestorIds, filterTree, labelOf, parentsOf, treeRows, type TreeRow } from './tree'
 import { largeCatalog } from '../fixtures/largeCatalog'
 
-// Built once and shared: 3,000 datasets, each with a contact, a publisher and three distributions.
+// Built once and shared: 3,000 datasets, each with a contact, the one shared publisher and three distributions.
 const big = decompose(JSON.stringify(largeCatalog()))
 const bigParents = parentsOf(big)
 const summary = (rows: TreeRow[]) => rows.map((row) => `${row.level} ${row.object.id}`)
@@ -30,7 +30,7 @@ describe('the tree of a 3,000-dataset catalog', () => {
     expect(rows[at].expanded).toBe(true)
     expect(rows.slice(at + 1, at + 6).map((row) => [row.property, row.object.id, row.level, row.position])).toEqual([
       ['contactPoint', '#/dataset/7/contactPoint', 3, 1],
-      ['publisher', '#/dataset/7/publisher', 3, 2],
+      ['publisher', '#/dataset/0/publisher', 3, 2], // every dataset's publisher is the same, so it merged
       ['distribution', '#/dataset/7/distribution/0', 3, 3],
       ['distribution', '#/dataset/7/distribution/1', 3, 4],
       ['distribution', '#/dataset/7/distribution/2', 3, 5],

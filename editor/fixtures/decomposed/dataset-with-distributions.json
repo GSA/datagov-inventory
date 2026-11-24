@@ -59,7 +59,7 @@
           "#/dataset/0/contactPoint/0"
         ],
         "publisher": [
-          "#/dataset/0/publisher"
+          "#/publisher"
         ],
         "temporal": [
           "#/dataset/0/temporal/0"
@@ -80,16 +80,6 @@
         "@type": "Kind",
         "fn": "Air Quality Team",
         "hasEmail": "mailto:air@example.gov"
-      },
-      "links": {},
-      "singleLinks": []
-    },
-    {
-      "id": "#/dataset/0/publisher",
-      "dcatClass": "Organization",
-      "properties": {
-        "@type": "Organization",
-        "name": "Example Agency"
       },
       "links": {},
       "singleLinks": []
