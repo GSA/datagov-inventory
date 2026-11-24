@@ -77,6 +77,9 @@ interface StorageErrorData {
 const storageError = (error: unknown): StorageErrorData =>
   error instanceof CatalogStorageError ? { code: error.code, message: error.message } : { message: String(error) }
 
+/** A connection that never closes for an upgrade, like a tab running a build without a `versionchange` handler. */
+let olderConnection: Awaited<ReturnType<typeof openDB>> | undefined
+
 /** Opens the stored database as it is, without the repository or an upgrade. */
 async function readDatabase<T>(read: (database: Awaited<ReturnType<typeof openDB>>) => Promise<T> | T): Promise<T> {
   const database = await openDB(DATABASE)
@@ -104,6 +107,12 @@ globalThis.catalogRepository = {
     })),
   storedCatalogRecord: (id) => readDatabase((database) => database.get('catalogs', id)),
   putStoredCatalogRecord: (record) => readDatabase(async (database) => void (await database.put('catalogs', record))),
+  holdOlderConnection: async () => void (olderConnection = await openDB(DATABASE)),
+  readOlderConnection: async (id) => ({
+    version: olderConnection!.version,
+    catalog: await olderConnection!.get('catalogs', id),
+  }),
+  releaseOlderConnection: () => olderConnection?.close(),
 }
 
 declare global {
@@ -120,5 +129,9 @@ declare global {
     storedCatalogRecord(id: string): Promise<unknown>
     /** Writes a raw `catalogs` record, as if saved by a faulty or tampered build. */
     putStoredCatalogRecord(record: unknown): Promise<void>
+    holdOlderConnection(): Promise<void>
+    /** Reads through the held connection, which doesn't wait behind a pending upgrade as a new one would. */
+    readOlderConnection(id: string): Promise<{ version: number; catalog: unknown }>
+    releaseOlderConnection(): void
   }
 }

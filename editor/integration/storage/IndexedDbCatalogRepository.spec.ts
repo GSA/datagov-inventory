@@ -172,3 +172,26 @@ test('IndexedDbCatalogRepository aborts an upgrade that cannot migrate a saved r
   expect(await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)).toEqual(corrupt)
   expect(logs.join('\n')).not.toContain(saved.sourceName)
 })
+
+test('IndexedDbCatalogRepository reports an upgrade blocked by another tab, and upgrades once that tab closes', async ({
+  page,
+  context,
+}) => {
+  const saved = await page.evaluate(() => catalogRepository.fixture())
+  await page.evaluate((value) => catalogRepository.create(value), saved)
+  await page.evaluate(() => catalogRepository.holdOlderConnection())
+  const stored = await page.evaluate((id) => catalogRepository.storedCatalogRecord(id), saved.id)
+
+  const newer = await context.newPage()
+  await upgradeTo(newer, ['indexObjectsByClass'])
+  const error = await newer.evaluate((id) => catalogRepository.loadError(id), saved.id)
+
+  expect(error).toEqual({ code: 'blocked', message: expect.stringMatching(/another tab.*close or reload/is) })
+  expect(await page.evaluate((id) => catalogRepository.readOlderConnection(id), saved.id)).toEqual({
+    version: 1,
+    catalog: stored,
+  })
+
+  await page.evaluate(() => catalogRepository.releaseOlderConnection())
+  expectSameGraph(await newer.evaluate((id) => catalogRepository.load(id), saved.id), saved)
+})
