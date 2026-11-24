@@ -60,7 +60,13 @@ const logged =
   }
 
 /** `?migrations=a,b` opens the database at the app's version plus these test versions, in order. */
-const laterMigrations = new URLSearchParams(location.search).get('migrations')?.split(',') ?? []
+const allowedTestMigrationNames = new Set(Object.keys(testMigrations))
+const laterMigrations =
+  new URLSearchParams(location.search)
+    .get('migrations')
+    ?.split(',')
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0 && allowedTestMigrationNames.has(name)) ?? []
 const storage = new IndexedDbCatalogRepository(DATABASE, [...MIGRATIONS, ...laterMigrations.map(logged)])
 
 const identifiedFixture = (): CatalogWorkspace => {
