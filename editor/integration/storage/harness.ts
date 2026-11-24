@@ -42,7 +42,14 @@ const logged =
   (name: string): Migration =>
   (database, transaction) => {
     migrationLog.push(name)
-    return testMigrations[name](database, transaction)
+    if (!Object.prototype.hasOwnProperty.call(testMigrations, name)) {
+      throw new Error(`Unknown test migration: ${name}`)
+    }
+    const migration = testMigrations[name]
+    if (typeof migration !== 'function') {
+      throw new Error(`Invalid test migration: ${name}`)
+    }
+    return migration(database, transaction)
   }
 
 /** `?migrations=a,b` opens the database at the app's version plus these test versions, in order. */
