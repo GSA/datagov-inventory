@@ -75,7 +75,7 @@ label, then its field and, when it says more, its class ("Publisher · Organizat
 many items it holds, and an object used in several places says "Shared · N places"; the place it was opened in is
 selected, and its other places are outlined. It renders every row without
 virtualization: with 3,000 datasets (18,001 objects before #6546 merged their shared publisher, 15,002 now) each action paints in about 100 ms or less (measured in the pull request for #23;
-`PERF=1 npx playwright test tree-performance` measures again). Three things keep it fast: memoized rows, so an action
+`PERF=1 npx playwright test tree-performance` measures again; [docs/performance.md](../docs/performance.md) has the whole loop at 300 to 6,000 datasets). Three things keep it fast: memoized rows, so an action
 re-renders only the rows it changes; a filter box of `type="text"`, because USWDS floats `type="search"` inputs and
 a float before the tree made each change lay out every row again; and `content-visibility: auto` on the rows, which all
 have the same height, so the browser lays out only the rows in view.
@@ -127,6 +127,7 @@ autosave updates only records or reference sets that changed.
 | `npm run schema:check` | Check the schema pin matches the submodule (runs in CI) |
 | `npm run generate:models` | Generate TypeScript form models from DCAT-US 3.0 JSON Schema |
 | `npm run generate:models:check` | Verify committed models match current schema (runs in CI) |
+| `npm run generate:catalogs` | Write generated catalogs of 300, 1,000, 3,000 and 6,000 datasets to `generated-catalogs/`, to import by hand ([performance](../docs/performance.md)) |
 
 ## Testing
 

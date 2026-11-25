@@ -34,7 +34,7 @@ architecture?**
   remains the authoritative validation service.
 - Section 508 and WCAG 2.1 AA apply to the complete application.
 - Measurements with catalogs through at least 3,000 datasets establish and
-  disclose the supported browser limit.
+  disclose the supported browser limit ([measurements](../performance.md), #29).
 - UI and storage details must not enter DCAT graph algorithms that phase 2 may
   reuse.
 
@@ -181,6 +181,7 @@ organization](../architecture.md#8-code-organization).
 ## Links
 
 - [System architecture](../architecture.md) - detailed phase 1 design and flows
+- [Performance](../performance.md) - responsiveness measured on 300 to 6,000 datasets (#29)
 - [ADR 0013](0013-deliver-inventory-in-three-phases.md) - phased delivery
 - [ADR 0002](0002-ui-rendering-architecture-for-inventory-v2.md) - superseded hybrid proposal
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) - shared object graph
