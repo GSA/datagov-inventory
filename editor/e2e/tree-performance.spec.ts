@@ -4,6 +4,9 @@
  * response to feel immediate (https://web.dev/articles/rail). Opt-in, since timings vary by machine:
  *
  *   PERF=1 npx playwright test tree-performance          # CPU_THROTTLE=4 to emulate a slower laptop
+ *
+ * Its load time is not what people see: Playwright's context keeps IndexedDB in memory, where storing the catalog takes
+ * about 10 s rather than about 1.5 s. catalog-performance loads on a profile on disk (#29, docs/performance.md).
  */
 import type { Page } from '@playwright/test'
 import { test } from './fixtures'
@@ -86,7 +89,9 @@ test('tree interactions on 3,000 datasets', async ({ page }) => {
     record('collapse (Left arrow)', await measure(page, () => page.keyboard.press('ArrowLeft')))
   }
   for (let i = 0; i < 3; i++) {
-    await item('Generated catalog of 3,000 datasets').click()
+    // Opening the catalog renders its form, which lists all 3,000 datasets: timed on its own, so it is not counted in the
+    // collapse that follows.
+    record('select the catalog (its form lists 3,000)', await measure(page, () => item('Generated catalog of 3,000 datasets').click()))
     record('collapse the catalog (3,000 rows)', await measure(page, () => page.keyboard.press('ArrowLeft')))
     record('expand the catalog (3,000 rows)', await measure(page, () => page.keyboard.press('ArrowRight')))
   }
