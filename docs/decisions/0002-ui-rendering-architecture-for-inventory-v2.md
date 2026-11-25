@@ -151,7 +151,8 @@ Fall back to server-persisted editing (Option 1) if the spike shows that:
 Local-first would then be dropped as a requirement.
 
 > **Evidence (#29, 2026-11):** a 3,000-dataset catalog loads in about 1.8 s and
-> every measured action responds within about 100 ms on the built alpha; see
+> every measured action but one responds within about 100 ms on the built alpha
+> (opening the catalog's form takes about 160 ms); see
 > [docs/performance.md](../performance.md).
 
 ### Positive Consequences

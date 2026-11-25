@@ -8,9 +8,9 @@ establish and disclose the supported browser limit") and for the condition in
 3,000-dataset catalog must load and edit responsively in the browser.
 
 **In short:** a catalog of 3,000 datasets loads in under 2 seconds. On a fast laptop, every action measured responds
-within about 100 ms. The one exception is opening the catalog itself, at about 105 ms (96–120 ms). A catalog of 6,000
-datasets loads in under 4 seconds and responds just as well. No budget fails, so the alpha states no smaller supported
-size.
+within about 100 ms. The one exception is opening the catalog itself, which takes about 160 ms because its form lists
+every dataset. A catalog of 6,000 datasets loads in under 4 seconds and responds just as well. Apart from that one
+action, no budget fails, so the alpha states no smaller supported size.
 
 ## Budgets
 
@@ -22,7 +22,7 @@ misses one.
 | Action on 3,000 datasets (full CPU speed) | Budget | Measured (worst run) | |
 |---|---|---|---|
 | Any input to the next paint (keys, clicks, scroll frames) | 100 ms | 80 ms | ✅ |
-| Opening the catalog's form (lists all 3,000 datasets) | 100 ms | 120 ms | 🟡 near miss, was 160 ms |
+| Opening the catalog's form (lists all 3,000 datasets) | 100 ms | 160 ms | ❌ see [Findings](#findings) |
 | Load: choose the file to the tree painted | 3 s | 1.75 s | ✅ |
 | Restore: reload to the tree painted | 2 s | 0.37 s | ✅ |
 | Autosave: leave a field to "Saved" | 1 s | 0.31 s | ✅ |
@@ -118,8 +118,7 @@ Times of 16 ms mean one frame or less. The filter keeps the input responsive and
 All are input to the next paint. Selecting a dataset takes 72 ms, and expanding or collapsing one takes 32 ms.
 Expanding and collapsing the catalog's 3,000 rows takes 96 ms and 24 ms. A filter key takes 24 ms. In the
 "Add an existing" picker, opening the list of 3,000 contacts takes 80 ms and Enter takes 56 ms. Opening a copy or a new
-distribution takes 72 ms, and Back takes 40 ms. Selecting the catalog itself took 160 ms on `main` and takes 96–120 ms
-with `content-visibility` on the link rows (see [Findings](#findings)).
+distribution takes 72 ms, and Back takes 40 ms. Selecting the catalog itself takes 160 ms (see [Findings](#findings)).
 
 ### Validate catalog (`validation-performance`, worst of 3 runs)
 
@@ -133,10 +132,11 @@ with `content-visibility` on the link rows (see [Findings](#findings)).
 1. **Responsive at 3,000 and at 6,000 datasets.** On a fast laptop, every input paints within 100 ms at both sizes,
    except opening the catalog's own form. The longer jobs stay under a second, except a 3.8 s load at 6,000. Memory is
    small: 44 MB of JavaScript heap at 3,000.
-2. **Opening the catalog's form was the one clear miss: 160 ms.** Its Dataset field lists every dataset, 3,000 link
-   rows. `content-visibility: auto` on the rows (`editor/src/app.css`) lets the browser lay out only the rows in view,
-   which brings it to 96–120 ms with nothing visible changed. Getting reliably under 100 ms would mean showing only the
-   first rows with a "Show all" button. That is a UI change, left for later if needed.
+2. **Opening the catalog's form is the one clear miss: 160 ms.** Its Dataset field lists every dataset, 3,000 link
+   rows, and they all render. `content-visibility: auto` on the rows brought it to 96–120 ms with nothing visible
+   changed, but it was reverted. Together with the tree's rows, which already use it, it sometimes caused a single
+   frame of about 4 s of style and layout after the next filter, which broke an e2e test 2 times in 10. Showing only
+   the first rows with a "Show all" button would fix the miss, but that is a UI change, left as an option.
 3. **Storing the catalog dominates load time.** Parsing in the worker takes about 60 ms for 3,000 datasets. The rest
    is writing about 33,000 IndexedDB records (one per object and one per link) in one transaction: about 1.5 s on a
    profile on disk. Writing the same data as 66 records of 500 objects each took 37 ms, so storing the catalog in chunks

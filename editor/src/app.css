@@ -204,11 +204,6 @@ a:focus:not(:focus-visible) {
   column-gap: 0.75rem;
   padding: 0.5rem;
   background-color: #f0f0f0; /* base-lightest */
-  /* The browser lays out only the rows in view: the catalog's form lists every dataset, and opening it on 3,000 took
-     about 160 ms instead of about 105 ms (#29). Rows out of view are sized as one line (24px inside the padding, 40px
-     in all), so the page is as tall as it will be; focus rings stay inside the padding, so none is clipped. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 24px;
 }
 .link-row__actions {
   display: flex;
