@@ -428,8 +428,8 @@ function NoCatalog() {
     <>
       <h1 tabIndex={-1}>No catalog open</h1>
       <p>
-        The editor keeps your catalog in this browser tab only, so it closes when you reload or leave. Import it again
-        to create a new working copy.
+        Catalogs you imported are still in this browser, unless its site data was cleared. To continue one, open its
+        page from your bookmarks or browser history, or import a catalog.
       </p>
       <Link to="/import" className="usa-button">
         Import a catalog

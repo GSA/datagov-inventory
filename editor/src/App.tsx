@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { GovBanner, Header, NavMenuButton, PrimaryNav, Title } from '@trussworks/react-uswds'
+import { GovBanner, Header, NavMenuButton, PrimaryNav, SiteAlert, Title } from '@trussworks/react-uswds'
 import {
   createRootRoute,
   createRoute,
@@ -27,6 +27,7 @@ import { ValidationProvider } from './validation/ValidationContext'
 import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
+import Help from './Help'
 import { IndexedDbCatalogRepository } from './storage/IndexedDbCatalogRepository'
 import { useUnsavedChangesWarning } from './useUnsavedChangesWarning'
 
@@ -58,6 +59,15 @@ function Layout() {
   return (
     <>
       <GovBanner />
+      {/* Every page says this is an alpha, and where to read its limits and give feedback (#32). */}
+      <SiteAlert variant="info" slim aria-label="Alpha">
+        <p className="usa-alert__text">
+          <strong>Alpha:</strong> an early test version.{' '}
+          <Link to="/help" className="usa-link" onClick={close}>
+            Limits and feedback
+          </Link>
+        </p>
+      </SiteAlert>
       <Header basic showMobileOverlay={menuOpen}>
         <div className="usa-nav-container">
           <div className="usa-navbar">
@@ -91,6 +101,15 @@ function Layout() {
                 onClick={close}
               >
                 <span>Editor</span>
+              </Link>,
+              <Link
+                key="help"
+                to="/help"
+                className="usa-nav__link"
+                activeProps={{ className: 'usa-current' }}
+                onClick={close}
+              >
+                <span>Help</span>
               </Link>,
             ]}
           />
@@ -128,6 +147,7 @@ const routeTree = root.addChildren([
     path: 'editor/$',
     component: Editor,
   }),
+  createRoute({ getParentRoute: () => root, path: 'help', component: Help }),
 ])
 
 const router = createRouter({ routeTree })

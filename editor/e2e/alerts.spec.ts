@@ -90,7 +90,11 @@ test('import page alerts keep the icon clear of the text', async ({ page }) => {
   await page.getByRole('link', { name: 'Import', exact: true }).click()
 
   // Info, slim: a catalog is already open.
-  await expectIconClearOfText(page, page.locator('.usa-alert--info'))
+  await expectIconClearOfText(page, page.locator('.usa-alert--info').filter({ hasText: 'is open.' }))
+  // Info, slim: where the catalog is kept (#32).
+  await expectIconClearOfText(page, page.locator('.usa-alert--info').filter({ hasText: 'Where your catalog is kept:' }))
+  // The alpha banner, a slim site alert (#32).
+  await expectIconClearOfText(page, page.getByRole('region', { name: 'Alpha' }))
 
   // Warning: the prompt before replacing the open catalog.
   await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')

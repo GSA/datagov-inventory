@@ -1,0 +1,38 @@
+name: Inventory Editor alpha feedback
+description: Report a problem or share an idea about the Inventory Editor alpha.
+title: 'Alpha feedback: '
+labels: ['Inventory2.0']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for trying the Inventory Editor alpha.
+
+        **This issue is public.** Do not paste catalog content, personal information, or anything that is not public. Describe the problem in your own words, and use made-up examples if you need them. Nothing from your catalog is attached to this form.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, or what would you like?
+      description: What were you trying to do, and what did you see?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce, if it is a problem
+      placeholder: |
+        1. Import a catalog
+        2. Open a dataset
+        3. ...
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 131 on Windows 11
+  - type: checkboxes
+    id: no-sensitive-data
+    attributes:
+      label: Before you submit
+      options:
+        - label: I have not included catalog content, personal information, or anything that is not public.
+          required: true
