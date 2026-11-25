@@ -207,7 +207,8 @@ test.describe('Validate catalog feedback', () => {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(largeCatalog())),
     })
-    // TODO #29 Speed up the saveCatalog time for a large catalog
+    // Slow here only: Playwright's context keeps IndexedDB in memory, where storing 3,000 datasets takes about 10 s; on a
+    // profile on disk it takes about 1.5 s (#29, docs/performance.md).
     await expect(page.getByRole('tree').getByRole('treeitem')).toHaveCount(1 + 3_000, { timeout: 30_000 })
     const button = page.locator('.catalog-actions .usa-button').nth(1)
     await expect(button).toHaveAccessibleName('Validate catalog')

@@ -27,6 +27,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Generated catalogs (npm run generate:catalogs)
+generated-catalogs
+
 # Playwright output
 test-results
 playwright-report
