@@ -1,6 +1,7 @@
 import { ButtonGroup } from '@trussworks/react-uswds'
 import { Link } from '@tanstack/react-router'
 import { useCatalog, usePageTitle } from './session'
+import StorageNotice from './StorageNotice'
 
 /** What the editor is for, and the way in: import the organization's whole catalog. */
 export default function Landing() {
@@ -26,6 +27,7 @@ export default function Landing() {
             : []),
         ]}
       </ButtonGroup>
+      <StorageNotice />
       <ol className="usa-process-list">
         <li className="usa-process-list__item">
           <h2 className="usa-process-list__heading">Import your catalog</h2>
@@ -46,9 +48,6 @@ export default function Landing() {
           <p>Download the edited file and give it to your IT team to host where Data.gov harvests it.</p>
         </li>
       </ol>
-      <p className="margin-top-4 text-base">
-        Your catalog stays in this browser. Nothing is uploaded or sent anywhere.
-      </p>
     </>
   )
 }

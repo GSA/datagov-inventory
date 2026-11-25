@@ -18,6 +18,7 @@ import type { DecomposedCatalog } from './catalog/decompose'
 import { identifyGraph } from './catalog/identify'
 import { createUuid } from './catalog/id'
 import { catalogPath } from './objectRoute'
+import StorageNotice from './StorageNotice'
 
 /** The smallest document that decomposes: one Catalog for the user to fill in. */
 const BLANK_CATALOG = '{"@type": "Catalog"}'
@@ -116,8 +117,7 @@ export default function ImportPage() {
     <>
       <h1 tabIndex={-1}>Import a catalog</h1>
       <p className="usa-intro">
-        Choose your organization&apos;s DCAT-US 3.0 catalog: one JSON file with all its datasets, even thousands. It is
-        read in this browser. Nothing is uploaded.
+        Choose your organization&apos;s DCAT-US 3.0 catalog: one JSON file with all its datasets, even thousands.
       </p>
       {open && (
         <Alert type="info" slim>
@@ -151,6 +151,7 @@ export default function ImportPage() {
           }}
         />
       </div>
+      <StorageNotice />
 
       <div id="loading" className={loading ? 'margin-top-4' : undefined}>
         {/* Always rendered, so screen readers announce the text when it appears. */}
