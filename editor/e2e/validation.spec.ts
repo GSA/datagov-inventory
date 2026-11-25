@@ -147,7 +147,8 @@ async function recordLayout(page: Page) {
       above: [box(document.querySelector('h1')), ...[...document.querySelectorAll('.catalog-actions .usa-button')].map(box)],
       below: [position(document.querySelector('.editor-nav')), position(document.querySelector('form.object-form'))],
       progressBars: document.querySelectorAll('[role="progressbar"], progress').length,
-      busy: !!document.querySelector('.catalog-actions [aria-disabled="true"]'),
+      // Validate catalog, while busy (Undo, used up, is aria-disabled too).
+      busy: !!document.querySelector('.catalog-actions [aria-disabled="true"] .stacked-labels'),
       results: !!document.querySelector('.catalog-check'),
     })
     const w = window as unknown as { layouts: ReturnType<typeof snapshot>[] }

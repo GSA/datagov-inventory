@@ -8,7 +8,7 @@ import { findParentLinks } from './catalog/edit'
 import { CatalogTree } from './CatalogTree'
 import { ObjectForm } from './ObjectForm'
 import { classLabel, fieldLabel } from './labels'
-import { ancestorIds, count, labelOf, parentsOf } from './tree'
+import { ancestorIds, count, isolate, labelOf, parentsOf } from './tree'
 import { catalogPath, editorAddress, editorPath } from './objectRoute'
 import { useValidation } from './validation/useValidation'
 import { ValidationSummary } from './validation/ValidationSummary'
@@ -74,8 +74,19 @@ function Breadcrumb({
   )
 }
 
-/** Deletes the open object. One used in several places asks first, in place (no dialog), listing the places. */
-function DeleteObject({ object, open }: { object: CatalogObject; open: CatalogWorkspace }) {
+/**
+ * Deletes the open object. One used in several places asks first, in place (no dialog), listing the places.
+ * `onDeleted` gets the deleted object's label, for the announcement.
+ */
+function DeleteObject({
+  object,
+  open,
+  onDeleted,
+}: {
+  object: CatalogObject
+  open: CatalogWorkspace
+  onDeleted: (label: string) => void
+}) {
   const { deleteObject } = useCatalog()
   const catalog = open.catalog
   const navigate = useNavigate()
@@ -96,6 +107,7 @@ function DeleteObject({ object, open }: { object: CatalogObject; open: CatalogWo
     if (parentLinks.length <= 1) {
       const firstParentId = parentLinks[0]?.parentId || catalog.rootId
       deleteObject(object.id)
+      onDeleted(labelOf(object))
       const firstParent = catalog.objects.get(firstParentId)
       navigate({
         to: '/editor/$',
@@ -115,6 +127,7 @@ function DeleteObject({ object, open }: { object: CatalogObject; open: CatalogWo
 
   const handleConfirmDelete = () => {
     deleteObject(object.id)
+    onDeleted(labelOf(object))
     setPlaces(undefined)
     navigate({ to: '/editor/$', params: { _splat: catalogPath(open.id) } })
   }
@@ -159,10 +172,12 @@ function ObjectDetail({
   object,
   open,
   parents,
+  onDeleted,
 }: {
   object: CatalogObject
   open: CatalogWorkspace
   parents: Map<string, string[]>
+  onDeleted: (label: string) => void
 }) {
   const model = getFormModel(object.dcatClass)
 
@@ -174,7 +189,7 @@ function ObjectDetail({
           {labelOf(object)}
         </h2>
         <p>No form model available for {classLabel(object.dcatClass)}</p>
-        <DeleteObject object={object} open={open} />
+        <DeleteObject object={object} open={open} onDeleted={onDeleted} />
       </section>
     )
   }
@@ -183,7 +198,7 @@ function ObjectDetail({
     <>
       <Breadcrumb object={object} open={open} parents={parents} />
       <ObjectForm object={object} model={model} parentId={ancestorIds(object.id, parents).pop()} />
-      <DeleteObject object={object} open={open} />
+      <DeleteObject object={object} open={open} onDeleted={onDeleted} />
     </>
   )
 }
@@ -209,6 +224,10 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   // "Validating…" only if a check runs past 400 ms, and then for at least 500 ms, so it neither flashes nor blinks.
   const showValidating = useDelayedFlag(isValidatingCatalog, 400, 500)
   const [validationResult, setValidationResult] = useState('')
+  // What a delete or an undo did, for screen readers: the tree changes, and focus moves (#30). A repeat of the same
+  // words alternates a trailing no-break space, so it is announced again.
+  const [removalNotice, setRemovalNotice] = useState('')
+  const announceRemoval = (text: string) => setRemovalNotice((last) => (last === text ? `${text}\u00a0` : text))
   const navigate = useNavigate()
 
   usePageTitle(object ? `${labelOf(object)} (${classLabel(object.dcatClass)})` : 'Not found')
@@ -334,7 +353,18 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
                   </Button>,
                 ]
               : []),
-            <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
+            // aria-disabled, not disabled: Undo has focus when it is used up, so focus stays on it, not on <body>.
+            <Button
+              key="undo"
+              type="button"
+              onClick={() => {
+                if (!canUndo) return
+                undoRemoval()
+                announceRemoval('Undone. What was removed is back.')
+              }}
+              aria-disabled={!canUndo || undefined}
+              outline
+            >
               Undo
             </Button>,
           ]}
@@ -349,6 +379,9 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
             onToggleResults={() => setShowValidationSummary((shown) => !shown)}
           />
         )}
+      </div>
+      <div role="status" className="usa-sr-only">
+        {removalNotice}
       </div>
       {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page.
           An out-of-date result is cleared, which announces nothing, so it is not read later as current. */}
@@ -403,7 +436,13 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
         </nav>
         <div className="tablet:grid-col-7 desktop:grid-col-8 margin-top-4 tablet:margin-top-0 tablet:padding-top-2">
           {object ? (
-            <ObjectDetail key={object.id} object={object} open={open} parents={parents} />
+            <ObjectDetail
+              key={object.id}
+              object={object}
+              open={open}
+              parents={parents}
+              onDeleted={(label) => announceRemoval(`Deleted ${isolate(label)}. Undo, at the top of the page, puts it back.`)}
+            />
           ) : (
             <>
               <h2 id="detail-heading" tabIndex={-1} className="margin-top-0">

@@ -186,5 +186,6 @@ organization](../architecture.md#8-code-organization).
 - [ADR 0005](0005-object-graph-data-model-for-dcat-us-3.md) - shared object graph
 - [ADR 0008](0008-onboard-via-data-json-reimport.md) - DCAT-US 3.0 import behavior and phase 2 onboarding
 - [ADR 0010](0010-depend-on-upstream-dcat-us-code.md) - schemas and validator API
+- [Accessibility test record](../accessibility.md) - automated and manual accessibility results for the alpha (#30)
 - [USWDS](https://designsystem.digital.gov/) and [Section 508](https://www.section508.gov/)
 - NIST SP 800-53 Rev 5.2 - SI-10, SI-15, SC-18, CM-2, CM-3, SA-8, SA-15, SR-3
