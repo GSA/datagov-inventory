@@ -1,7 +1,20 @@
 import type { CatalogWorkspace } from '../catalog/types'
 
+/** Lightweight metadata used to discover working copies without reconstructing their graphs. */
+export interface SavedCatalogSummary {
+  id: string
+  title: string
+  sourceName: string
+  objectCount: number
+  createdAt: number
+  updatedAt: number
+}
+
 /** Persistence boundary for identified catalog working copies. */
 export interface CatalogRepository {
+  /** Lists saved catalog, most recently saved first. */
+  listCatalogs(): Promise<SavedCatalogSummary[]>
+
   /**
    * Stores a newly accepted working copy and its complete graph atomically. Fails if the
    * catalog identity already exists; callers should not open the editor until this resolves.
@@ -21,6 +34,12 @@ export interface CatalogRepository {
    * do not form a valid graph.
    */
   loadCatalog(id: string): Promise<CatalogWorkspace | undefined>
+
+  /** Transactionally removes the identified working copies and all of their scoped records. */
+  deleteCatalogs(ids: readonly string[]): Promise<void>
+
+  /** Transactionally removes every working copy managed by this repository. */
+  deleteAllCatalogs(): Promise<void>
 }
 
 /**

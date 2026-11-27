@@ -29,7 +29,7 @@ test('every page and state has no WCAG 2.1 AA violations axe can find', async ({
 
   await test.step('editor with no catalog open', async () => {
     await page.goto('/editor')
-    await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Invalid editor address' })).toBeVisible()
     await expectNoAxeViolations(page)
   })
 
@@ -71,12 +71,9 @@ test('every page and state has no WCAG 2.1 AA violations axe can find', async ({
     await expectNoAxeViolations(page)
   })
 
-  await test.step('import page with a catalog open, and the replace prompt', async () => {
-    await page.getByRole('link', { name: 'Import', exact: true }).click()
-    await expect(page.getByText('dataset-with-distributions.json is open.')).toBeVisible()
-    await expectNoAxeViolations(page)
-    await loadSample(page, 'minimal-catalog.json')
-    await expect(page.getByRole('heading', { name: 'Replace the open catalog?' })).toBeFocused()
+  await test.step('import page after another catalog was saved', async () => {
+    await page.goto('/import')
+    await expect(page.getByRole('link', { name: 'Back to catalogs' })).toBeVisible()
     await expectNoAxeViolations(page)
   })
 })

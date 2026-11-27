@@ -63,4 +63,33 @@ describe('AutosaveQueue', () => {
     await flushing
     expect(flushed).toBe(true)
   })
+
+  it('drops waiting snapshots and waits for an active save before deletion', async () => {
+    const saving = deferred<void>()
+    const save = vi.fn().mockReturnValueOnce(saving.promise).mockResolvedValue(undefined)
+    const queue = new AutosaveQueue<string>(save)
+    queue.enqueue('active')
+    queue.enqueue('discard me')
+
+    let discarded = false
+    const discarding = queue.discardPendingAndWait().then(() => { discarded = true })
+    await Promise.resolve()
+    expect(discarded).toBe(false)
+
+    saving.resolve()
+    await discarding
+    expect(save.mock.calls).toEqual([['active']])
+    await expect(queue.flush()).resolves.toBeUndefined()
+  })
+
+  it('forgets failure from an active save when its working copy is discarded', async () => {
+    const saving = deferred<void>()
+    const queue = new AutosaveQueue<string>(vi.fn().mockReturnValue(saving.promise))
+    queue.enqueue('active')
+    const discarding = queue.discardPendingAndWait()
+    saving.reject(new Error('storage failed'))
+
+    await expect(discarding).resolves.toBeUndefined()
+    await expect(queue.flush()).resolves.toBeUndefined()
+  })
 })

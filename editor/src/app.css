@@ -15,10 +15,101 @@
   width: auto;
 }
 
+.catalog-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 39.99em) {
+  .catalog-page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* The catalog management list keeps summaries and actions close while preserving a stacked phone layout. */
+.catalog-list-toolbar,
+.saved-catalog__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.catalog-list-toolbar {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 3.5rem;
+  padding: 0.5rem 0;
+  background-color: #fff; /* white */
+  border-bottom: 1px solid #dfe1e2; /* base-lighter */
+}
+.catalog-list-toolbar__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+  margin-left: auto;
+}
+.catalog-list-toolbar .usa-button {
+  width: auto;
+  margin: 0;
+}
+.saved-catalog--compact {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+.saved-catalog__heading h2 {
+  flex: 1 1 20rem;
+}
+.saved-catalog__row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.saved-catalog__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.5rem;
+  min-height: 2.5rem;
+  margin: 0;
+  padding: 0.5rem;
+}
+.saved-catalog__open {
+  width: auto;
+  margin: 0;
+}
+.saved-catalog__metadata {
+  line-height: 1.35;
+}
+
+@media (max-width: 39.99em) {
+  .catalog-list-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .catalog-list-toolbar__summary {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+  .saved-catalog__open {
+    margin-top: 0.25rem;
+  }
+}
+
 /* Labels stacked in one cell (a button's, a status line's): it is as big as the biggest, so changing label moves
    nothing. The hidden one is out of the accessible name and text too. */
 .stacked-labels {
-  display: inline-grid;
+    display: inline-grid;
 }
 .stacked-labels > * {
   grid-area: 1 / 1;

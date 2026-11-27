@@ -42,6 +42,9 @@ globalThis.catalogRepository = {
     return catalog ? toSerializable(catalog) : undefined
   },
   save: (catalog) => storage.saveCatalog(fromSerializable(catalog)),
+  list: () => storage.listCatalogs(),
+  delete: (ids) => storage.deleteCatalogs(ids),
+  deleteAll: () => storage.deleteAllCatalogs(),
 }
 
 declare global {
@@ -50,5 +53,8 @@ declare global {
     create(catalog: SerializableCatalogWorkspace): Promise<void>
     load(id: string): Promise<SerializableCatalogWorkspace | undefined>
     save(catalog: SerializableCatalogWorkspace): Promise<void>
+    list(): ReturnType<IndexedDbCatalogRepository['listCatalogs']>
+    delete(ids: string[]): Promise<void>
+    deleteAll(): Promise<void>
   }
 }

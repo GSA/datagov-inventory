@@ -54,9 +54,8 @@ for every path (`cf/nginx.conf`), and `vite preview` does the same.
 
 | Path | Page |
 |---|---|
-| `/` | Start: what the editor is for, and Import |
+| `/` | Lists saved catalogs; first-run introduction when none are saved. |
 | `/import` | Import a file (chosen or dropped), pasted JSON, a sample, or a blank catalog. |
-| `/editor` | Editor entry point when no catalog identity is selected |
 | `/editor/<catalog-token>` | The identified catalog root: its tree on the left, the catalog on the right |
 | `/editor/<catalog-token>/distribution/<object-token>` | A non-root object in that catalog. The tree opens down to it. |
 
@@ -98,6 +97,9 @@ editor reports Saving, Saved, or Not saved. Reloading an identified `/editor/<ca
 catalog and optional object from browser storage. The copy is per browser and device, is not a backup, and is lost if
 site data is cleared. When the path changes, focus moves to the new page's `h1` (or, within the editor, to the object's 
 heading) and the tab title changes.
+
+When saved catalogs exist, the start page lists them and supports confirmed deletion of one catalog or all browser-local
+catalogs.
 
 `src/loadCatalog.ts` is the one way imported JSON loads (a file, pasted JSON, a sample, or a blank catalog). It checks
 a file's size before reading it, then parses and decomposes in a

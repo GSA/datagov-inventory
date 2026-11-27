@@ -2,11 +2,10 @@ import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 
-async function importSample(page: Page, name: string, replacing = false) {
+async function importSample(page: Page, name: string) {
   await page.goto('/import')
   await page.getByLabel('Sample catalog').selectOption(name)
   await page.getByRole('button', { name: 'Load sample' }).click()
-  if (replacing) await page.getByRole('button', { name: 'Replace', exact: true }).click()
   await expect(page).toHaveURL(/\/editor\/[A-Za-z0-9_-]{22}$/)
 }
 
@@ -44,19 +43,13 @@ test.describe('App page frame', () => {
     await expect(heading).toContainText('Edit your DCAT-US 3.0 catalog in this browser')
   })
 
-  test('goes from the start page to import, and the header reaches every page', async ({ page }) => {
+  test('uses contextual navigation between catalogs, import, and editor', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('main').getByRole('link', { name: 'Import a catalog' }).click()
+    await page.getByRole('main').getByRole('link', { name: 'Add a catalog' }).click()
     await expect(page).toHaveURL('/import')
     await expect(page).toHaveTitle('Import a catalog | Inventory Editor')
     await expect(page.getByRole('heading', { level: 1, name: 'Import a catalog' })).toBeFocused()
-    await expect(page.getByRole('link', { name: 'Import', exact: true })).toHaveAttribute('aria-current', 'page')
-
-    await page.getByRole('link', { name: 'Editor', exact: true }).click()
-    await expect(page).toHaveURL('/editor')
-    await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeFocused()
-    await page.goBack()
-    await expect(page).toHaveURL('/import')
+    await expect(page.getByRole('link', { name: 'Back to catalogs' })).toHaveCount(0)
     await page.getByRole('link', { name: 'Inventory Editor' }).click()
     await expect(page).toHaveURL('/')
   })
@@ -70,11 +63,12 @@ test.describe('App page frame', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible()
   })
 
-  test('redirects the generic editor route to the open catalog address', async ({ page }) => {
+  test('returns from the editor to its catalog in the listing', async ({ page }) => {
     await importSample(page, 'dataset-with-distributions.json')
     const catalogUrl = page.url()
 
-    await page.getByRole('link', { name: 'Editor', exact: true }).click()
+    await page.getByRole('link', { name: 'All catalogs' }).click()
+    await page.getByRole('link', { name: 'Example Agency Catalog' }).click()
 
     await expect(page).toHaveURL(catalogUrl)
     await expect(page.getByRole('heading', { level: 1, name: 'Example Agency Catalog' })).toBeVisible()

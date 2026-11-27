@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Alert, AlertHeading, AlertText, Button, ButtonGroup } from '@trussworks/react-uswds'
+import { Alert, AlertHeading, AlertText, Button, ButtonGroup, Icon } from '@trussworks/react-uswds'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import type { CatalogObject, CatalogWorkspace } from './catalog/types'
 import { getFormModel } from './schema'
@@ -194,7 +194,7 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   const root = objects.get(rootId)!
   const object = objects.get(id)
   const parents = useMemo(() => parentsOf(open.catalog), [open.catalog])
-  const { undoRemoval, canUndo, saveStatus, saveError } = useCatalog()
+  const { undoRemoval, canUndo, saveStatus, saveError, deleteCatalogs } = useCatalog()
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string }>()
   const [showExportWarning, setShowExportWarning] = useState(false)
   const { validateCatalog, catalogSummary, isReady } = useValidation()
@@ -209,9 +209,30 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   // "Validating…" only if a check runs past 400 ms, and then for at least 500 ms, so it neither flashes nor blinks.
   const showValidating = useDelayedFlag(isValidatingCatalog, 400, 500)
   const [validationResult, setValidationResult] = useState('')
+  const [confirmCatalogDelete, setConfirmCatalogDelete] = useState(false)
+  const [deletingCatalog, setDeletingCatalog] = useState(false)
+  const [catalogDeleteError, setCatalogDeleteError] = useState<Error>()
+  const catalogDeleteHeading = useRef<HTMLHeadingElement>(null)
   const navigate = useNavigate()
 
   usePageTitle(object ? `${labelOf(object)} (${classLabel(object.dcatClass)})` : 'Not found')
+
+  useEffect(() => {
+    if (confirmCatalogDelete) catalogDeleteHeading.current?.focus()
+  }, [confirmCatalogDelete])
+
+  async function deleteCurrentCatalog() {
+    setDeletingCatalog(true)
+    setCatalogDeleteError(undefined)
+    try {
+      await deleteCatalogs([open.id])
+      void navigate({ to: '/' })
+    } catch (error) {
+      setCatalogDeleteError(error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      setDeletingCatalog(false)
+    }
+  }
 
   const handleValidateCatalog = async () => {
     // Ignores clicks while busy instead of disabling the button, which would take focus from it.
@@ -286,6 +307,10 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
 
   return (
     <>
+      <Link to="/" className="usa-link display-inline-flex flex-align-center gap-05 margin-top-1">
+        <Icon.ArrowBack aria-hidden="true" focusable={false} size={3} />
+        All catalogs
+      </Link>
       <h1 tabIndex={-1} className="text-break margin-bottom-0">
         <bdi>{labelOf(root)}</bdi>
       </h1>
@@ -334,6 +359,9 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
                   </Button>,
                 ]
               : []),
+            <Button key="delete-catalog" type="button" secondary onClick={() => setConfirmCatalogDelete(true)}>
+              Delete catalog
+            </Button>,
             <Button key="undo" type="button" onClick={undoRemoval} disabled={!canUndo} outline>
               Undo
             </Button>,
@@ -348,6 +376,27 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
             resultsId="validation-results"
             onToggleResults={() => setShowValidationSummary((shown) => !shown)}
           />
+        )}
+        {catalogDeleteError && (
+          <Alert type="error" slim role="alert" className="margin-top-2">
+            <AlertText>This catalog could not be deleted. {catalogDeleteError.message}</AlertText>
+          </Alert>
+        )}
+        {confirmCatalogDelete && (
+          <Alert type="warning" className="margin-top-2">
+            <h2 ref={catalogDeleteHeading} tabIndex={-1} className="usa-alert__heading">
+              Delete <bdi>{labelOf(root)}</bdi>?
+            </h2>
+            <AlertText>This removes the working data from this browser. This cannot be undone.</AlertText>
+            <ButtonGroup className="catalog-actions margin-top-2">
+              {[
+                <Button key="keep" type="button" outline onClick={() => setConfirmCatalogDelete(false)}>Keep catalog</Button>,
+                <Button key="delete" type="button" secondary aria-disabled={deletingCatalog || undefined} onClick={() => { if (!deletingCatalog) void deleteCurrentCatalog() }}>
+                  {deletingCatalog ? 'Deleting…' : 'Delete catalog'}
+                </Button>,
+              ]}
+            </ButtonGroup>
+          </Alert>
         )}
       </div>
       {/* One polite announcement when a slow check starts, and one when any check ends; never a progress bar in the page.
@@ -421,23 +470,6 @@ function CatalogView({ open, id }: { open: CatalogWorkspace; id: string }) {
   )
 }
 
-/** The generic `/editor` entry point when this tab has no working catalog. */
-function NoCatalog() {
-  usePageTitle('No catalog open')
-  return (
-    <>
-      <h1 tabIndex={-1}>No catalog open</h1>
-      <p>
-        The editor keeps your catalog in this browser tab only, so it closes when you reload or leave. Import it again
-        to create a new working copy.
-      </p>
-      <Link to="/import" className="usa-button">
-        Import a catalog
-      </Link>
-    </>
-  )
-}
-
 /** A well-formed catalog address with no matching catalog in this browser's storage. */
 function CatalogNotFound() {
   usePageTitle('Catalog not found')
@@ -448,9 +480,12 @@ function CatalogNotFound() {
         This address identifies a specific catalog, but it is not available in this browser. It may belong to another
         browser or device, or its site data may have been cleared.
       </p>
-      <Link to="/import" className="usa-button">
-        Import a catalog
-      </Link>
+      <ButtonGroup>
+        {[
+          <Link key="catalogs" to="/" className="usa-button">Saved catalogs</Link>,
+          <Link key="import" to="/import" className="usa-button usa-button--outline">Import a catalog</Link>,
+        ]}
+      </ButtonGroup>
     </>
   )
 }
@@ -496,27 +531,18 @@ function InvalidEditorAddress() {
     <>
       <h1 tabIndex={-1}>Invalid editor address</h1>
       <p>This editor address is incomplete or malformed.</p>
-      <Link to="/editor/$" params={{ _splat: '' }} className="usa-button">
-        Open the editor
+      <Link to="/" className="usa-button">
+        View catalogs
       </Link>
     </>
   )
-}
-
-/** Replaces the generic `/editor` entry point with the open catalog's canonical address. */
-function CatalogRedirect({ catalogId }: { catalogId: string }) {
-  const navigate = useNavigate()
-  useEffect(() => {
-    void navigate({ to: '/editor/$', params: { _splat: catalogPath(catalogId) }, replace: true })
-  }, [catalogId, navigate])
-  return null
 }
 
 export default function Editor() {
   const { open } = useCatalog()
   const { _splat } = useParams({ from: '/editor/$' })
 
-  if (!_splat) return open ? <CatalogRedirect catalogId={open.id} /> : <NoCatalog />
+  if (!_splat) return <InvalidEditorAddress />
 
   const address = editorAddress(_splat)
   if (!address) return <InvalidEditorAddress />

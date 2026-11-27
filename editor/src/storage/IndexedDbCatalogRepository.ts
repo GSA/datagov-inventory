@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore } from 'idb'
 import type { CatalogObject, CatalogWorkspace } from '../catalog/types'
-import { CatalogStorageError, type CatalogRepository } from './CatalogRepository'
+import { CatalogStorageError, type CatalogRepository, type SavedCatalogSummary } from './CatalogRepository'
 
 const DATABASE = 'datagov-inventory-editor'
 const VERSION = 1
@@ -77,6 +77,25 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
   private database?: Promise<IDBPDatabase<CatalogDatabase>>
 
   constructor(private readonly databaseName = DATABASE) {}
+
+  async listCatalogs(): Promise<SavedCatalogSummary[]> {
+    return withStorageErrors(async () => {
+      const database = await this.databaseConnection()
+      const catalogs = await database.getAll(CATALOGS)
+      const transaction = database.transaction(OBJECTS, 'readonly')
+      const objects = transaction.objectStore(OBJECTS)
+      const byCatalog = objects.index(CATALOG_ID)
+      const summaries = await Promise.all(catalogs.map(async (catalog) => {
+        const [root, objectCount] = await Promise.all([
+          objects.get([catalog.id, catalog.rootId]),
+          byCatalog.count(catalog.id),
+        ])
+        return summaryOf(catalog, root, objectCount)
+      }))
+      await transaction.done
+      return summaries.sort((a, b) => b.updatedAt - a.updatedAt)
+    })
+  }
 
   async createCatalog(catalog: CatalogWorkspace): Promise<void> {
     await withStorageErrors(async () => {
@@ -156,6 +175,41 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
     })
   }
 
+  async deleteCatalogs(ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return
+    await withStorageErrors(async () => {
+      const database = await this.databaseConnection()
+      const records = await Promise.all([...new Set(ids)].map(async (id) => ({
+        id,
+        objects: await database.getAllKeysFromIndex(OBJECTS, CATALOG_ID, id),
+        references: await database.getAllKeysFromIndex(REFERENCES, CATALOG_ID, id),
+      })))
+      const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readwrite')
+      const catalogs = transaction.objectStore(CATALOGS)
+      const objects = transaction.objectStore(OBJECTS)
+      const references = transaction.objectStore(REFERENCES)
+      await Promise.all(records.flatMap(({ id, objects: storedObjects, references: storedReferences }) => [
+        catalogs.delete(id),
+        ...storedObjects.map((key) => objects.delete(key)),
+        ...storedReferences.map((key) => references.delete(key)),
+      ]))
+      await transaction.done
+    })
+  }
+
+  async deleteAllCatalogs(): Promise<void> {
+    await withStorageErrors(async () => {
+      const database = await this.databaseConnection()
+      const transaction = database.transaction([CATALOGS, OBJECTS, REFERENCES], 'readwrite')
+      await Promise.all([
+        transaction.objectStore(CATALOGS).clear(),
+        transaction.objectStore(OBJECTS).clear(),
+        transaction.objectStore(REFERENCES).clear(),
+      ])
+      await transaction.done
+    })
+  }
+
   private databaseConnection(): Promise<IDBPDatabase<CatalogDatabase>> {
     if (!globalThis.indexedDB) throw new CatalogStorageError('unavailable', 'Browser storage is unavailable.')
     return (this.database ??= openDB<CatalogDatabase>(this.databaseName, VERSION, {
@@ -186,6 +240,24 @@ const catalogRecord = (
   rootId: catalog.rootId,
   createdAt,
   updatedAt,
+})
+
+const titleOfRecord = (catalog: CatalogRecord, root: ObjectRecord | undefined) => {
+  const title = root?.properties.title
+  return typeof title === 'string' && title.trim() ? title : catalog.sourceName.replace(/\.json$/i, '')
+}
+
+const summaryOf = (
+  catalog: CatalogRecord,
+  root: ObjectRecord | undefined,
+  objectCount: number,
+): SavedCatalogSummary => ({
+  id: catalog.id,
+  title: titleOfRecord(catalog, root),
+  sourceName: catalog.sourceName,
+  objectCount,
+  createdAt: catalog.createdAt,
+  updatedAt: catalog.updatedAt,
 })
 
 function objectRecords(catalog: CatalogWorkspace): ObjectRecord[] {

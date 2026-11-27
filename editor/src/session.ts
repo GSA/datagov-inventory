@@ -5,6 +5,7 @@ import { usesOf } from './catalog/uses'
 import { useValidationContext } from './validation/ValidationContext'
 import { count, isolate, labelOf } from './tree'
 import { editorPath } from './objectRoute'
+import type { SavedCatalogSummary } from './storage/CatalogRepository'
 
 export type SaveStatus = 'saved' | 'saving' | 'not-saved'
 export type RestoreResult = 'opened' | 'not-found'
@@ -16,6 +17,12 @@ export interface CatalogContextValue {
   createAndOpen: (catalog: CatalogWorkspace) => Promise<void>
   /** Loads and opens a workspace by stable id, or reports that browser storage has no match. */
   restoreAndOpen: (id: string) => Promise<RestoreResult>
+  /** Lists all working copies saved by this editor in this browser. */
+  listCatalogs: () => Promise<SavedCatalogSummary[]>
+  /** Deletes the identified browser-local working copies. */
+  deleteCatalogs: (ids: readonly string[]) => Promise<void>
+  /** Deletes every browser-local working copy. */
+  deleteAllCatalogs: () => Promise<void>
   /** Updates an existing object and queues the changed workspace for autosave. */
   updateObject: (id: string, updates: Partial<CatalogObject>) => void
   /** Removes one object reference, records it for Undo, and queues autosave. */

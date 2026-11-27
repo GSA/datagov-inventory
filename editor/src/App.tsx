@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { GovBanner, Header, NavMenuButton, PrimaryNav, Title } from '@trussworks/react-uswds'
+import { GovBanner, Header, Title } from '@trussworks/react-uswds'
 import {
   createRootRoute,
   createRoute,
@@ -24,9 +24,9 @@ import {
   type RemovalRecord,
 } from './catalog/edit'
 import { ValidationProvider } from './validation/ValidationContext'
-import Landing from './Landing'
 import ImportPage from './ImportPage'
 import Editor from './Editor'
+import CatalogsPage from './CatalogsPage'
 import { IndexedDbCatalogRepository } from './storage/IndexedDbCatalogRepository'
 import { useUnsavedChangesWarning } from './useUnsavedChangesWarning'
 
@@ -38,7 +38,6 @@ const catalogStorage = new IndexedDbCatalogRepository()
  * catalog tree keeps focus in the tree, so the user can keep moving through it (#23).
  */
 function Layout() {
-  const [menuOpen, setMenuOpen] = useState(false)
   const router = useRouter()
   useEffect(
     () =>
@@ -53,47 +52,18 @@ function Layout() {
       }),
     [router],
   )
-  const close = () => setMenuOpen(false)
-
   return (
     <>
       <GovBanner />
-      <Header basic showMobileOverlay={menuOpen}>
+      <Header basic>
         <div className="usa-nav-container">
           <div className="usa-navbar">
             <Title>
-              <Link to="/" onClick={close}>
+              <Link to="/">
                 Inventory Editor
               </Link>
             </Title>
-            <NavMenuButton label="Menu" onClick={() => setMenuOpen(!menuOpen)} />
           </div>
-          <PrimaryNav
-            aria-label="Primary"
-            mobileExpanded={menuOpen}
-            onToggleMobileNav={close}
-            items={[
-              <Link
-                key="import"
-                to="/import"
-                className="usa-nav__link"
-                activeProps={{ className: 'usa-current' }}
-                onClick={close}
-              >
-                <span>Import</span>
-              </Link>,
-              <Link
-                key="editor"
-                to="/editor/$"
-                params={{ _splat: '' }}
-                className="usa-nav__link"
-                activeProps={{ className: 'usa-current' }}
-                onClick={close}
-              >
-                <span>Editor</span>
-              </Link>,
-            ]}
-          />
         </div>
       </Header>
       <main id="main-content" className="grid-container-widescreen padding-bottom-8">
@@ -116,13 +86,13 @@ function NotFound() {
 
 const root = createRootRoute({ component: Layout, notFoundComponent: NotFound })
 const routeTree = root.addChildren([
-  createRoute({ getParentRoute: () => root, path: '/', component: Landing }),
+  createRoute({ getParentRoute: () => root, path: '/', component: CatalogsPage }),
   createRoute({
     getParentRoute: () => root,
     path: 'import',
     component: ImportPage,
   }),
-  // Canonical roots and objects begin with an identity-bearing catalog UUID token; /editor is a convenience route.
+  // Every valid editor address begins with an identity-bearing catalog UUID token; bare /editor is invalid.
   createRoute({
     getParentRoute: () => root,
     path: 'editor/$',
@@ -188,6 +158,31 @@ export default function App() {
     installDurableCatalog(catalog)
     return 'opened'
   }, [flushAutosave, installDurableCatalog])
+
+  const listCatalogs = useCallback(() => catalogStorage.listCatalogs(), [])
+
+  const deleteCatalogs = useCallback(async (ids: readonly string[]) => {
+    const deletesOpenCatalog = !!open && ids.includes(open.id)
+    if (deletesOpenCatalog) await autosaveQueue.current.discardPendingAndWait()
+    await catalogStorage.deleteCatalogs(ids)
+    if (deletesOpenCatalog) {
+      catalogGeneration.current++
+      setOpen(undefined)
+      setRemovalHistory(undefined)
+      setSaveError(undefined)
+      setSaveStatus('saved')
+    }
+  }, [open])
+
+  const deleteAllCatalogs = useCallback(async () => {
+    await autosaveQueue.current.discardPendingAndWait()
+    await catalogStorage.deleteAllCatalogs()
+    catalogGeneration.current++
+    setOpen(undefined)
+    setRemovalHistory(undefined)
+    setSaveError(undefined)
+    setSaveStatus('saved')
+  }, [])
 
   const autosave = useCallback((catalog: CatalogWorkspace) => {
     const generation = catalogGeneration.current
@@ -298,6 +293,9 @@ export default function App() {
       open,
       createAndOpen,
       restoreAndOpen,
+      listCatalogs,
+      deleteCatalogs,
+      deleteAllCatalogs,
       updateObject,
       removeLink: handleRemoveLink,
       deleteObject: handleDeleteObject,

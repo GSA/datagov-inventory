@@ -17,8 +17,8 @@ const treeRows = (page: Page) => tree(page).getByRole('treeitem').allTextContent
 const chooseFile = (page: Page, file: Parameters<Page['setInputFiles']>[1]) =>
   page.getByLabel('Choose a DCAT-US 3.0 JSON file').setInputFiles(file)
 const axe = (page: Page) => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-/** Goes back to the import page the way a user would, keeping the open catalog (a reload would close it). */
-const toImport = (page: Page) => page.getByRole('link', { name: 'Import', exact: true }).click()
+/** Returns to the import page while retaining all browser-saved catalogs. */
+const toImport = (page: Page) => page.goto('/import')
 
 /** The editor has opened `name`, with focus on the catalog's heading. */
 async function expectOpened(page: Page, name: string) {
@@ -32,10 +32,9 @@ async function paste(page: Page, text: string) {
   await page.getByRole('button', { name: 'Load pasted JSON' }).click()
 }
 
-async function loadSample(page: Page, name: string, { replacing = false } = {}) {
+async function loadSample(page: Page, name: string) {
   await page.getByLabel('Sample catalog').selectOption(name)
   await page.getByRole('button', { name: 'Load sample' }).click()
-  if (replacing) await page.getByRole('button', { name: 'Replace', exact: true }).click()
   await expectOpened(page, name)
 }
 
@@ -169,37 +168,14 @@ test('loads a catalog with schema errors', async ({ page }) => {
   await expect(tree(page).getByRole('treeitem', { name: 'Untitled Dataset Dataset' })).toBeVisible()
 })
 
-test('asks before replacing a loaded catalog', async ({ page }) => {
+test('adds another catalog without replacing the saved one', async ({ page }) => {
   await loadSample(page, 'minimal-catalog.json')
   await toImport(page)
-  await expect(page.getByText('minimal-catalog.json is open. Importing another catalog replaces it')).toBeVisible()
-  const confirm = page.getByRole('heading', { name: 'Replace the open catalog?' })
-
-  // Cancel keeps the open catalog.
   await page.getByRole('button', { name: 'Start a blank catalog' }).click()
-  await expect(confirm).toBeFocused()
-  await expect(page.getByText('Blank catalog is ready. Replace minimal-catalog.json with it')).toBeVisible()
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await expect(confirm).toHaveCount(0)
-  await page.getByRole('link', { name: 'Back to the editor' }).click()
-  await expectOpened(page, 'minimal-catalog.json')
-  await toImport(page)
-
-  // Input that fails is refused without asking.
-  await paste(page, '{}')
-  await expect(page.getByRole('alert')).toContainText('No DCAT-US 3.0 class found')
-  await expect(confirm).toHaveCount(0)
-
-  // A newer load drops a replacement still waiting to be confirmed.
-  await chooseFile(page, fixture('minimal-catalog.json'))
-  await expect(confirm).toBeFocused()
-  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
-  await page.getByRole('button', { name: 'Load sample' }).click()
-  await expect(page.getByText('dataset-with-distributions.json is ready.')).toBeVisible()
-  expect((await axe(page).analyze()).violations).toEqual([])
-  await page.getByRole('button', { name: 'Replace', exact: true }).click()
-  await expectOpened(page, 'dataset-with-distributions.json')
-  expect(await treeRows(page)).toHaveLength(3)
+  await expectOpened(page, 'Blank catalog')
+  await page.getByRole('link', { name: 'All catalogs' }).click()
+  await expect(page.getByRole('link', { name: 'minimal-catalog' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Blank catalog' })).toBeVisible()
 })
 
 test('shows progress while loading, and the load can be cancelled', async ({ page }) => {
@@ -228,10 +204,10 @@ test('leaving the import page cancels a load in progress', async ({ page }) => {
   const release = await holdWorker(page)
   await page.getByRole('button', { name: 'Start a blank catalog' }).click()
   await expect(page.getByText('Loading Blank catalog…')).toBeVisible()
-  await page.getByRole('link', { name: 'Editor', exact: true }).click()
+  await page.getByRole('link', { name: 'Back to catalogs' }).click()
   release()
   await page.waitForTimeout(500)
-  await expect(page.getByRole('heading', { level: 1, name: 'No catalog open' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Edit your DCAT-US 3.0 catalog in this browser' })).toBeVisible()
 })
 
 test('a load that ends while "Cancel loading" has focus moves focus to the load heading', async ({ page }) => {
@@ -265,7 +241,6 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
   await paste(page, '{"@type": "Catalog", "dataset": [')
   await expect(alert).toContainText('Pasted JSON could not be loaded')
   await expect(alert).toContainText('This is not valid JSON')
-  await expect(alert).toContainText('The catalog already open (minimal-catalog.json) has not changed.')
   // role=alert announces it; focus stays where the user was, so they can fix the input and retry.
   await expect(page.getByRole('button', { name: 'Load pasted JSON' })).toBeFocused()
 
@@ -297,10 +272,9 @@ test('refuses bad input with an alert and keeps the loaded catalog', async ({ pa
 
   await expect(page).toHaveURL('/import')
 
-  // A good load clears the alert, and asks before replacing the catalog.
+  // A good load clears the alert and opens a newly saved catalog.
   await chooseFile(page, fixture('minimal-catalog.json'))
   await expect(alert).toHaveCount(0)
-  await page.getByRole('button', { name: 'Replace', exact: true }).click()
   await expectOpened(page, 'minimal-catalog.json')
   expect(await treeRows(page)).toHaveLength(2)
   expect(await fileReads()).toBeGreaterThan(0)
@@ -398,5 +372,4 @@ test('reports a valid import when browser storage is unavailable and does not op
   await expect(alert).toContainText('minimal-catalog.json could not be loaded')
   await expect(alert).toContainText('Browser storage is unavailable.')
   await expect(page).toHaveURL('/import')
-  await expect(page.getByText(/is open\. Importing another catalog replaces it/)).toHaveCount(0)
 })

@@ -99,3 +99,46 @@ test('IndexedDbCatalogRepository deletes objects and references during save', as
   expect(restored!.objects.some((object) => object.id === csv.id || object.id === checksumId)).toBe(false)
   expect(restored!.objects.find((object) => object.id === dataset.id)!.links.distribution).toHaveLength(1)
 })
+
+test('lists saved catalogs by most recent save without loading their graphs', async ({ page }) => {
+  const first = await page.evaluate(() => catalogRepository.fixture())
+  const second = structuredClone(first)
+  second.id = '00000000-0000-4000-8000-999999999997'
+  second.sourceName = 'second.json'
+  second.objects.find((object) => object.id === second.rootId)!.properties.title = 'Second catalog'
+
+  await page.evaluate((value) => catalogRepository.create(value), first)
+  await page.waitForTimeout(5)
+  await page.evaluate((value) => catalogRepository.create(value), second)
+
+  const catalogs = await page.evaluate(() => catalogRepository.list())
+  expect(catalogs.map(({ id }) => id)).toEqual([second.id, first.id])
+  expect(catalogs[0]).toMatchObject({ title: 'Second catalog', sourceName: 'second.json' })
+  expect(catalogs[0].objectCount).toBe(second.objects.length)
+  expect(catalogs[0].createdAt).toBeGreaterThan(0)
+})
+
+test('deletes selected catalogs and all of their scoped records', async ({ page }) => {
+  const first = await page.evaluate(() => catalogRepository.fixture())
+  const second = structuredClone(first)
+  second.id = '00000000-0000-4000-8000-999999999997'
+  await page.evaluate((values) => Promise.all(values.map((value) => catalogRepository.create(value))), [first, second])
+
+  await page.evaluate((id) => catalogRepository.delete([id]), first.id)
+
+  expect(await page.evaluate((id) => catalogRepository.load(id), first.id)).toBeUndefined()
+  expect(await page.evaluate((id) => catalogRepository.load(id), second.id)).toEqual(second)
+  expect(await page.evaluate(() => catalogRepository.list())).toHaveLength(1)
+})
+
+test('deletes every saved catalog', async ({ page }) => {
+  const first = await page.evaluate(() => catalogRepository.fixture())
+  const second = structuredClone(first)
+  second.id = '00000000-0000-4000-8000-999999999997'
+  await page.evaluate((values) => Promise.all(values.map((value) => catalogRepository.create(value))), [first, second])
+
+  await page.evaluate(() => catalogRepository.deleteAll())
+  expect(await page.evaluate(() => catalogRepository.list())).toEqual([])
+  expect(await page.evaluate((id) => catalogRepository.load(id), first.id)).toBeUndefined()
+  expect(await page.evaluate((id) => catalogRepository.load(id), second.id)).toBeUndefined()
+})

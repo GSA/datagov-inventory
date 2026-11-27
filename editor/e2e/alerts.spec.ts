@@ -87,16 +87,7 @@ test('export success and failure alerts keep the icon clear of the text', async 
 
 test('import page alerts keep the icon clear of the text', async ({ page }) => {
   await loadSample(page, 'minimal-catalog.json')
-  await page.getByRole('link', { name: 'Import', exact: true }).click()
-
-  // Info, slim: a catalog is already open.
-  await expectIconClearOfText(page, page.locator('.usa-alert--info'))
-
-  // Warning: the prompt before replacing the open catalog.
-  await page.getByLabel('Sample catalog').selectOption('dataset-with-distributions.json')
-  await page.getByRole('button', { name: 'Load sample' }).click()
-  await expectIconClearOfText(page, page.locator('.usa-alert--warning'))
-  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.goto('/import')
 
   // Error: input that cannot be loaded.
   await page.getByLabel('Paste JSON').fill('{"@type": "Catalog", "dataset": [')

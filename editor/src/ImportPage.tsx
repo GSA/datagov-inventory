@@ -4,9 +4,8 @@ import {
   AlertHeading,
   AlertText,
   Button,
-  ButtonGroup,
   FileInput,
-  type FileInputRef,
+  type FileInputRef, Icon,
   Label,
   Select,
   Textarea,
@@ -36,24 +35,17 @@ interface LoadedCatalog {
 }
 
 export default function ImportPage() {
-  const { open, createAndOpen } = useCatalog()
+  const { createAndOpen } = useCatalog()
   const navigate = useNavigate()
   usePageTitle('Import a catalog')
-  /** A catalog that loaded while another was open, waiting for the user to confirm it replaces that one. */
-  const [pending, setPending] = useState<LoadedCatalog>()
   const [loading, setLoading] = useState<string>()
   const [error, setError] = useState<{ name: string; message: string; attempt: number }>()
   const [pasted, setPasted] = useState('')
   const [sample, setSample] = useState(samples[0].name)
   const active = useRef<AbortController>(null)
   const fileInput = useRef<FileInputRef>(null)
-  const openNow = useRef(open)
-  openNow.current = open
   // Leaving the page cancels a load in progress.
   useEffect(() => () => active.current?.abort(), [])
-  useEffect(() => {
-    if (pending) document.getElementById('replace-heading')?.focus()
-  }, [pending])
 
   async function show(loaded: LoadedCatalog) {
     const catalog = identifyGraph(loaded.catalog)
@@ -65,39 +57,20 @@ export default function ImportPage() {
     void navigate({ href: `/editor/${catalogPath(catalogId)}` })
   }
 
-  async function replace(loaded: LoadedCatalog) {
-    setError(undefined)
-    setLoading(loaded.sourceName)
-    try {
-      await show(loaded)
-      setPending(undefined)
-    } catch (e) {
-      const attempt = ++attempts
-      setError({ name: loaded.sourceName, message: e instanceof Error ? e.message : String(e), attempt })
-    } finally {
-      stopLoading()
-    }
-  }
-
   /**
-   * Loads a catalog and opens it in the editor; if one is already open, it replaces it only once the user confirms.
-   * Confirmation comes after parsing, so input that fails is refused without asking, and a failed or cancelled load
-   * changes nothing. Starting a load cancels the one in progress (its file read or worker is stopped) and any
-   * replacement waiting to be confirmed.
+   * Loads, saves, and opens a new catalog. Starting a load cancels the one in progress (its file read or worker is
+   * stopped); failed or cancelled input changes no saved catalog.
    */
   async function load(name: string, source: File | string) {
     active.current?.abort()
     const controller = (active.current = new AbortController())
     const attempt = ++attempts
     setError(undefined)
-    setPending(undefined)
     setLoading(name)
     try {
       const catalog = await loadCatalog(source, controller.signal)
       if (controller.signal.aborted) return
-      const loaded = { sourceName: name, catalog }
-      if (openNow.current) setPending(loaded)
-      else await show(loaded)
+      await show({ sourceName: name, catalog })
     } catch (e) {
       if (controller.signal.aborted) return
       setError({ name, message: e instanceof Error ? e.message : String(e), attempt })
@@ -114,22 +87,15 @@ export default function ImportPage() {
 
   return (
     <>
+      <Link to="/" className="usa-link display-inline-flex flex-align-center gap-05 margin-top-1">
+        <Icon.ArrowBack aria-hidden="true" focusable={false} size={3}/>
+        All catalogs
+      </Link>
       <h1 tabIndex={-1}>Import a catalog</h1>
       <p className="usa-intro">
         Choose your organization&apos;s DCAT-US 3.0 catalog: one JSON file with all its datasets, even thousands. It is
         read in this browser. Nothing is uploaded.
       </p>
-      {open && (
-        <Alert type="info" slim>
-          <AlertText>
-            <bdi>{open.sourceName}</bdi> is open. Importing another catalog replaces it, and you&apos;ll be asked first.{' '}
-            <Link to="/editor/$" params={{ _splat: '' }} className="usa-link">
-              Back to the editor
-            </Link>
-          </AlertText>
-        </Alert>
-      )}
-
       <div className="tablet:grid-col-8 margin-top-4">
         <Label htmlFor="catalog-file" className="text-bold">
           Choose a DCAT-US 3.0 JSON file
@@ -179,32 +145,6 @@ export default function ImportPage() {
         )}
       </div>
 
-      {pending && open && (
-        <Alert type="warning" className="margin-top-4">
-          <AlertHeading
-            level="h2"
-            id="replace-heading"
-            tabIndex={-1}
-            aria-describedby="replace-text"
-            className="text-break"
-          >
-            Replace the open catalog?
-          </AlertHeading>
-          <AlertText id="replace-text" className="text-break">
-            <bdi>{pending.sourceName}</bdi> is ready. Replace <bdi>{open.sourceName}</bdi> with it, or cancel to keep{' '}
-            <bdi>{open.sourceName}</bdi> open.
-          </AlertText>
-          <ButtonGroup>
-            <Button type="button" disabled={loading !== undefined} onClick={() => void replace(pending)}>
-              Replace
-            </Button>
-            <Button type="button" outline onClick={() => setPending(undefined)}>
-              Cancel
-            </Button>
-          </ButtonGroup>
-        </Alert>
-      )}
-
       {error && (
         // Keyed by attempt, so a repeated failure is a new alert and is announced again.
         <Alert key={error.attempt} type="error" role="alert" className="margin-top-4">
@@ -212,11 +152,6 @@ export default function ImportPage() {
             <bdi>{error.name}</bdi> could not be loaded
           </AlertHeading>
           <AlertText className="text-break">{error.message}</AlertText>
-          {open && (
-            <AlertText className="text-break">
-              The catalog already open (<bdi>{open.sourceName}</bdi>) has not changed.
-            </AlertText>
-          )}
         </Alert>
       )}
 

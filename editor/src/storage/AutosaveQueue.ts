@@ -22,6 +22,16 @@ export class AutosaveQueue<T> {
     if (this.lastError) throw this.lastError
   }
 
+  /**
+   * Drops snapshots that have not started, waits for an active write to settle, and forgets its result. Used only
+   * after a person confirms that the working copy itself should be deleted.
+   */
+  async discardPendingAndWait(): Promise<void> {
+    this.pending = undefined
+    while (this.processing) await this.processing
+    this.lastError = undefined
+  }
+
   private async process(): Promise<void> {
     try {
       while (this.pending !== undefined) {
