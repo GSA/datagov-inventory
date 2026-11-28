@@ -76,7 +76,8 @@ export function CatalogSummary({ catalog, compact, confirming, deleting, onReque
 function StorageNotice() {
   return (
     <p className="margin-top-1 margin-bottom-2 text-base-dark">
-      Catalogs are saved only in this browser on this device. They are not backed up and will be lost if site data is cleared.
+      Catalogs are saved in this browser on this device. Browser storage is not a backup and may be removed if site data
+      is cleared or the browser needs storage space. Export catalogs you need to keep.
     </p>
   )
 }
